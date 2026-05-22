@@ -802,8 +802,8 @@ export default function AgendaPage() {
                         {entry.isPernoite && <span className="text-[9px]" title="Pernoite">🌙</span>}
                       </div>
 
-                      {/* Presence buttons (always visible for past/today) */}
-                      {!isFuture && !isHotelEntry(entry) && !isReposicaoEntry(entry) && (
+                      {/* Presence buttons (always visible for past/today) - ALL dog types */}
+                      {!isFuture && (
                         <div className="flex gap-0.5">
                           {/* Present button */}
                           <button
@@ -832,21 +832,6 @@ export default function AgendaPage() {
                             <UserX className="w-3 h-3" />
                           </button>
                         </div>
-                      )}
-                      {/* Hotel/Reposicao single button */}
-                      {!isFuture && (isHotelEntry(entry) || isReposicaoEntry(entry)) && (
-                        <button
-                          onClick={() => togglePresence(entry.dogId, date, entry.present, true)}
-                          disabled={isToggling}
-                          title={p === true ? 'Presente — clique para desfazer' : 'Confirmar presença'}
-                          className={`p-0.5 rounded shrink-0 transition-all ${
-                            p === true
-                              ? 'text-green-600 hover:bg-green-100'
-                              : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100'
-                          }`}
-                        >
-                          {p === true ? <Check className="w-3 h-3" /> : <span className="w-3 h-3 block rounded-full border border-gray-300" />}
-                        </button>
                       )}
 
                       {/* Hover actions */}
