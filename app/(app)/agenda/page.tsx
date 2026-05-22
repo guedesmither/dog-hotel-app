@@ -300,6 +300,36 @@ export default function AgendaPage() {
     }
   }
 
+  async function markAbsent(dogId: string, date: string) {
+    const key = `${dogId}_${date}`
+    setTogglingPresence(key)
+    try {
+      await fetch('/api/roster/presence', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dogId, date, present: false }),
+      })
+      await reload()
+    } finally {
+      setTogglingPresence(null)
+    }
+  }
+
+  async function markPresent(dogId: string, date: string) {
+    const key = `${dogId}_${date}`
+    setTogglingPresence(key)
+    try {
+      await fetch('/api/roster/presence', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dogId, date, present: true }),
+      })
+      await reload()
+    } finally {
+      setTogglingPresence(null)
+    }
+  }
+
   function isHotelEntry(entry: RosterEntry) {
     return entry.type === 'HOTEL'
   }
@@ -772,27 +802,50 @@ export default function AgendaPage() {
                         {entry.isPernoite && <span className="text-[9px]" title="Pernoite">🌙</span>}
                       </div>
 
-                      {/* Presence button (always visible for past/today) */}
-                      {!isFuture && (
+                      {/* Presence buttons (always visible for past/today) */}
+                      {!isFuture && !isHotelEntry(entry) && !isReposicaoEntry(entry) && (
+                        <div className="flex gap-0.5">
+                          {/* Present button */}
+                          <button
+                            onClick={() => markPresent(entry.dogId, date)}
+                            disabled={isToggling || p === true}
+                            title="Marcar presente"
+                            className={`p-0.5 rounded shrink-0 transition-all ${
+                              p === true
+                                ? 'text-green-600 bg-green-100 cursor-default'
+                                : 'text-gray-400 hover:text-green-600 hover:bg-green-100'
+                            }`}
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          {/* Absent button */}
+                          <button
+                            onClick={() => markAbsent(entry.dogId, date)}
+                            disabled={isToggling || p === false}
+                            title="Marcar falta"
+                            className={`p-0.5 rounded shrink-0 transition-all ${
+                              p === false
+                                ? 'text-red-500 bg-red-100 cursor-default'
+                                : 'text-gray-400 hover:text-red-500 hover:bg-red-100'
+                            }`}
+                          >
+                            <UserX className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
+                      {/* Hotel/Reposicao single button */}
+                      {!isFuture && (isHotelEntry(entry) || isReposicaoEntry(entry)) && (
                         <button
-                          onClick={() => togglePresence(entry.dogId, date, entry.present, isHotelEntry(entry) || isReposicaoEntry(entry))}
+                          onClick={() => togglePresence(entry.dogId, date, entry.present, true)}
                           disabled={isToggling}
-                          title={
-                            isHotelEntry(entry) || isReposicaoEntry(entry)
-                              ? p === true ? 'Presente — clique para desfazer' : 'Confirmar presença'
-                              : p === null ? 'Marcar presença' : p ? 'Presente — clique para marcar falta' : 'Faltou — clique para marcar presente'
-                          }
+                          title={p === true ? 'Presente — clique para desfazer' : 'Confirmar presença'}
                           className={`p-0.5 rounded shrink-0 transition-all ${
-                            p === false
-                              ? 'text-red-500 hover:bg-red-100'
-                              : p === true
-                                ? 'text-green-600 hover:bg-green-100'
-                                : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100'
+                            p === true
+                              ? 'text-green-600 hover:bg-green-100'
+                              : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100'
                           }`}
                         >
-                          {p === false
-                            ? <UserX className="w-3 h-3" />
-                            : <Check className="w-3 h-3" />}
+                          {p === true ? <Check className="w-3 h-3" /> : <span className="w-3 h-3 block rounded-full border border-gray-300" />}
                         </button>
                       )}
 
