@@ -5,11 +5,12 @@ import bcrypt from 'bcryptjs'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { users, dogs, sales, dailyRosters, stays, replacements, packages } = body
+    const { users, dogs, products, sales, dailyRosters, stays, replacements, packages } = body
 
     console.log('Importando dados...')
     console.log(`Usuários: ${users?.length || 0}`)
     console.log(`Cães: ${dogs?.length || 0}`)
+    console.log(`Produtos: ${products?.length || 0}`)
     console.log(`Vendas: ${sales?.length || 0}`)
     console.log(`Agenda: ${dailyRosters?.length || 0}`)
     console.log(`Estadias: ${stays?.length || 0}`)
@@ -78,6 +79,27 @@ export async function POST(req: NextRequest) {
       console.log('✅ Cães importados')
     }
 
+    // Importar produtos (deve ser antes das vendas)
+    if (products && products.length > 0) {
+      for (const product of products) {
+        const existing = await prisma.product.findUnique({ where: { id: product.id } })
+        if (!existing) {
+          await prisma.product.create({
+            data: {
+              id: product.id,
+              name: product.name,
+              description: product.description || null,
+              category: product.category,
+              price: product.price,
+              isActive: product.isActive ?? true,
+              createdAt: product.createdAt ? new Date(product.createdAt) : new Date(),
+            }
+          })
+        }
+      }
+      console.log('✅ Produtos importados')
+    }
+
     // Importar vendas
     if (sales && sales.length > 0) {
       for (const sale of sales) {
@@ -86,13 +108,42 @@ export async function POST(req: NextRequest) {
           await prisma.sales.create({
             data: {
               id: sale.id,
-              dogId: sale.dogId,
+              dogId: sale.dogId || null,
               saleType: sale.saleType,
+              saleDate: sale.saleDate ? new Date(sale.saleDate) : new Date(),
+              serviceDate: sale.serviceDate ? new Date(sale.serviceDate) : null,
+              startDate: sale.startDate ? new Date(sale.startDate) : null,
+              endDate: sale.endDate ? new Date(sale.endDate) : null,
               basePrice: sale.basePrice || 0,
               finalPrice: sale.finalPrice || 0,
+              discount: sale.discount || 0,
+              isExempt: sale.isExempt || false,
+              paymentMethod: sale.paymentMethod || null,
+              paymentFee: sale.paymentFee || 0,
+              amountReceived: sale.amountReceived || null,
+              paymentStatus: sale.paymentStatus || 'PENDENTE',
+              paymentDate: sale.paymentDate || null,
+              notes: sale.notes || null,
+              manualBaixa: sale.manualBaixa || false,
+              manualBaixaDate: sale.manualBaixaDate ? new Date(sale.manualBaixaDate) : null,
               createdAt: sale.createdAt ? new Date(sale.createdAt) : new Date(),
             }
           })
+          // Import sale items
+          if (sale.items && sale.items.length > 0) {
+            for (const item of sale.items) {
+              await prisma.saleItem.create({
+                data: {
+                  id: item.id,
+                  saleId: sale.id,
+                  productId: item.productId || null,
+                  quantity: item.quantity || 1,
+                  unitPrice: item.unitPrice || 0,
+                  totalPrice: item.totalPrice || 0,
+                }
+              })
+            }
+          }
         }
       }
       console.log('✅ Vendas importadas')
