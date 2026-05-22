@@ -39,3 +39,5 @@ prisma/dev.db-journal
 
 # TypeScript
 *.tsbuildinfo
+prisma/migrations/ 
+migration_lock.toml 
