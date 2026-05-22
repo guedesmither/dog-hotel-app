@@ -1,0 +1,12 @@
+﻿Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": SQLite database "dev.db" at "file:./dev.db"
+
+ÔÜá´©Å  There might be data loss when applying the changes:
+
+  ÔÇó A unique constraint covering the columns `[matricula]` on the table `Dog` will be added. If there are existing duplicate values, this will fail.
+
+
+
+Your database is now in sync with your Prisma schema. Done in 93ms
+

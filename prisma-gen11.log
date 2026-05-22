@@ -1,0 +1,14 @@
+﻿Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+node : Error: 
+No linha:1 caractere:185
++ ... oding utf8; node node_modules\prisma\build\index.js generate 2>&1 | O ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Error: :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+EPERM: operation not permitted, rename 
+'C:\Users\guede\CascadeProjects\dog-hotel-app\node_modules\.prisma\client\query_engine-windows.dll.node.tmp12624' -> 
+'C:\Users\guede\CascadeProjects\dog-hotel-app\node_modules\.prisma\client\query_engine-windows.dll.node'
+
+

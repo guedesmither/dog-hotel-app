@@ -1,0 +1,6 @@
+const { PrismaClient } = require('@prisma/client')
+const p = new PrismaClient()
+p.$executeRawUnsafe('ALTER TABLE "DailyReport" ADD COLUMN "lastEditedById" TEXT')
+  .then(() => console.log('OK'))
+  .catch(e => console.log(e.message.includes('duplicate') ? 'Ja existe' : 'ERRO: ' + e.message))
+  .finally(() => p.$disconnect())

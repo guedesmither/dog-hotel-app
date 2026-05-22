@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  body {
+    background-color: #E8F6F7;
+    color: #1a1a2e;
+    font-family: inherit;
+  }
+}
+
+@layer components {
+  /* ── Buttons ── */
+  .btn-primary {
+    @apply text-white font-semibold px-4 py-2 rounded-xl transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md active:scale-95;
+    background: linear-gradient(135deg, #4AA8AE, #3D9298);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #3D9298, #326e73);
+  }
+  .btn-secondary {
+    @apply bg-white text-gray-700 font-medium px-4 py-2 rounded-xl
+           border border-amber-200 hover:border-amber-400 hover:bg-amber-50
+           transition-all duration-200;
+  }
+  .btn-danger {
+    @apply bg-red-500 hover:bg-red-600 text-white font-medium px-4 py-2 rounded-xl
+           transition-all duration-200 active:scale-95;
+  }
+  .btn-whatsapp {
+    @apply bg-green-500 hover:bg-green-600 text-white font-medium px-4 py-2 rounded-xl
+           transition-all duration-200 flex items-center gap-2;
+  }
+
+  /* ── Card ── */
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-amber-100 p-4 transition-shadow duration-200;
+  }
+  .card:hover { box-shadow: 0 4px 16px rgba(74, 168, 174, 0.12); }
+
+  /* ── Form ── */
+  .input {
+    @apply w-full border border-gray-200 rounded-xl px-3 py-2 text-sm
+           focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent
+           transition-all duration-150;
+  }
+  .label  { @apply block text-sm font-medium text-gray-700 mb-1; }
+  .select {
+    @apply w-full border border-gray-200 rounded-xl px-3 py-2 text-sm
+           focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white
+           transition-all duration-150;
+  }
+  .textarea {
+    @apply w-full border border-gray-200 rounded-xl px-3 py-2 text-sm
+           focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none
+           transition-all duration-150;
+  }
+  .badge { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium; }
+}
+
+/* Paw-print background decoration */
+body::before {
+  content: '🐾';
+  position: fixed;
+  top: 8%;
+  right: 5%;
+  font-size: 2.5rem;
+  opacity: 0.07;
+  animation: paw-float 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+body::after {
+  content: '🐾';
+  position: fixed;
+  bottom: 12%;
+  left: 3%;
+  font-size: 2rem;
+  opacity: 0.06;
+  animation: paw-float 6s ease-in-out infinite 2s;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes paw-float {
+  0%, 100% { transform: translateY(0px) rotate(-10deg); }
+  50%       { transform: translateY(-10px) rotate(8deg); }
+}

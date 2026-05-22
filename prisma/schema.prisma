@@ -1,0 +1,321 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String             @id @default(cuid())
+  name           String
+  email          String             @unique
+  password       String
+  role           String             @default("MONITOR")
+  active         Boolean            @default(true)
+  tutorDogId     String?
+  tutorDog       Dog?               @relation("TutorDog", fields: [tutorDogId], references: [id])
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  reports        DailyReport[]
+  pendingChanges PendingDogChange[]
+}
+
+model Dog {
+  id                  String        @id @default(cuid())
+  matricula           String?       @unique
+  name                String
+  breed               String
+  birthDate           String?
+  color               String?
+  weight              Float?
+  photoUrl            String?
+  ownerName           String
+  ownerPhone          String
+  ownerEmail          String?
+  ownerCpf            String?
+  sex                 String?
+  castrated           Boolean?
+  size                String?
+  temperament         String?
+  preferredActivities String?
+  allowPool           Boolean?
+  allowPhotos         Boolean?
+  serviceType         String?
+  scheduledDays       String?
+  monthlyStartDay     Int?
+  notes               String?
+  feedingInstructions String?
+  feedingTimesPerDay  String?
+  feedingGramsPerMeal String?
+  feedingType         String?
+  medications         String?
+  allergies           String?
+  vetName             String?
+  vetPhone            String?
+  vaccineV10Date      String?
+  vaccineV10Next      String?
+  vaccineRabiesDate   String?
+  vaccineRabiesNext   String?
+  vaccineFluDate      String?
+  vaccineFluNext      String?
+  vaccineGiardiaDate  String?
+  vaccineGiardiaNext  String?
+  giardiaExamNotes    String?
+  vaccineCardUrl      String?
+  enrollmentDate      String?
+  isActive            Boolean       @default(true)
+  dogStatus           String        @default("CRECHE") // CRECHE, HOTEL, BOLSISTA, INATIVO
+  isBolsista          Boolean       @default(false)
+  // Financial fields
+  agreedPrice         Float?        // Monthly price for daycare
+  discountPercent     Float?        @default(0)  // Auto-calculated from table price
+  discountValue       Float?        @default(0)  // Auto-calculated from table price
+  frequencyDays       Int?          // Days per week (1-6)
+  isHalfDay           Boolean       @default(false) // true = meio período
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  stays               Stay[]
+  reports             DailyReport[]
+  replacements        Replacement[]
+  rosterEntries       DailyRoster[]
+  tutorUsers          User[]             @relation("TutorDog")
+  pendingChanges      PendingDogChange[]
+  priceHistory        DogPriceHistory[]
+  packages            Package[]
+  sales               Sales[]
+}
+
+model Stay {
+  id                   String      @id @default(cuid())
+  dogId                String
+  dog                  Dog         @relation(fields: [dogId], references: [id])
+  checkIn              DateTime    @default(now())
+  checkOut             DateTime?
+  room                 String?
+  notes                String?
+  active               Boolean     @default(true)
+  isScheduled          Boolean     @default(false)
+  scheduledCheckIn     DateTime?
+  scheduledCheckOut    DateTime?
+  checkInHealthNotes   String?
+  checkInBelongings    String?
+  checkOutHealthNotes  String?
+  checkOutBelongings   String?
+  photos               StayPhoto[]
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+}
+
+model StayPhoto {
+  id        String   @id @default(cuid())
+  stayId    String
+  stay      Stay     @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  url       String
+  type      String
+  caption   String?
+  createdAt DateTime @default(now())
+}
+
+model DailyReport {
+  id               String        @id @default(cuid())
+  dogId            String
+  dog              Dog           @relation(fields: [dogId], references: [id])
+  date             String
+  authorId         String
+  author           User          @relation(fields: [authorId], references: [id])
+  breakfastStatus  String        @default("PENDING")
+  breakfastQty     String?
+  breakfastNotes   String?
+  lunchStatus      String        @default("PENDING")
+  lunchQty         String?
+  lunchNotes       String?
+  dinnerStatus     String        @default("PENDING")
+  dinnerQty        String?
+  dinnerNotes      String?
+  absent           Boolean       @default(false)
+  hasMedication    Boolean       @default(false)
+  medicationGiven  Boolean?
+  medicationNotes  String?
+  mood             String?
+  generalNotes     String?
+  sentToWhatsApp   Boolean       @default(false)
+  lastEditedById   String?
+  activities       Activity[]
+  photos           ReportPhoto[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@unique([dogId, date])
+}
+
+model Activity {
+  id           String      @id @default(cuid())
+  reportId     String
+  report       DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  name         String
+  participated Boolean     @default(true)
+  notes        String?
+  createdAt    DateTime    @default(now())
+}
+
+model PendingDogChange {
+  id          String   @id @default(cuid())
+  dogId       String
+  dog         Dog      @relation(fields: [dogId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  changes     String
+  status      String   @default("PENDING")
+  reviewedBy  String?
+  reviewNote  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DailyRoster {
+  id              String   @id @default(cuid())
+  dogId           String
+  dog             Dog      @relation(fields: [dogId], references: [id])
+  date            String
+  source          String   @default("AUTO")
+  type            String   @default("CRECHE") // CRECHE, AVULSO, HOTEL
+  present         Boolean?
+  negotiatedPrice Float?   // For AVULSO/HOTEL: daily price negotiated
+  isPernoite      Boolean  @default(false) // Overnight stay for creche dogs
+  hasBanho        Boolean  @default(false) // Bath service scheduled for this day
+  packageId       String?  // If using a package
+  package         Package? @relation(fields: [packageId], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@unique([dogId, date])
+}
+
+model Replacement {
+  id              String   @id @default(cuid())
+  dogId           String
+  dog             Dog      @relation(fields: [dogId], references: [id])
+  absentDate      String
+  billingMonthEnd String
+  scheduledDate   String?
+  status          String   @default("PENDING")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([dogId, absentDate])
+}
+
+model DailyRosterSeed {
+  date     String   @id
+  seededAt DateTime @default(now())
+}
+
+model Package {
+  id              String   @id @default(cuid())
+  dogId           String
+  dog             Dog      @relation(fields: [dogId], references: [id])
+  packageType     String   // AVULSO_5, AVULSO_10
+  totalDays       Int      // 5 or 10
+  remainingDays   Int      // Decrements when used
+  purchaseDate    DateTime @default(now())
+  expiryDate      DateTime // 6 months from purchase
+  pricePaid       Float    // R$ 500 or R$ 1000
+  isActive        Boolean  @default(true)
+  rosterEntries   DailyRoster[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ReportPhoto {
+  id        String      @id @default(cuid())
+  reportId  String
+  report    DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  url       String
+  caption   String?
+  createdAt DateTime    @default(now())
+}
+
+// Price table for different frequencies (days per week)
+model PriceTable {
+  id            String   @id @default(cuid())
+  yearMonth     String   // Format: YYYY-MM
+  frequencyDays Int?     // Days per week: 1, 2, 3, 4, 5, 6 (null for daily/package)
+  isHalfDay     Boolean  @default(false) // true = meio período
+  priceType     String   @default("MONTHLY") // MONTHLY, DAILY, PACKAGE
+  packageType   String?  // AVULSO_5, AVULSO_10 (for PACKAGE type)
+  monthlyPrice  Float?   // Price for monthly frequency
+  dailyPrice    Float?   // Daily price (R$ 115 for avulso)
+  packagePrice  Float?   // Package price (R$ 500 or R$ 1000)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([yearMonth, frequencyDays, isHalfDay, priceType, packageType])
+}
+
+// Sales tracking for hotel, avulso, and other services
+model Sales {
+  id              String   @id @default(cuid())
+  dogId           String?
+  dog             Dog?     @relation(fields: [dogId], references: [id])
+  saleType        String   // HOTEL, AVULSO, PACOTE, PRODUTO, MENSAL
+  saleDate        DateTime @default(now())
+  serviceDate     DateTime? // Date when service was executed (for BANHO, AVULSO, CRECHE 1 diária)
+  startDate       DateTime? // Start date for the service (for mensal/hotel)
+  endDate         DateTime? // End date for the service (for mensal/hotel)
+  basePrice       Float    // Original price
+  finalPrice      Float    // Price after discount
+  discount        Float?   @default(0) // Discount amount
+  isExempt        Boolean  @default(false) // Payment exemption flag
+  paymentMethod   String?  // PIX, CREDITO, DEBITO
+  paymentFee      Float?   @default(0) // Payment fee percentage
+  amountReceived  Float?   // Amount received after fee
+  paymentStatus   String?  @default("PENDENTE") // PAGO, PENDENTE, AGENDADO, PROGRAMADA
+  paymentDate     String?  // Payment date (format: DD/MMM)
+  notes           String?  // Notes about the sale
+  manualBaixa     Boolean  @default(false) // Manual service completion flag
+  manualBaixaDate DateTime? // Date when service was manually marked as completed
+  items           SaleItem[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Products and services catalog
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String   // HOTEL, AVULSO, PACOTE, PRODUTO, SERVICO
+  price       Float    // Unit price
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  saleItems   SaleItem[]
+}
+
+// Sale items (for multiple products in one sale)
+model SaleItem {
+  id        String @id @default(cuid())
+  saleId    String
+  sale      Sales  @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  quantity  Int    @default(1)
+  unitPrice Float
+  totalPrice Float
+  createdAt DateTime @default(now())
+}
+
+// Price history for each dog - preserves historical prices
+model DogPriceHistory {
+  id              String   @id @default(cuid())
+  dogId           String
+  dog             Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  effectiveDate   String   // When this price started
+  agreedPrice     Float
+  discountPercent Float    @default(0)
+  discountValue   Float    @default(0)
+  finalPrice      Float    // Calculated: agreedPrice - discounts
+  notes           String?
+  createdAt       DateTime @default(now())
+}

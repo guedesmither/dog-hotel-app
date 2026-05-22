@@ -1,0 +1,13 @@
+﻿Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": SQLite database "dev.db" at "file:./dev.db"
+
+Your database is now in sync with your Prisma schema. Done in 38ms
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[GEPERM: operation not permitted, rename 'C:\Users\guede\CascadeProjects\dog-hotel
+-app\node_modules\.prisma\client\query_engine-windows.dll.node.tmp26048' -> 
+'C:\Users\guede\CascadeProjects\dog-hotel-app\node_modules\.prisma\client\query_
+engine-windows.dll.node'
+
