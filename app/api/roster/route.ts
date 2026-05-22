@@ -347,10 +347,12 @@ export async function POST(req: NextRequest) {
 
   // Toggle-only update (hasBanho or isPernoite without adding to roster)
   if (hasBanho !== undefined && !type && !packageId) {
-    await prisma.$executeRawUnsafe(
-      `UPDATE "DailyRoster" SET "hasBanho" = ? WHERE "dogId" = ? AND "date" = ?`,
-      hasBanho ? 1 : 0, dogId, date
-    )
+    // Use upsert to create entry if it doesn't exist
+    await prisma.dailyRoster.upsert({
+      where: { dogId_date: { dogId, date } },
+      update: { hasBanho },
+      create: { dogId, date, hasBanho, source: 'MANUAL', type: 'CRECHE' },
+    })
     return NextResponse.json({ success: true })
   }
 
