@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma db push --accept-data-loss && next build",
+    "vercel-build": "prisma db push --accept-data-loss && next build",
     "postinstall": "prisma generate",
     "start": "next start",
     "db:push": "prisma db push",
