@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest) {
   const userId = (session.user as { id: string; role: string }).id
   if (role === 'TUTOR') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
 
-  const { dogId, date, present } = await req.json() as { dogId: string; date: string; present: boolean | null }
+  const { dogId, date, present, entryType } = await req.json() as { dogId: string; date: string; present: boolean | null; entryType?: string }
 
   // 1. Upsert roster entry presence flag (creates entry if not seeded yet)
   await prisma.dailyRoster.upsert({
@@ -73,13 +73,18 @@ export async function PATCH(req: NextRequest) {
   }
 
   // 2. Sync DailyReport and Replacement based on presence value
+  const isHotelOrReposicao = entryType === 'HOTEL' || entryType === 'REPOSICAO'
   if (present === false) {
-    // Marking absent (Creche) — upsert report with absent=true + create replacement
+    // Marking absent — upsert report with absent=true
     await prisma.dailyReport.upsert({
       where: { dogId_date: { dogId, date } },
       update: { absent: true },
       create: { dogId, date, authorId: userId, absent: true },
     })
+    // Only create replacement for MENSAL/CRECHE dogs (not Hotel or Reposicao)
+    if (isHotelOrReposicao) {
+      return NextResponse.json({ success: true })
+    }
     const dog = await prisma.dog.findUnique({
       where: { id: dogId },
       select: {

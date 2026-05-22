@@ -300,14 +300,14 @@ export default function AgendaPage() {
     }
   }
 
-  async function markAbsent(dogId: string, date: string) {
+  async function markAbsent(dogId: string, date: string, entryType?: string) {
     const key = `${dogId}_${date}`
     setTogglingPresence(key)
     try {
       await fetch('/api/roster/presence', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dogId, date, present: false }),
+        body: JSON.stringify({ dogId, date, present: false, entryType }),
       })
       await reload()
     } finally {
@@ -315,14 +315,14 @@ export default function AgendaPage() {
     }
   }
 
-  async function markPresent(dogId: string, date: string) {
+  async function markPresent(dogId: string, date: string, entryType?: string) {
     const key = `${dogId}_${date}`
     setTogglingPresence(key)
     try {
       await fetch('/api/roster/presence', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dogId, date, present: true }),
+        body: JSON.stringify({ dogId, date, present: true, entryType }),
       })
       await reload()
     } finally {
@@ -766,8 +766,8 @@ export default function AgendaPage() {
                       'border-l-amber-500'
 
                     const bgColor =
-                      p === false && !isHotelEntry(entry) && !isReposicaoEntry(entry)
-                        ? 'bg-red-50/60'
+                      p === false
+                        ? 'bg-red-50/80'
                         : p === true
                           ? isHotelEntry(entry) || isReposicaoEntry(entry)
                             ? 'bg-blue-50/40'
@@ -791,7 +791,7 @@ export default function AgendaPage() {
                         className="flex-1 min-w-0"
                         onClick={e => e.stopPropagation()}>
                         <p className={`text-xs font-semibold truncate leading-tight ${
-                          !isHotelEntry(entry) && !isReposicaoEntry(entry) && p === false ? 'text-red-600 line-through' : 'text-gray-800'
+                          p === false ? 'text-red-600 line-through' : 'text-gray-800'
                         }`}>{entry.dog.name}</p>
                       </Link>
 
@@ -807,7 +807,7 @@ export default function AgendaPage() {
                         <div className="flex gap-0.5">
                           {/* Present button */}
                           <button
-                            onClick={() => markPresent(entry.dogId, date)}
+                            onClick={() => markPresent(entry.dogId, date, entry.type)}
                             disabled={isToggling || p === true}
                             title="Marcar presente"
                             className={`p-0.5 rounded shrink-0 transition-all ${
@@ -820,7 +820,7 @@ export default function AgendaPage() {
                           </button>
                           {/* Absent button */}
                           <button
-                            onClick={() => markAbsent(entry.dogId, date)}
+                            onClick={() => markAbsent(entry.dogId, date, entry.type)}
                             disabled={isToggling || p === false}
                             title="Marcar falta"
                             className={`p-0.5 rounded shrink-0 transition-all ${
