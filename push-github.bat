@@ -32,6 +32,21 @@ echo Enviando para GitHub...
 git push -u origin main
 
 echo.
+echo ==========================================
+echo  IMPORTANTE: Configuracao Vercel
+echo ==========================================
+echo.
+echo No Vercel Dashboard, va em:
+echo Settings ^> Environment Variables
+echo.
+echo Adicione estas variaveis:
+echo   NEXTAUTH_SECRET = petday-secret-key-mude-em-producao-2024
+echo   NEXTAUTH_URL = https://SEU-DOMINIO.vercel.app
+echo.
+echo A DATABASE_URL ja foi configurada pelo Neon!
+echo.
+
+echo.
 if %errorlevel% equ 0 (
     echo ==========================================
     echo  SUCESSO! Codigo enviado!
