@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { users, dogs, sales, dailyRosters, stays } = body
+    const { users, dogs, sales, dailyRosters, stays, replacements, packages } = body
 
     console.log('Importando dados...')
     console.log(`Usuários: ${users?.length || 0}`)
@@ -13,6 +13,8 @@ export async function POST(req: NextRequest) {
     console.log(`Vendas: ${sales?.length || 0}`)
     console.log(`Agenda: ${dailyRosters?.length || 0}`)
     console.log(`Estadias: ${stays?.length || 0}`)
+    console.log(`Reposições: ${replacements?.length || 0}`)
+    console.log(`Pacotes: ${packages?.length || 0}`)
 
     // Importar usuários
     if (users && users.length > 0) {
@@ -148,6 +150,53 @@ export async function POST(req: NextRequest) {
       console.log('✅ Estadias importadas')
     }
 
+    // Importar reposições
+    if (replacements && replacements.length > 0) {
+      for (const replacement of replacements) {
+        const existing = await prisma.replacement.findUnique({ where: { id: replacement.id } })
+        if (!existing) {
+          await prisma.replacement.create({
+            data: {
+              id: replacement.id,
+              dogId: replacement.dogId,
+              absentDate: replacement.absentDate,
+              billingMonthEnd: replacement.billingMonthEnd,
+              scheduledDate: replacement.scheduledDate,
+              status: replacement.status || 'PENDING',
+              createdAt: replacement.createdAt ? new Date(replacement.createdAt) : new Date(),
+              updatedAt: replacement.updatedAt ? new Date(replacement.updatedAt) : new Date(),
+            }
+          })
+        }
+      }
+      console.log('✅ Reposições importadas')
+    }
+
+    // Importar pacotes
+    if (packages && packages.length > 0) {
+      for (const pkg of packages) {
+        const existing = await prisma.package.findUnique({ where: { id: pkg.id } })
+        if (!existing) {
+          await prisma.package.create({
+            data: {
+              id: pkg.id,
+              dogId: pkg.dogId,
+              packageType: pkg.packageType,
+              totalDays: pkg.totalDays,
+              remainingDays: pkg.remainingDays,
+              purchaseDate: pkg.purchaseDate ? new Date(pkg.purchaseDate) : new Date(),
+              expiryDate: pkg.expiryDate ? new Date(pkg.expiryDate) : new Date(),
+              pricePaid: pkg.pricePaid,
+              isActive: pkg.isActive ?? true,
+              createdAt: pkg.createdAt ? new Date(pkg.createdAt) : new Date(),
+              updatedAt: pkg.updatedAt ? new Date(pkg.updatedAt) : new Date(),
+            }
+          })
+        }
+      }
+      console.log('✅ Pacotes importados')
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Dados importados com sucesso!',
@@ -157,6 +206,8 @@ export async function POST(req: NextRequest) {
         sales: sales?.length || 0,
         dailyRosters: dailyRosters?.length || 0,
         stays: stays?.length || 0,
+        replacements: replacements?.length || 0,
+        packages: packages?.length || 0,
       }
     })
 
