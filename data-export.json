@@ -2045,6 +2045,208 @@
       "updatedAt": "2026-05-14T21:56:40.061Z"
     }
   ],
+  "products": [
+    {
+      "id": "cmox6srmc0000i2mhuqsxy1gx",
+      "name": "Mensal 1x",
+      "description": null,
+      "category": "CRECHE",
+      "price": 460,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.844Z",
+      "updatedAt": "2026-05-08T17:26:29.844Z"
+    },
+    {
+      "id": "cmox6srmh0001i2mh81qas517",
+      "name": "Mensal 2x",
+      "description": null,
+      "category": "CRECHE",
+      "price": 640,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.849Z",
+      "updatedAt": "2026-05-08T17:26:29.849Z"
+    },
+    {
+      "id": "cmox6srmk0002i2mhjieto74e",
+      "name": "Mensal 3x",
+      "description": null,
+      "category": "CRECHE",
+      "price": 760,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.852Z",
+      "updatedAt": "2026-05-08T17:26:29.852Z"
+    },
+    {
+      "id": "cmox6srmm0003i2mhylvqbkmd",
+      "name": "Mensal 4x",
+      "description": null,
+      "category": "CRECHE",
+      "price": 890,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.855Z",
+      "updatedAt": "2026-05-08T17:26:29.855Z"
+    },
+    {
+      "id": "cmox6srmr0004i2mhdkkscusy",
+      "name": "Mensal 5x",
+      "description": null,
+      "category": "CRECHE",
+      "price": 975,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.860Z",
+      "updatedAt": "2026-05-08T17:26:29.860Z"
+    },
+    {
+      "id": "cmox6srmw0005i2mh309h4nvi",
+      "name": "Mensal 6x",
+      "description": null,
+      "category": "CRECHE",
+      "price": 1065,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.864Z",
+      "updatedAt": "2026-05-08T17:26:29.864Z"
+    },
+    {
+      "id": "cmox6srmz0006i2mhlmc4eyzb",
+      "name": "Pacote 5 Dias",
+      "description": null,
+      "category": "PACOTE",
+      "price": 500,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.868Z",
+      "updatedAt": "2026-05-08T17:26:29.868Z"
+    },
+    {
+      "id": "cmox6srn20007i2mhxbrnkmy4",
+      "name": "Pacote 10 Dias",
+      "description": null,
+      "category": "PACOTE",
+      "price": 1000,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.871Z",
+      "updatedAt": "2026-05-08T17:26:29.871Z"
+    },
+    {
+      "id": "cmox6srn70008i2mhhf2f77p1",
+      "name": "Hotel Regular",
+      "description": null,
+      "category": "HOTEL",
+      "price": 150,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.875Z",
+      "updatedAt": "2026-05-08T17:26:29.875Z"
+    },
+    {
+      "id": "cmox6srnb0009i2mhnjqsdpna",
+      "name": "Hotel Feriado",
+      "description": null,
+      "category": "HOTEL",
+      "price": 200,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.880Z",
+      "updatedAt": "2026-05-08T17:26:29.880Z"
+    },
+    {
+      "id": "cmox6srnf000ai2mh353bmvz6",
+      "name": "Banho PP",
+      "description": null,
+      "category": "SERVICO",
+      "price": 50,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.884Z",
+      "updatedAt": "2026-05-08T17:26:29.884Z"
+    },
+    {
+      "id": "cmox6srnj000bi2mh2420me9s",
+      "name": "Banho P",
+      "description": null,
+      "category": "SERVICO",
+      "price": 65,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.888Z",
+      "updatedAt": "2026-05-08T17:26:29.888Z"
+    },
+    {
+      "id": "cmox6srno000ci2mh8s5vcxbn",
+      "name": "Banho M",
+      "description": null,
+      "category": "SERVICO",
+      "price": 80,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.893Z",
+      "updatedAt": "2026-05-08T17:26:29.893Z"
+    },
+    {
+      "id": "cmox6srnt000di2mhdfr5fon5",
+      "name": "Banho G",
+      "description": "",
+      "category": "SERVICO",
+      "price": 90,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.898Z",
+      "updatedAt": "2026-05-20T23:35:01.779Z"
+    },
+    {
+      "id": "cmox6srnx000ei2mh2jspw7ob",
+      "name": "Banho GG",
+      "description": null,
+      "category": "SERVICO",
+      "price": 110,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:26:29.901Z",
+      "updatedAt": "2026-05-08T17:26:29.901Z"
+    },
+    {
+      "id": "cmox6yxre000011qfqv5l9vku",
+      "name": "1 Dia",
+      "description": null,
+      "category": "AVULSO",
+      "price": 115,
+      "isActive": true,
+      "createdAt": "2026-05-08T17:31:17.738Z",
+      "updatedAt": "2026-05-08T17:31:17.738Z"
+    },
+    {
+      "id": "cmox8o2wa0008yshypm475cyy",
+      "name": "FESTA ANIVERSÁRIO",
+      "description": null,
+      "category": "SERVICO",
+      "price": 200,
+      "isActive": true,
+      "createdAt": "2026-05-08T18:18:50.410Z",
+      "updatedAt": "2026-05-08T18:18:50.410Z"
+    },
+    {
+      "id": "cmox8r5ul0000on3aleg5ukd5",
+      "name": "Pernoite",
+      "description": null,
+      "category": "HOTEL",
+      "price": 50,
+      "isActive": true,
+      "createdAt": "2026-05-08T18:21:14.205Z",
+      "updatedAt": "2026-05-08T18:21:14.205Z"
+    },
+    {
+      "id": "cmp2x9c70000022ipwl1o12eo",
+      "name": "Meia diária 3x",
+      "description": "",
+      "category": "CRECHE",
+      "price": 450,
+      "isActive": true,
+      "createdAt": "2026-05-12T17:46:03.900Z",
+      "updatedAt": "2026-05-12T17:46:21.974Z"
+    },
+    {
+      "id": "cmped1vra0006pkow9aq70cd5",
+      "name": "Meia diária",
+      "description": null,
+      "category": "AVULSO",
+      "price": 75,
+      "isActive": true,
+      "createdAt": "2026-05-20T17:53:37.798Z",
+      "updatedAt": "2026-05-20T17:53:37.798Z"
+    }
+  ],
   "sales": [
     {
       "id": "cmox8r5v00002on3afzi6c5tw",
@@ -2067,7 +2269,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.220Z",
-      "updatedAt": "2026-05-08T18:21:14.220Z"
+      "updatedAt": "2026-05-08T18:21:14.220Z",
+      "items": [
+        {
+          "id": "cmox8r5v00004on3azrt78hpp",
+          "saleId": "cmox8r5v00002on3afzi6c5tw",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 3,
+          "unitPrice": 150,
+          "totalPrice": 450,
+          "createdAt": "2026-05-08T18:21:14.220Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5v60006on3axtgo5ewg",
@@ -2090,7 +2303,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.226Z",
-      "updatedAt": "2026-05-08T18:21:14.226Z"
+      "updatedAt": "2026-05-08T18:21:14.226Z",
+      "items": [
+        {
+          "id": "cmox8r5v60008on3azh8knikm",
+          "saleId": "cmox8r5v60006on3axtgo5ewg",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-08T18:21:14.226Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5vb000aon3akk5l3u1j",
@@ -2113,7 +2337,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.231Z",
-      "updatedAt": "2026-05-08T18:21:14.231Z"
+      "updatedAt": "2026-05-08T18:21:14.231Z",
+      "items": [
+        {
+          "id": "cmox8r5vb000con3a4cfg65cw",
+          "saleId": "cmox8r5vb000aon3akk5l3u1j",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 2,
+          "unitPrice": 150,
+          "totalPrice": 300,
+          "createdAt": "2026-05-08T18:21:14.231Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5vg000eon3azrth6ax8",
@@ -2136,7 +2371,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.236Z",
-      "updatedAt": "2026-05-08T18:21:14.236Z"
+      "updatedAt": "2026-05-08T18:21:14.236Z",
+      "items": [
+        {
+          "id": "cmox8r5vg000gon3a5412mavn",
+          "saleId": "cmox8r5vg000eon3azrth6ax8",
+          "productId": "cmox6srmc0000i2mhuqsxy1gx",
+          "quantity": 1,
+          "unitPrice": 460,
+          "totalPrice": 460,
+          "createdAt": "2026-05-08T18:21:14.236Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5vl000ion3aru6ywoxa",
@@ -2159,7 +2405,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.241Z",
-      "updatedAt": "2026-05-08T18:21:14.241Z"
+      "updatedAt": "2026-05-08T18:21:14.241Z",
+      "items": [
+        {
+          "id": "cmox8r5vl000kon3aur59eujw",
+          "saleId": "cmox8r5vl000ion3aru6ywoxa",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 2,
+          "unitPrice": 150,
+          "totalPrice": 300,
+          "createdAt": "2026-05-08T18:21:14.241Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5vp000mon3awg9vf0gq",
@@ -2182,7 +2439,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.245Z",
-      "updatedAt": "2026-05-08T18:21:14.245Z"
+      "updatedAt": "2026-05-08T18:21:14.245Z",
+      "items": [
+        {
+          "id": "cmox8r5vp000oon3am35r00jc",
+          "saleId": "cmox8r5vp000mon3awg9vf0gq",
+          "productId": "cmox6srmc0000i2mhuqsxy1gx",
+          "quantity": 1,
+          "unitPrice": 460,
+          "totalPrice": 460,
+          "createdAt": "2026-05-08T18:21:14.245Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5vu000qon3airduu533",
@@ -2205,7 +2473,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.250Z",
-      "updatedAt": "2026-05-08T18:21:14.250Z"
+      "updatedAt": "2026-05-08T18:21:14.250Z",
+      "items": [
+        {
+          "id": "cmox8r5vu000son3as246wtay",
+          "saleId": "cmox8r5vu000qon3airduu533",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 2,
+          "unitPrice": 150,
+          "totalPrice": 300,
+          "createdAt": "2026-05-08T18:21:14.250Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5vy000uon3atwwapbi5",
@@ -2228,7 +2507,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.255Z",
-      "updatedAt": "2026-05-08T18:21:14.255Z"
+      "updatedAt": "2026-05-08T18:21:14.255Z",
+      "items": [
+        {
+          "id": "cmox8r5vz000won3ahzbm7xue",
+          "saleId": "cmox8r5vy000uon3atwwapbi5",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-08T18:21:14.255Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5w4000yon3aa9iiboss",
@@ -2251,7 +2541,18 @@
       "manualBaixa": true,
       "manualBaixaDate": "2026-05-12T18:50:23.426Z",
       "createdAt": "2026-05-08T18:21:14.260Z",
-      "updatedAt": "2026-05-12T18:50:23.428Z"
+      "updatedAt": "2026-05-12T18:50:23.428Z",
+      "items": [
+        {
+          "id": "cmox8r5w40010on3ami1nf6b9",
+          "saleId": "cmox8r5w4000yon3aa9iiboss",
+          "productId": "cmox6srn20007i2mhxbrnkmy4",
+          "quantity": 1,
+          "unitPrice": 1000,
+          "totalPrice": 1000,
+          "createdAt": "2026-05-08T18:21:14.260Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5w80012on3arsk52rt1",
@@ -2274,7 +2575,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.265Z",
-      "updatedAt": "2026-05-08T18:21:14.265Z"
+      "updatedAt": "2026-05-08T18:21:14.265Z",
+      "items": [
+        {
+          "id": "cmox8r5w80014on3ad8rfk4kg",
+          "saleId": "cmox8r5w80012on3arsk52rt1",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 2,
+          "unitPrice": 150,
+          "totalPrice": 300,
+          "createdAt": "2026-05-08T18:21:14.265Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5we0016on3axb9zxxbw",
@@ -2297,7 +2609,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.270Z",
-      "updatedAt": "2026-05-08T18:21:14.270Z"
+      "updatedAt": "2026-05-08T18:21:14.270Z",
+      "items": [
+        {
+          "id": "cmox8r5we0018on3asms4adgg",
+          "saleId": "cmox8r5we0016on3axb9zxxbw",
+          "productId": "cmox8r5ul0000on3aleg5ukd5",
+          "quantity": 1,
+          "unitPrice": 50,
+          "totalPrice": 50,
+          "createdAt": "2026-05-08T18:21:14.270Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5wj001aon3amlybhmju",
@@ -2320,7 +2643,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.275Z",
-      "updatedAt": "2026-05-08T18:21:14.275Z"
+      "updatedAt": "2026-05-08T18:21:14.275Z",
+      "items": [
+        {
+          "id": "cmox8r5wj001con3aam8ih6k5",
+          "saleId": "cmox8r5wj001aon3amlybhmju",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 3,
+          "unitPrice": 150,
+          "totalPrice": 450,
+          "createdAt": "2026-05-08T18:21:14.275Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5wo001eon3ar7nrixv0",
@@ -2343,7 +2677,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.280Z",
-      "updatedAt": "2026-05-08T18:21:14.280Z"
+      "updatedAt": "2026-05-08T18:21:14.280Z",
+      "items": [
+        {
+          "id": "cmox8r5wo001gon3ar40egp4v",
+          "saleId": "cmox8r5wo001eon3ar7nrixv0",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 1,
+          "unitPrice": 150,
+          "totalPrice": 150,
+          "createdAt": "2026-05-08T18:21:14.280Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5wt001ion3avn0svb1s",
@@ -2366,7 +2711,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.285Z",
-      "updatedAt": "2026-05-08T18:21:14.285Z"
+      "updatedAt": "2026-05-08T18:21:14.285Z",
+      "items": [
+        {
+          "id": "cmox8r5wt001kon3a5o66rf8j",
+          "saleId": "cmox8r5wt001ion3avn0svb1s",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.285Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5wz001mon3ai8pxd082",
@@ -2389,7 +2745,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.291Z",
-      "updatedAt": "2026-05-08T18:21:14.291Z"
+      "updatedAt": "2026-05-08T18:21:14.291Z",
+      "items": [
+        {
+          "id": "cmox8r5wz001oon3ab25vy846",
+          "saleId": "cmox8r5wz001mon3ai8pxd082",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 10,
+          "unitPrice": 150,
+          "totalPrice": 1500,
+          "createdAt": "2026-05-08T18:21:14.291Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5x2001qon3ady3dmsgb",
@@ -2412,7 +2779,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.295Z",
-      "updatedAt": "2026-05-08T18:21:14.295Z"
+      "updatedAt": "2026-05-08T18:21:14.295Z",
+      "items": [
+        {
+          "id": "cmox8r5x2001son3a6az3gpt7",
+          "saleId": "cmox8r5x2001qon3ady3dmsgb",
+          "productId": "cmox8r5ul0000on3aleg5ukd5",
+          "quantity": 1,
+          "unitPrice": 50,
+          "totalPrice": 50,
+          "createdAt": "2026-05-08T18:21:14.295Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5x8001uon3a8dyzwbqa",
@@ -2435,7 +2813,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.300Z",
-      "updatedAt": "2026-05-08T18:21:14.300Z"
+      "updatedAt": "2026-05-08T18:21:14.300Z",
+      "items": [
+        {
+          "id": "cmox8r5x8001won3aq4rtd4b4",
+          "saleId": "cmox8r5x8001uon3a8dyzwbqa",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.300Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5xd001yon3au3f7t2t6",
@@ -2458,7 +2847,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.305Z",
-      "updatedAt": "2026-05-08T18:21:14.305Z"
+      "updatedAt": "2026-05-08T18:21:14.305Z",
+      "items": [
+        {
+          "id": "cmox8r5xd0020on3a7adexkkw",
+          "saleId": "cmox8r5xd001yon3au3f7t2t6",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.305Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5xi0022on3aui941v43",
@@ -2481,7 +2881,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.310Z",
-      "updatedAt": "2026-05-08T18:21:14.310Z"
+      "updatedAt": "2026-05-08T18:21:14.310Z",
+      "items": [
+        {
+          "id": "cmox8r5xi0024on3aq1xgrx8b",
+          "saleId": "cmox8r5xi0022on3aui941v43",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 1,
+          "unitPrice": 150,
+          "totalPrice": 150,
+          "createdAt": "2026-05-08T18:21:14.310Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5xm0026on3ax2c9uoog",
@@ -2504,7 +2915,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.314Z",
-      "updatedAt": "2026-05-08T18:21:14.314Z"
+      "updatedAt": "2026-05-08T18:21:14.314Z",
+      "items": [
+        {
+          "id": "cmox8r5xm0028on3aizf99ait",
+          "saleId": "cmox8r5xm0026on3ax2c9uoog",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-08T18:21:14.314Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5xq002aon3agoiedkci",
@@ -2527,7 +2949,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.319Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r5xq002con3a67t80cix",
+          "saleId": "cmox8r5xq002aon3agoiedkci",
+          "productId": "cmox6srmz0006i2mhlmc4eyzb",
+          "quantity": 1,
+          "unitPrice": 500,
+          "totalPrice": 500,
+          "createdAt": "2026-05-08T18:21:14.319Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5xu002eon3adgauin72",
@@ -2550,7 +2983,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.322Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r5xu002gon3a3xmtkhxf",
+          "saleId": "cmox8r5xu002eon3adgauin72",
+          "productId": "cmox6srmz0006i2mhlmc4eyzb",
+          "quantity": 1,
+          "unitPrice": 500,
+          "totalPrice": 500,
+          "createdAt": "2026-05-08T18:21:14.322Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5xy002ion3agf7ypraz",
@@ -2573,7 +3017,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.326Z",
-      "updatedAt": "2026-05-08T18:21:14.326Z"
+      "updatedAt": "2026-05-08T18:21:14.326Z",
+      "items": [
+        {
+          "id": "cmox8r5xy002kon3axju3lo17",
+          "saleId": "cmox8r5xy002ion3agf7ypraz",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 1,
+          "unitPrice": 150,
+          "totalPrice": 150,
+          "createdAt": "2026-05-08T18:21:14.326Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5y1002mon3a6w3o06vw",
@@ -2596,7 +3051,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.329Z",
-      "updatedAt": "2026-05-08T18:21:14.329Z"
+      "updatedAt": "2026-05-08T18:21:14.329Z",
+      "items": [
+        {
+          "id": "cmox8r5y1002oon3aaswwb7at",
+          "saleId": "cmox8r5y1002mon3a6w3o06vw",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.329Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5y6002qon3a7z94w5yp",
@@ -2619,7 +3085,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.334Z",
-      "updatedAt": "2026-05-08T18:21:14.334Z"
+      "updatedAt": "2026-05-08T18:21:14.334Z",
+      "items": [
+        {
+          "id": "cmox8r5y6002son3aekqbria7",
+          "saleId": "cmox8r5y6002qon3a7z94w5yp",
+          "productId": "cmox6srnb0009i2mhnjqsdpna",
+          "quantity": 1,
+          "unitPrice": 500,
+          "totalPrice": 500,
+          "createdAt": "2026-05-08T18:21:14.334Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5yc002uon3ae85zfyih",
@@ -2642,7 +3119,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.340Z",
-      "updatedAt": "2026-05-08T18:21:14.340Z"
+      "updatedAt": "2026-05-08T18:21:14.340Z",
+      "items": [
+        {
+          "id": "cmox8r5yc002won3a3rzq75yt",
+          "saleId": "cmox8r5yc002uon3ae85zfyih",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-08T18:21:14.340Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5yf002yon3atq6dnwlr",
@@ -2665,7 +3153,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.344Z",
-      "updatedAt": "2026-05-08T18:21:14.344Z"
+      "updatedAt": "2026-05-08T18:21:14.344Z",
+      "items": [
+        {
+          "id": "cmox8r5yf0030on3avjbomye0",
+          "saleId": "cmox8r5yf002yon3atq6dnwlr",
+          "productId": "cmox6srnb0009i2mhnjqsdpna",
+          "quantity": 1,
+          "unitPrice": 200,
+          "totalPrice": 200,
+          "createdAt": "2026-05-08T18:21:14.344Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5yi0032on3a8qia3uzg",
@@ -2688,7 +3187,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.347Z",
-      "updatedAt": "2026-05-08T18:21:14.347Z"
+      "updatedAt": "2026-05-08T18:21:14.347Z",
+      "items": [
+        {
+          "id": "cmox8r5yi0034on3allvgkst5",
+          "saleId": "cmox8r5yi0032on3a8qia3uzg",
+          "productId": "cmox6srnb0009i2mhnjqsdpna",
+          "quantity": 1,
+          "unitPrice": 200,
+          "totalPrice": 200,
+          "createdAt": "2026-05-08T18:21:14.347Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5ym0036on3af8aiahyz",
@@ -2711,7 +3221,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.351Z",
-      "updatedAt": "2026-05-12T17:40:28.451Z"
+      "updatedAt": "2026-05-12T17:40:28.451Z",
+      "items": [
+        {
+          "id": "cmox8r5ym0038on3asbmn0r0v",
+          "saleId": "cmox8r5ym0036on3af8aiahyz",
+          "productId": "cmox6srnb0009i2mhnjqsdpna",
+          "quantity": 2,
+          "unitPrice": 200,
+          "totalPrice": 400,
+          "createdAt": "2026-05-08T18:21:14.351Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5yp003aon3ae2joa1wa",
@@ -2734,7 +3255,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.354Z",
-      "updatedAt": "2026-05-08T18:21:14.354Z"
+      "updatedAt": "2026-05-08T18:21:14.354Z",
+      "items": [
+        {
+          "id": "cmox8r5yp003con3ayvtyh83t",
+          "saleId": "cmox8r5yp003aon3ae2joa1wa",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 1,
+          "unitPrice": 150,
+          "totalPrice": 150,
+          "createdAt": "2026-05-08T18:21:14.354Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5yt003eon3abp5y4r70",
@@ -2757,7 +3289,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.357Z",
-      "updatedAt": "2026-05-08T18:21:14.357Z"
+      "updatedAt": "2026-05-08T18:21:14.357Z",
+      "items": [
+        {
+          "id": "cmox8r5yt003gon3apx0lf5fs",
+          "saleId": "cmox8r5yt003eon3abp5y4r70",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 6,
+          "unitPrice": 150,
+          "totalPrice": 900,
+          "createdAt": "2026-05-08T18:21:14.357Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5yw003ion3a5ppg1qe8",
@@ -2780,7 +3323,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.361Z",
-      "updatedAt": "2026-05-08T18:21:14.361Z"
+      "updatedAt": "2026-05-08T18:21:14.361Z",
+      "items": [
+        {
+          "id": "cmox8r5yw003kon3afmzdrnyp",
+          "saleId": "cmox8r5yw003ion3a5ppg1qe8",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 6,
+          "unitPrice": 150,
+          "totalPrice": 900,
+          "createdAt": "2026-05-08T18:21:14.361Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5yz003mon3al3b1huks",
@@ -2803,7 +3357,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.363Z",
-      "updatedAt": "2026-05-12T17:40:35.881Z"
+      "updatedAt": "2026-05-12T17:40:35.881Z",
+      "items": [
+        {
+          "id": "cmox8r5yz003oon3ajs3t0qb3",
+          "saleId": "cmox8r5yz003mon3al3b1huks",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 2,
+          "unitPrice": 150,
+          "totalPrice": 300,
+          "createdAt": "2026-05-08T18:21:14.363Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5z3003qon3a4bkjh54j",
@@ -2826,7 +3391,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.368Z",
-      "updatedAt": "2026-05-08T18:21:14.368Z"
+      "updatedAt": "2026-05-08T18:21:14.368Z",
+      "items": [
+        {
+          "id": "cmox8r5z3003son3ay9knyjas",
+          "saleId": "cmox8r5z3003qon3a4bkjh54j",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-08T18:21:14.368Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5z7003uon3ay8sbhhoe",
@@ -2849,7 +3425,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.372Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r5z8003won3aght1l5rf",
+          "saleId": "cmox8r5z7003uon3ay8sbhhoe",
+          "productId": "cmox6srmc0000i2mhuqsxy1gx",
+          "quantity": 1,
+          "unitPrice": 460,
+          "totalPrice": 460,
+          "createdAt": "2026-05-08T18:21:14.372Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5zb003yon3aeeh2wevw",
@@ -2872,7 +3459,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.375Z",
-      "updatedAt": "2026-05-08T18:21:14.375Z"
+      "updatedAt": "2026-05-08T18:21:14.375Z",
+      "items": [
+        {
+          "id": "cmox8r5zb0040on3ad9h2mynq",
+          "saleId": "cmox8r5zb003yon3aeeh2wevw",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-08T18:21:14.375Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5ze0042on3al7y9tpeh",
@@ -2895,7 +3493,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.378Z",
-      "updatedAt": "2026-05-08T18:21:14.378Z"
+      "updatedAt": "2026-05-08T18:21:14.378Z",
+      "items": [
+        {
+          "id": "cmox8r5ze0044on3a1h4sg0fx",
+          "saleId": "cmox8r5ze0042on3al7y9tpeh",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 5,
+          "unitPrice": 150,
+          "totalPrice": 750,
+          "createdAt": "2026-05-08T18:21:14.378Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5zh0046on3ak73fv6m0",
@@ -2918,7 +3527,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.382Z",
-      "updatedAt": "2026-05-08T18:21:14.382Z"
+      "updatedAt": "2026-05-08T18:21:14.382Z",
+      "items": [
+        {
+          "id": "cmox8r5zh0048on3arh5a3gec",
+          "saleId": "cmox8r5zh0046on3ak73fv6m0",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-08T18:21:14.382Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5zk004aon3awaxj1psg",
@@ -2941,7 +3561,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.385Z",
-      "updatedAt": "2026-05-08T18:21:14.385Z"
+      "updatedAt": "2026-05-08T18:21:14.385Z",
+      "items": [
+        {
+          "id": "cmox8r5zk004con3acszfjx9b",
+          "saleId": "cmox8r5zk004aon3awaxj1psg",
+          "productId": "cmox6srnx000ei2mh2jspw7ob",
+          "quantity": 1,
+          "unitPrice": 110,
+          "totalPrice": 110,
+          "createdAt": "2026-05-08T18:21:14.385Z"
+        }
+      ]
     },
     {
       "id": "cmox8r5zs004fon3ay42dkl7t",
@@ -2964,7 +3595,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.393Z",
-      "updatedAt": "2026-05-08T18:21:14.393Z"
+      "updatedAt": "2026-05-08T18:21:14.393Z",
+      "items": [
+        {
+          "id": "cmox8r5zs004hon3acqg1kzeq",
+          "saleId": "cmox8r5zs004fon3ay42dkl7t",
+          "productId": "cmox6srnj000bi2mh2420me9s",
+          "quantity": 1,
+          "unitPrice": 40,
+          "totalPrice": 40,
+          "createdAt": "2026-05-08T18:21:14.393Z"
+        }
+      ]
     },
     {
       "id": "cmox8r603004kon3a2choyjbi",
@@ -2987,7 +3629,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.403Z",
-      "updatedAt": "2026-05-08T18:21:14.403Z"
+      "updatedAt": "2026-05-08T18:21:14.403Z",
+      "items": [
+        {
+          "id": "cmox8r603004mon3a2795m3bc",
+          "saleId": "cmox8r603004kon3a2choyjbi",
+          "productId": "cmox6srnj000bi2mh2420me9s",
+          "quantity": 1,
+          "unitPrice": 40,
+          "totalPrice": 40,
+          "createdAt": "2026-05-08T18:21:14.403Z"
+        }
+      ]
     },
     {
       "id": "cmox8r60c004pon3a1u2ysbgo",
@@ -3010,7 +3663,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.413Z",
-      "updatedAt": "2026-05-08T18:21:14.413Z"
+      "updatedAt": "2026-05-08T18:21:14.413Z",
+      "items": [
+        {
+          "id": "cmox8r60c004ron3atdf3l9r8",
+          "saleId": "cmox8r60c004pon3a1u2ysbgo",
+          "productId": "cmox6srnj000bi2mh2420me9s",
+          "quantity": 1,
+          "unitPrice": 40,
+          "totalPrice": 40,
+          "createdAt": "2026-05-08T18:21:14.413Z"
+        }
+      ]
     },
     {
       "id": "cmox8r60h004ton3air5uqi0w",
@@ -3033,7 +3697,18 @@
       "manualBaixa": true,
       "manualBaixaDate": "2026-05-20T15:33:38.467Z",
       "createdAt": "2026-05-08T18:21:14.417Z",
-      "updatedAt": "2026-05-20T15:33:38.469Z"
+      "updatedAt": "2026-05-20T15:33:38.469Z",
+      "items": [
+        {
+          "id": "cmox8r60h004von3as9n0tibg",
+          "saleId": "cmox8r60h004ton3air5uqi0w",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.417Z"
+        }
+      ]
     },
     {
       "id": "cmox8r60m004xon3a0xp6d61k",
@@ -3056,7 +3731,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.422Z",
-      "updatedAt": "2026-05-08T18:21:14.422Z"
+      "updatedAt": "2026-05-08T18:21:14.422Z",
+      "items": [
+        {
+          "id": "cmox8r60m004zon3ai781pvnd",
+          "saleId": "cmox8r60m004xon3a0xp6d61k",
+          "productId": "cmox6srnb0009i2mhnjqsdpna",
+          "quantity": 1,
+          "unitPrice": 200,
+          "totalPrice": 200,
+          "createdAt": "2026-05-08T18:21:14.422Z"
+        }
+      ]
     },
     {
       "id": "cmox8r60q0051on3aamrzyg3i",
@@ -3079,7 +3765,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.427Z",
-      "updatedAt": "2026-05-12T17:36:06.855Z"
+      "updatedAt": "2026-05-12T17:36:06.855Z",
+      "items": [
+        {
+          "id": "cmox8r60r0053on3a5rmbkfiy",
+          "saleId": "cmox8r60q0051on3aamrzyg3i",
+          "productId": "cmox6srnb0009i2mhnjqsdpna",
+          "quantity": 2,
+          "unitPrice": 200,
+          "totalPrice": 400,
+          "createdAt": "2026-05-08T18:21:14.427Z"
+        }
+      ]
     },
     {
       "id": "cmox8r60w0055on3arl29xhvv",
@@ -3102,7 +3799,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.432Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r60w0057on3aymwdwsij",
+          "saleId": "cmox8r60w0055on3arl29xhvv",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.432Z"
+        }
+      ]
     },
     {
       "id": "cmox8r6120059on3amy7f7ha4",
@@ -3125,7 +3833,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.438Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r612005bon3areu7v9xk",
+          "saleId": "cmox8r6120059on3amy7f7ha4",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.438Z"
+        }
+      ]
     },
     {
       "id": "cmox8r617005don3at7lsc1qb",
@@ -3148,7 +3867,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.444Z",
-      "updatedAt": "2026-05-08T18:21:14.444Z"
+      "updatedAt": "2026-05-08T18:21:14.444Z",
+      "items": [
+        {
+          "id": "cmox8r617005fon3av27o1gwg",
+          "saleId": "cmox8r617005don3at7lsc1qb",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 3,
+          "unitPrice": 150,
+          "totalPrice": 450,
+          "createdAt": "2026-05-08T18:21:14.444Z"
+        }
+      ]
     },
     {
       "id": "cmox8r61c005hon3aer5kojqo",
@@ -3171,7 +3901,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.449Z",
-      "updatedAt": "2026-05-12T17:40:55.145Z"
+      "updatedAt": "2026-05-12T17:40:55.145Z",
+      "items": [
+        {
+          "id": "cmox8r61c005jon3ar7ekrtij",
+          "saleId": "cmox8r61c005hon3aer5kojqo",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 2,
+          "unitPrice": 150,
+          "totalPrice": 300,
+          "createdAt": "2026-05-08T18:21:14.449Z"
+        }
+      ]
     },
     {
       "id": "cmox8r61g005lon3arqyne98v",
@@ -3194,7 +3935,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.453Z",
-      "updatedAt": "2026-05-08T18:21:14.453Z"
+      "updatedAt": "2026-05-08T18:21:14.453Z",
+      "items": [
+        {
+          "id": "cmox8r61g005non3aq5tgcs4x",
+          "saleId": "cmox8r61g005lon3arqyne98v",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 2,
+          "unitPrice": 150,
+          "totalPrice": 300,
+          "createdAt": "2026-05-08T18:21:14.453Z"
+        }
+      ]
     },
     {
       "id": "cmox8r61l005pon3ahv2q8iyf",
@@ -3217,7 +3969,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.458Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r61l005ron3aaizeapx1",
+          "saleId": "cmox8r61l005pon3ahv2q8iyf",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.458Z"
+        }
+      ]
     },
     {
       "id": "cmox8r61p005ton3akwwxxc3s",
@@ -3240,7 +4003,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.461Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r61p005von3aae0dwnxa",
+          "saleId": "cmox8r61p005ton3akwwxxc3s",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.461Z"
+        }
+      ]
     },
     {
       "id": "cmox8r61w0061on3avbgqvv35",
@@ -3263,7 +4037,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.469Z",
-      "updatedAt": "2026-05-20T15:46:00.444Z"
+      "updatedAt": "2026-05-20T15:46:00.444Z",
+      "items": [
+        {
+          "id": "cmox8r61x0063on3alz3vg1u7",
+          "saleId": "cmox8r61w0061on3avbgqvv35",
+          "productId": "cmox6srnt000di2mhdfr5fon5",
+          "quantity": 1,
+          "unitPrice": 90,
+          "totalPrice": 90,
+          "createdAt": "2026-05-08T18:21:14.469Z"
+        }
+      ]
     },
     {
       "id": "cmox8r6200065on3azs4nm8ex",
@@ -3286,7 +4071,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.473Z",
-      "updatedAt": "2026-05-12T17:39:25.707Z"
+      "updatedAt": "2026-05-12T17:39:25.707Z",
+      "items": [
+        {
+          "id": "cmox8r6210067on3ascfxarja",
+          "saleId": "cmox8r6200065on3azs4nm8ex",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 1,
+          "unitPrice": 150,
+          "totalPrice": 150,
+          "createdAt": "2026-05-08T18:21:14.473Z"
+        }
+      ]
     },
     {
       "id": "cmox8r6240069on3ac29c21dk",
@@ -3309,7 +4105,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.476Z",
-      "updatedAt": "2026-05-08T18:21:14.476Z"
+      "updatedAt": "2026-05-08T18:21:14.476Z",
+      "items": [
+        {
+          "id": "cmox8r624006bon3a9j16pelf",
+          "saleId": "cmox8r6240069on3ac29c21dk",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-08T18:21:14.476Z"
+        }
+      ]
     },
     {
       "id": "cmox8r627006don3acfia249t",
@@ -3332,7 +4139,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.479Z",
-      "updatedAt": "2026-05-08T18:21:14.479Z"
+      "updatedAt": "2026-05-08T18:21:14.479Z",
+      "items": [
+        {
+          "id": "cmox8r627006fon3a242g2eum",
+          "saleId": "cmox8r627006don3acfia249t",
+          "productId": "cmox6srnx000ei2mh2jspw7ob",
+          "quantity": 1,
+          "unitPrice": 110,
+          "totalPrice": 110,
+          "createdAt": "2026-05-08T18:21:14.479Z"
+        }
+      ]
     },
     {
       "id": "cmox8r62b006hon3a86x5p7zy",
@@ -3355,7 +4173,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.484Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r62b006jon3ayf2r5vtm",
+          "saleId": "cmox8r62b006hon3a86x5p7zy",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.484Z"
+        }
+      ]
     },
     {
       "id": "cmox8r62f006lon3av6xzy97z",
@@ -3378,7 +4207,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.487Z",
-      "updatedAt": "2026-05-08T18:21:14.487Z"
+      "updatedAt": "2026-05-08T18:21:14.487Z",
+      "items": [
+        {
+          "id": "cmox8r62f006non3ajdktpkk9",
+          "saleId": "cmox8r62f006lon3av6xzy97z",
+          "productId": "cmox6srnb0009i2mhnjqsdpna",
+          "quantity": 4,
+          "unitPrice": 200,
+          "totalPrice": 800,
+          "createdAt": "2026-05-08T18:21:14.487Z"
+        }
+      ]
     },
     {
       "id": "cmox8r62i006pon3afhcc6y3s",
@@ -3401,7 +4241,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.490Z",
-      "updatedAt": "2026-05-12T17:35:49.777Z"
+      "updatedAt": "2026-05-12T17:35:49.777Z",
+      "items": [
+        {
+          "id": "cmox8r62i006ron3agpduhrtl",
+          "saleId": "cmox8r62i006pon3afhcc6y3s",
+          "productId": "cmox6srnb0009i2mhnjqsdpna",
+          "quantity": 2,
+          "unitPrice": 200,
+          "totalPrice": 400,
+          "createdAt": "2026-05-08T18:21:14.490Z"
+        }
+      ]
     },
     {
       "id": "cmox8r62l006ton3a9vv872sc",
@@ -3424,7 +4275,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.494Z",
-      "updatedAt": "2026-05-08T18:21:14.494Z"
+      "updatedAt": "2026-05-08T18:21:14.494Z",
+      "items": [
+        {
+          "id": "cmox8r62l006von3a07cynt0v",
+          "saleId": "cmox8r62l006ton3a9vv872sc",
+          "productId": "cmox6srnb0009i2mhnjqsdpna",
+          "quantity": 1,
+          "unitPrice": 500,
+          "totalPrice": 500,
+          "createdAt": "2026-05-08T18:21:14.494Z"
+        }
+      ]
     },
     {
       "id": "cmox8r62p006xon3aok29ib45",
@@ -3447,7 +4309,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.497Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r62p006zon3aaz2sts9r",
+          "saleId": "cmox8r62p006xon3aok29ib45",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.497Z"
+        }
+      ]
     },
     {
       "id": "cmox8r62u0071on3a4k1rdi4p",
@@ -3470,7 +4343,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.503Z",
-      "updatedAt": "2026-05-08T18:21:14.503Z"
+      "updatedAt": "2026-05-08T18:21:14.503Z",
+      "items": [
+        {
+          "id": "cmox8r62u0073on3ad5abuskh",
+          "saleId": "cmox8r62u0071on3a4k1rdi4p",
+          "productId": "cmox6srnb0009i2mhnjqsdpna",
+          "quantity": 1,
+          "unitPrice": 200,
+          "totalPrice": 200,
+          "createdAt": "2026-05-08T18:21:14.503Z"
+        }
+      ]
     },
     {
       "id": "cmox8r62z0075on3a7aqsmgpv",
@@ -3493,7 +4377,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.508Z",
-      "updatedAt": "2026-05-08T18:21:14.508Z"
+      "updatedAt": "2026-05-08T18:21:14.508Z",
+      "items": [
+        {
+          "id": "cmox8r62z0077on3a2bxqmz74",
+          "saleId": "cmox8r62z0075on3a7aqsmgpv",
+          "productId": "cmox6srnb0009i2mhnjqsdpna",
+          "quantity": 1,
+          "unitPrice": 200,
+          "totalPrice": 200,
+          "createdAt": "2026-05-08T18:21:14.508Z"
+        }
+      ]
     },
     {
       "id": "cmox8r6340079on3ay2o4gjjq",
@@ -3516,7 +4411,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.513Z",
-      "updatedAt": "2026-05-08T18:21:14.513Z"
+      "updatedAt": "2026-05-08T18:21:14.513Z",
+      "items": [
+        {
+          "id": "cmox8r634007bon3a703mzyfa",
+          "saleId": "cmox8r6340079on3ay2o4gjjq",
+          "productId": "cmox6srnb0009i2mhnjqsdpna",
+          "quantity": 1,
+          "unitPrice": 200,
+          "totalPrice": 200,
+          "createdAt": "2026-05-08T18:21:14.513Z"
+        }
+      ]
     },
     {
       "id": "cmox8r63a007don3awpbpyram",
@@ -3539,7 +4445,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.518Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r63a007fon3aos1q2bul",
+          "saleId": "cmox8r63a007don3awpbpyram",
+          "productId": "cmox6srmr0004i2mhdkkscusy",
+          "quantity": 1,
+          "unitPrice": 975,
+          "totalPrice": 975,
+          "createdAt": "2026-05-08T18:21:14.518Z"
+        }
+      ]
     },
     {
       "id": "cmox8r63e007hon3asg4xr9qu",
@@ -3562,7 +4479,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.523Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r63e007jon3afrv2vk7i",
+          "saleId": "cmox8r63e007hon3asg4xr9qu",
+          "productId": "cmox6srmc0000i2mhuqsxy1gx",
+          "quantity": 1,
+          "unitPrice": 460,
+          "totalPrice": 460,
+          "createdAt": "2026-05-08T18:21:14.523Z"
+        }
+      ]
     },
     {
       "id": "cmox8r63j007lon3athu64yl8",
@@ -3585,7 +4513,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.528Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r63j007non3aqm4db5cx",
+          "saleId": "cmox8r63j007lon3athu64yl8",
+          "productId": "cmox6srmc0000i2mhuqsxy1gx",
+          "quantity": 1,
+          "unitPrice": 460,
+          "totalPrice": 460,
+          "createdAt": "2026-05-08T18:21:14.528Z"
+        }
+      ]
     },
     {
       "id": "cmox8r63o007pon3ajdp5u7wm",
@@ -3608,7 +4547,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.532Z",
-      "updatedAt": "2026-05-08T18:21:14.532Z"
+      "updatedAt": "2026-05-08T18:21:14.532Z",
+      "items": [
+        {
+          "id": "cmox8r63o007ron3azcockax1",
+          "saleId": "cmox8r63o007pon3ajdp5u7wm",
+          "productId": "cmox6srnx000ei2mh2jspw7ob",
+          "quantity": 1,
+          "unitPrice": 110,
+          "totalPrice": 110,
+          "createdAt": "2026-05-08T18:21:14.532Z"
+        }
+      ]
     },
     {
       "id": "cmox8r63t007ton3azdi3nubv",
@@ -3631,7 +4581,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.537Z",
-      "updatedAt": "2026-05-20T15:46:00.444Z"
+      "updatedAt": "2026-05-20T15:46:00.444Z",
+      "items": [
+        {
+          "id": "cmox8r63t007von3ar37lh8j5",
+          "saleId": "cmox8r63t007ton3azdi3nubv",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 1,
+          "unitPrice": 150,
+          "totalPrice": 150,
+          "createdAt": "2026-05-08T18:21:14.537Z"
+        }
+      ]
     },
     {
       "id": "cmox8r63y007xon3adtbt1x4b",
@@ -3654,7 +4615,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.542Z",
-      "updatedAt": "2026-05-08T18:21:14.542Z"
+      "updatedAt": "2026-05-08T18:21:14.542Z",
+      "items": [
+        {
+          "id": "cmox8r63y007zon3a4a7lads7",
+          "saleId": "cmox8r63y007xon3adtbt1x4b",
+          "productId": "cmox6srnx000ei2mh2jspw7ob",
+          "quantity": 1,
+          "unitPrice": 110,
+          "totalPrice": 110,
+          "createdAt": "2026-05-08T18:21:14.542Z"
+        }
+      ]
     },
     {
       "id": "cmox8r6430081on3alr05vpmm",
@@ -3677,7 +4649,18 @@
       "manualBaixa": true,
       "manualBaixaDate": "2026-05-12T18:53:59.925Z",
       "createdAt": "2026-05-08T18:21:14.548Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r6430083on3a0m76o1n1",
+          "saleId": "cmox8r6430081on3alr05vpmm",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 2,
+          "unitPrice": 150,
+          "totalPrice": 300,
+          "createdAt": "2026-05-08T18:21:14.548Z"
+        }
+      ]
     },
     {
       "id": "cmox8r6480085on3asp7s3afc",
@@ -3700,7 +4683,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.553Z",
-      "updatedAt": "2026-05-21T18:02:36.191Z"
+      "updatedAt": "2026-05-21T18:02:36.191Z",
+      "items": [
+        {
+          "id": "cmox8r6480087on3ah2whsxn9",
+          "saleId": "cmox8r6480085on3asp7s3afc",
+          "productId": "cmox6srn20007i2mhxbrnkmy4",
+          "quantity": 1,
+          "unitPrice": 1000,
+          "totalPrice": 1000,
+          "createdAt": "2026-05-08T18:21:14.553Z"
+        }
+      ]
     },
     {
       "id": "cmox8r64d0089on3asy3qxj4t",
@@ -3723,7 +4717,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.558Z",
-      "updatedAt": "2026-05-20T17:40:33.995Z"
+      "updatedAt": "2026-05-20T17:40:33.995Z",
+      "items": [
+        {
+          "id": "cmox8r64e008bon3ays0xl5bj",
+          "saleId": "cmox8r64d0089on3asy3qxj4t",
+          "productId": "cmox6srmc0000i2mhuqsxy1gx",
+          "quantity": 1,
+          "unitPrice": 460,
+          "totalPrice": 460,
+          "createdAt": "2026-05-08T18:21:14.558Z"
+        }
+      ]
     },
     {
       "id": "cmox8r64j008don3ahobxj5sj",
@@ -3746,7 +4751,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.563Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r64j008fon3a22kemf1q",
+          "saleId": "cmox8r64j008don3ahobxj5sj",
+          "productId": "cmox6srmc0000i2mhuqsxy1gx",
+          "quantity": 1,
+          "unitPrice": 460,
+          "totalPrice": 460,
+          "createdAt": "2026-05-08T18:21:14.563Z"
+        }
+      ]
     },
     {
       "id": "cmox8r64n008hon3aqce0byla",
@@ -3769,7 +4785,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.567Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r64n008jon3axa9jy55u",
+          "saleId": "cmox8r64n008hon3aqce0byla",
+          "productId": "cmox6srmc0000i2mhuqsxy1gx",
+          "quantity": 1,
+          "unitPrice": 460,
+          "totalPrice": 460,
+          "createdAt": "2026-05-08T18:21:14.567Z"
+        }
+      ]
     },
     {
       "id": "cmox8r64t008lon3anek5n449",
@@ -3792,7 +4819,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.573Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r64t008non3ajn3qcxd4",
+          "saleId": "cmox8r64t008lon3anek5n449",
+          "productId": "cmox6srmc0000i2mhuqsxy1gx",
+          "quantity": 1,
+          "unitPrice": 460,
+          "totalPrice": 460,
+          "createdAt": "2026-05-08T18:21:14.573Z"
+        }
+      ]
     },
     {
       "id": "cmox8r64x008pon3aafmx6v2g",
@@ -3815,7 +4853,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.577Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r64x008ron3a9znwpp5l",
+          "saleId": "cmox8r64x008pon3aafmx6v2g",
+          "productId": "cmox6srmc0000i2mhuqsxy1gx",
+          "quantity": 1,
+          "unitPrice": 460,
+          "totalPrice": 460,
+          "createdAt": "2026-05-08T18:21:14.577Z"
+        }
+      ]
     },
     {
       "id": "cmox8r650008ton3ah09ococ5",
@@ -3838,7 +4887,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.580Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r650008von3afdbw05hk",
+          "saleId": "cmox8r650008ton3ah09ococ5",
+          "productId": "cmox6srmc0000i2mhuqsxy1gx",
+          "quantity": 1,
+          "unitPrice": 460,
+          "totalPrice": 460,
+          "createdAt": "2026-05-08T18:21:14.580Z"
+        }
+      ]
     },
     {
       "id": "cmox8r655008xon3aqb36syko",
@@ -3861,7 +4921,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.585Z",
-      "updatedAt": "2026-05-20T17:40:33.995Z"
+      "updatedAt": "2026-05-20T17:40:33.995Z",
+      "items": [
+        {
+          "id": "cmox8r655008zon3aktc7ts57",
+          "saleId": "cmox8r655008xon3aqb36syko",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.585Z"
+        }
+      ]
     },
     {
       "id": "cmox8r6580091on3aucwm5tzl",
@@ -3884,7 +4955,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.589Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r6580093on3ak1vob4fl",
+          "saleId": "cmox8r6580091on3aucwm5tzl",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.589Z"
+        }
+      ]
     },
     {
       "id": "cmox8r65c0095on3ad6a63efe",
@@ -3907,7 +4989,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.593Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r65c0097on3a7dugmmxl",
+          "saleId": "cmox8r65c0095on3ad6a63efe",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.593Z"
+        }
+      ]
     },
     {
       "id": "cmox8r65g0099on3azeam0v12",
@@ -3930,7 +5023,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.596Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r65g009bon3ayjr50ey7",
+          "saleId": "cmox8r65g0099on3azeam0v12",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.596Z"
+        }
+      ]
     },
     {
       "id": "cmox8r65k009don3akdk0mx72",
@@ -3953,7 +5057,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.601Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r65k009fon3ahfif0ajk",
+          "saleId": "cmox8r65k009don3akdk0mx72",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.601Z"
+        }
+      ]
     },
     {
       "id": "cmox8r65r009hon3a1ql1ntz0",
@@ -3976,7 +5091,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T18:21:14.607Z",
-      "updatedAt": "2026-05-12T19:09:50.635Z"
+      "updatedAt": "2026-05-12T19:09:50.635Z",
+      "items": [
+        {
+          "id": "cmox8r65r009jon3ajamdae4n",
+          "saleId": "cmox8r65r009hon3a1ql1ntz0",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-08T18:21:14.607Z"
+        }
+      ]
     },
     {
       "id": "cmoxil80v002qyshyn1bobt1x",
@@ -3999,7 +5125,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-08T22:56:33.247Z",
-      "updatedAt": "2026-05-14T21:34:21.849Z"
+      "updatedAt": "2026-05-14T21:34:21.849Z",
+      "items": [
+        {
+          "id": "cmoxil80w002syshyg8tgr9ud",
+          "saleId": "cmoxil80v002qyshyn1bobt1x",
+          "productId": "cmox6srmc0000i2mhuqsxy1gx",
+          "quantity": 1,
+          "unitPrice": 460,
+          "totalPrice": 460,
+          "createdAt": "2026-05-08T22:56:33.247Z"
+        }
+      ]
     },
     {
       "id": "cmoys1i23007711zviy8vex3a",
@@ -4022,7 +5159,18 @@
       "manualBaixa": true,
       "manualBaixaDate": "2026-05-09T20:11:39.228Z",
       "createdAt": "2026-05-09T20:08:55.468Z",
-      "updatedAt": "2026-05-13T14:17:56.096Z"
+      "updatedAt": "2026-05-13T14:17:56.096Z",
+      "items": [
+        {
+          "id": "cmoys1i23007911zvpkz31xl6",
+          "saleId": "cmoys1i23007711zviy8vex3a",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-09T20:08:55.468Z"
+        }
+      ]
     },
     {
       "id": "cmp2xbpg8000222ipm4eul4hw",
@@ -4045,7 +5193,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-12T17:47:54.392Z",
-      "updatedAt": "2026-05-12T17:47:54.392Z"
+      "updatedAt": "2026-05-12T17:47:54.392Z",
+      "items": [
+        {
+          "id": "cmp2xbpg8000422ipbgy5c637",
+          "saleId": "cmp2xbpg8000222ipm4eul4hw",
+          "productId": "cmp2x9c70000022ipwl1o12eo",
+          "quantity": 1,
+          "unitPrice": 450,
+          "totalPrice": 450,
+          "createdAt": "2026-05-12T17:47:54.392Z"
+        }
+      ]
     },
     {
       "id": "cmp30wh37007022ip4468xhci",
@@ -4068,7 +5227,27 @@
       "manualBaixa": true,
       "manualBaixaDate": "2026-05-14T21:43:06.712Z",
       "createdAt": "2026-05-12T19:28:02.179Z",
-      "updatedAt": "2026-05-14T21:43:06.714Z"
+      "updatedAt": "2026-05-14T21:43:06.714Z",
+      "items": [
+        {
+          "id": "cmp30wh37007222ipnn0hmr5p",
+          "saleId": "cmp30wh37007022ip4468xhci",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-12T19:28:02.179Z"
+        },
+        {
+          "id": "cmp30wh37007322ipp7rf6vgs",
+          "saleId": "cmp30wh37007022ip4468xhci",
+          "productId": "cmox6srnx000ei2mh2jspw7ob",
+          "quantity": 1,
+          "unitPrice": 110,
+          "totalPrice": 110,
+          "createdAt": "2026-05-12T19:28:02.179Z"
+        }
+      ]
     },
     {
       "id": "cmp61d8r9001438rii3m631ge",
@@ -4091,7 +5270,18 @@
       "manualBaixa": true,
       "manualBaixaDate": "2026-05-14T22:13:51.294Z",
       "createdAt": "2026-05-14T22:04:23.060Z",
-      "updatedAt": "2026-05-21T18:01:16.492Z"
+      "updatedAt": "2026-05-21T18:01:16.492Z",
+      "items": [
+        {
+          "id": "cmp61d8r9001638ri39ximvz6",
+          "saleId": "cmp61d8r9001438rii3m631ge",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-14T22:04:23.060Z"
+        }
+      ]
     },
     {
       "id": "cmp6267ny0009nthc5i5x21b3",
@@ -4114,7 +5304,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-14T22:26:54.670Z",
-      "updatedAt": "2026-05-21T18:01:29.230Z"
+      "updatedAt": "2026-05-21T18:01:29.230Z",
+      "items": [
+        {
+          "id": "cmp6267nz000bnthcraoj70e5",
+          "saleId": "cmp6267ny0009nthc5i5x21b3",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 8,
+          "unitPrice": 150,
+          "totalPrice": 1200,
+          "createdAt": "2026-05-14T22:26:54.670Z"
+        }
+      ]
     },
     {
       "id": "cmp627wyz000fnthcr0mmke5a",
@@ -4137,7 +5338,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-14T22:28:14.123Z",
-      "updatedAt": "2026-05-21T18:01:35.480Z"
+      "updatedAt": "2026-05-21T18:01:35.480Z",
+      "items": [
+        {
+          "id": "cmp627wyz000hnthcdlfq3346",
+          "saleId": "cmp627wyz000fnthcr0mmke5a",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 8,
+          "unitPrice": 150,
+          "totalPrice": 1200,
+          "createdAt": "2026-05-14T22:28:14.123Z"
+        }
+      ]
     },
     {
       "id": "cmp629r95000lnthcxzf3ndia",
@@ -4160,7 +5372,18 @@
       "manualBaixa": true,
       "manualBaixaDate": "2026-05-20T14:18:06.957Z",
       "createdAt": "2026-05-14T22:29:40.024Z",
-      "updatedAt": "2026-05-20T23:24:53.041Z"
+      "updatedAt": "2026-05-20T23:24:53.041Z",
+      "items": [
+        {
+          "id": "cmp629r95000nnthcei5snax0",
+          "saleId": "cmp629r95000lnthcxzf3ndia",
+          "productId": "cmox8o2wa0008yshypm475cyy",
+          "quantity": 1,
+          "unitPrice": 200,
+          "totalPrice": 200,
+          "createdAt": "2026-05-14T22:29:40.024Z"
+        }
+      ]
     },
     {
       "id": "cmp62mulm000tnthc0a5gpo0x",
@@ -4183,7 +5406,18 @@
       "manualBaixa": true,
       "manualBaixaDate": "2026-05-14T22:40:00.581Z",
       "createdAt": "2026-05-14T22:39:50.890Z",
-      "updatedAt": "2026-05-21T18:01:48.043Z"
+      "updatedAt": "2026-05-21T18:01:48.043Z",
+      "items": [
+        {
+          "id": "cmp62mulm000vnthcnzemtfdc",
+          "saleId": "cmp62mulm000tnthc0a5gpo0x",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-14T22:39:50.890Z"
+        }
+      ]
     },
     {
       "id": "cmp6xysou001b3vws2vefr4eb",
@@ -4206,7 +5440,18 @@
       "manualBaixa": true,
       "manualBaixaDate": "2026-05-15T13:17:17.154Z",
       "createdAt": "2026-05-15T13:16:56.381Z",
-      "updatedAt": "2026-05-20T23:36:39.510Z"
+      "updatedAt": "2026-05-20T23:36:39.510Z",
+      "items": [
+        {
+          "id": "cmp6xysou001d3vwsv1sia3pv",
+          "saleId": "cmp6xysou001b3vws2vefr4eb",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-15T13:16:56.381Z"
+        }
+      ]
     },
     {
       "id": "cmpe2fbv5003bt9nbfbx4xpnw",
@@ -4229,7 +5474,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-20T12:56:09.425Z",
-      "updatedAt": "2026-05-20T15:46:00.444Z"
+      "updatedAt": "2026-05-20T15:46:00.444Z",
+      "items": [
+        {
+          "id": "cmpe2fbv6003dt9nbbbrv1bri",
+          "saleId": "cmpe2fbv5003bt9nbfbx4xpnw",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 1,
+          "unitPrice": 150,
+          "totalPrice": 150,
+          "createdAt": "2026-05-20T12:56:09.425Z"
+        }
+      ]
     },
     {
       "id": "cmpe2j15c003lt9nbarjrxmy1",
@@ -4252,7 +5508,18 @@
       "manualBaixa": true,
       "manualBaixaDate": "2026-05-20T15:51:17.694Z",
       "createdAt": "2026-05-20T12:59:02.160Z",
-      "updatedAt": "2026-05-21T18:00:58.217Z"
+      "updatedAt": "2026-05-21T18:00:58.217Z",
+      "items": [
+        {
+          "id": "cmpe2j15c003nt9nbpq13hlgn",
+          "saleId": "cmpe2j15c003lt9nbarjrxmy1",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 1,
+          "unitPrice": 150,
+          "totalPrice": 150,
+          "createdAt": "2026-05-20T12:59:02.160Z"
+        }
+      ]
     },
     {
       "id": "cmpe2jevt003rt9nbjhhf1836",
@@ -4275,7 +5542,18 @@
       "manualBaixa": true,
       "manualBaixaDate": "2026-05-20T15:51:15.221Z",
       "createdAt": "2026-05-20T12:59:19.961Z",
-      "updatedAt": "2026-05-21T18:01:03.426Z"
+      "updatedAt": "2026-05-21T18:01:03.426Z",
+      "items": [
+        {
+          "id": "cmpe2jevu003tt9nbds4i5jrl",
+          "saleId": "cmpe2jevt003rt9nbjhhf1836",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 1,
+          "unitPrice": 150,
+          "totalPrice": 150,
+          "createdAt": "2026-05-20T12:59:19.961Z"
+        }
+      ]
     },
     {
       "id": "cmpe2otsm0045t9nbc7lpzzk4",
@@ -4298,7 +5576,18 @@
       "manualBaixa": true,
       "manualBaixaDate": "2026-05-20T14:30:38.480Z",
       "createdAt": "2026-05-20T13:03:32.566Z",
-      "updatedAt": "2026-05-20T15:46:00.444Z"
+      "updatedAt": "2026-05-20T15:46:00.444Z",
+      "items": [
+        {
+          "id": "cmpe2otsm0047t9nbh7bepi6w",
+          "saleId": "cmpe2otsm0045t9nbc7lpzzk4",
+          "productId": "cmox6srnx000ei2mh2jspw7ob",
+          "quantity": 1,
+          "unitPrice": 110,
+          "totalPrice": 110,
+          "createdAt": "2026-05-20T13:03:32.566Z"
+        }
+      ]
     },
     {
       "id": "cmpe84wo0000111waou6ful6o",
@@ -4321,7 +5610,18 @@
       "manualBaixa": true,
       "manualBaixaDate": "2026-05-20T23:32:50.120Z",
       "createdAt": "2026-05-20T15:36:00.863Z",
-      "updatedAt": "2026-05-20T23:32:50.122Z"
+      "updatedAt": "2026-05-20T23:32:50.122Z",
+      "items": [
+        {
+          "id": "cmpe84wo1000311waxa7l6ec9",
+          "saleId": "cmpe84wo0000111waou6ful6o",
+          "productId": "cmox6srnx000ei2mh2jspw7ob",
+          "quantity": 1,
+          "unitPrice": 110,
+          "totalPrice": 110,
+          "createdAt": "2026-05-20T15:36:00.863Z"
+        }
+      ]
     },
     {
       "id": "cmpeb1n0m0005gy4ndaw47vkt",
@@ -4344,7 +5644,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-20T16:57:27.238Z",
-      "updatedAt": "2026-05-20T17:24:07.593Z"
+      "updatedAt": "2026-05-20T17:24:07.593Z",
+      "items": [
+        {
+          "id": "cmpeb1n0n0007gy4no21qv1ys",
+          "saleId": "cmpeb1n0m0005gy4ndaw47vkt",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-20T16:57:27.238Z"
+        }
+      ]
     },
     {
       "id": "cmpebdzem0009gy4n86iycv84",
@@ -4367,7 +5678,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-20T17:07:03.166Z",
-      "updatedAt": "2026-05-20T17:24:18.801Z"
+      "updatedAt": "2026-05-20T17:24:18.801Z",
+      "items": [
+        {
+          "id": "cmpebdzem000bgy4n402yntef",
+          "saleId": "cmpebdzem0009gy4n86iycv84",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-20T17:07:03.166Z"
+        }
+      ]
     },
     {
       "id": "cmpecxt5o0001pkowepqm4jrf",
@@ -4390,7 +5712,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-20T17:50:27.804Z",
-      "updatedAt": "2026-05-20T17:50:29.541Z"
+      "updatedAt": "2026-05-20T17:50:29.541Z",
+      "items": [
+        {
+          "id": "cmpecxt5o0003pkowjffi2pns",
+          "saleId": "cmpecxt5o0001pkowepqm4jrf",
+          "productId": "cmox8r5ul0000on3aleg5ukd5",
+          "quantity": 1,
+          "unitPrice": 50,
+          "totalPrice": 50,
+          "createdAt": "2026-05-20T17:50:27.804Z"
+        }
+      ]
     },
     {
       "id": "cmped2wny0008pkowwky9jmia",
@@ -4413,7 +5746,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-20T17:54:25.630Z",
-      "updatedAt": "2026-05-20T17:54:25.630Z"
+      "updatedAt": "2026-05-20T17:54:25.630Z",
+      "items": [
+        {
+          "id": "cmped2wny000apkow3ohg2a25",
+          "saleId": "cmped2wny0008pkowwky9jmia",
+          "productId": "cmped1vra0006pkow9aq70cd5",
+          "quantity": 1,
+          "unitPrice": 75,
+          "totalPrice": 75,
+          "createdAt": "2026-05-20T17:54:25.630Z"
+        }
+      ]
     },
     {
       "id": "cmpeoycr90001ihkp5tqdakgb",
@@ -4436,7 +5780,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-20T23:26:48.591Z",
-      "updatedAt": "2026-05-21T17:57:41.007Z"
+      "updatedAt": "2026-05-21T17:57:41.007Z",
+      "items": [
+        {
+          "id": "cmpeoycr90003ihkp25e5juq7",
+          "saleId": "cmpeoycr90001ihkp5tqdakgb",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 2,
+          "unitPrice": 150,
+          "totalPrice": 300,
+          "createdAt": "2026-05-20T23:26:48.591Z"
+        }
+      ]
     },
     {
       "id": "cmpeoyy470007ihkpyx5q7tbp",
@@ -4459,7 +5814,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-20T23:27:16.279Z",
-      "updatedAt": "2026-05-20T23:28:04.044Z"
+      "updatedAt": "2026-05-20T23:28:04.044Z",
+      "items": [
+        {
+          "id": "cmpeoyy470009ihkp393m547h",
+          "saleId": "cmpeoyy470007ihkpyx5q7tbp",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 1,
+          "unitPrice": 150,
+          "totalPrice": 150,
+          "createdAt": "2026-05-20T23:27:16.279Z"
+        }
+      ]
     },
     {
       "id": "cmpeozmfy000dihkpigfmb3jk",
@@ -4482,7 +5848,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-20T23:27:47.806Z",
-      "updatedAt": "2026-05-21T17:57:41.009Z"
+      "updatedAt": "2026-05-21T17:57:41.009Z",
+      "items": [
+        {
+          "id": "cmpeozmfy000fihkp3mgsbfok",
+          "saleId": "cmpeozmfy000dihkpigfmb3jk",
+          "productId": "cmox6srn70008i2mhhf2f77p1",
+          "quantity": 1,
+          "unitPrice": 150,
+          "totalPrice": 150,
+          "createdAt": "2026-05-20T23:27:47.806Z"
+        }
+      ]
     },
     {
       "id": "cmpepbh5k000tihkpeth5yk8c",
@@ -4505,7 +5882,27 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-20T23:37:00.823Z",
-      "updatedAt": "2026-05-20T23:37:00.823Z"
+      "updatedAt": "2026-05-20T23:37:00.823Z",
+      "items": [
+        {
+          "id": "cmpepbh5k000vihkpxet9js5o",
+          "saleId": "cmpepbh5k000tihkpeth5yk8c",
+          "productId": "cmped1vra0006pkow9aq70cd5",
+          "quantity": 1,
+          "unitPrice": 75,
+          "totalPrice": 75,
+          "createdAt": "2026-05-20T23:37:00.823Z"
+        },
+        {
+          "id": "cmpepbh5k000wihkpscr4akz5",
+          "saleId": "cmpepbh5k000tihkpeth5yk8c",
+          "productId": "cmox6srnt000di2mhdfr5fon5",
+          "quantity": 1,
+          "unitPrice": 90,
+          "totalPrice": 90,
+          "createdAt": "2026-05-20T23:37:00.823Z"
+        }
+      ]
     },
     {
       "id": "cmpg4bpfw0007mhfyxs92nomd",
@@ -4528,7 +5925,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-21T23:24:51.979Z",
-      "updatedAt": "2026-05-21T23:24:51.979Z"
+      "updatedAt": "2026-05-21T23:24:51.979Z",
+      "items": [
+        {
+          "id": "cmpg4bpfw0009mhfycu6at5wv",
+          "saleId": "cmpg4bpfw0007mhfyxs92nomd",
+          "productId": "cmox6yxre000011qfqv5l9vku",
+          "quantity": 1,
+          "unitPrice": 115,
+          "totalPrice": 115,
+          "createdAt": "2026-05-21T23:24:51.979Z"
+        }
+      ]
     },
     {
       "id": "cmpg4lmzl002pmhfyaq9b87r6",
@@ -4551,7 +5959,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-21T23:32:35.361Z",
-      "updatedAt": "2026-05-21T23:32:35.361Z"
+      "updatedAt": "2026-05-21T23:32:35.361Z",
+      "items": [
+        {
+          "id": "cmpg4lmzl002rmhfya0ssn6i4",
+          "saleId": "cmpg4lmzl002pmhfyaq9b87r6",
+          "productId": "cmox6srnj000bi2mh2420me9s",
+          "quantity": 1,
+          "unitPrice": 65,
+          "totalPrice": 65,
+          "createdAt": "2026-05-21T23:32:35.361Z"
+        }
+      ]
     },
     {
       "id": "cmpg53a710031mhfyj1t33os6",
@@ -4574,7 +5993,18 @@
       "manualBaixa": false,
       "manualBaixaDate": null,
       "createdAt": "2026-05-21T23:46:18.590Z",
-      "updatedAt": "2026-05-21T23:46:32.317Z"
+      "updatedAt": "2026-05-21T23:46:32.317Z",
+      "items": [
+        {
+          "id": "cmpg53a720033mhfy85te0rt4",
+          "saleId": "cmpg53a710031mhfyj1t33os6",
+          "productId": "cmox6srmh0001i2mh81qas517",
+          "quantity": 1,
+          "unitPrice": 640,
+          "totalPrice": 640,
+          "createdAt": "2026-05-21T23:46:18.590Z"
+        }
+      ]
     }
   ],
   "dailyRosters": [
