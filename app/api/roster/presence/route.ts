@@ -90,13 +90,25 @@ export async function PATCH(req: NextRequest) {
       select: {
         monthlyStartDay: true,
         sales: {
-          where: { paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] }, saleType: 'MENSAL' },
-          orderBy: { saleDate: 'desc' },
-          take: 1,
+          where: { saleType: 'MENSAL' },
+          orderBy: { startDate: 'asc' },
         },
       },
     })
-    const activeSale = (dog as any)?.sales?.[0]
+    // Find the sale whose period covers the absent date
+    const absentDateObj = new Date(date + 'T12:00:00')
+    const coveringSale = (dog as any)?.sales?.find((s: any) => {
+      if (!s.startDate || !s.endDate) return false
+      const start = new Date(s.startDate)
+      const end = new Date(s.endDate)
+      return absentDateObj >= start && absentDateObj <= end
+    })
+    // Fallback: most recent paid/pending sale before absent date
+    const fallbackSale = (dog as any)?.sales?.filter((s: any) =>
+      ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'].includes(s.paymentStatus) &&
+      s.startDate && new Date(s.startDate) <= absentDateObj
+    ).sort((a: any, b: any) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())[0]
+    const activeSale = coveringSale || fallbackSale
     const saleEndDate = activeSale?.endDate ? new Date(activeSale.endDate).toISOString().split('T')[0] : null
     const billingMonthEnd = getBillingMonthEnd(dog?.monthlyStartDay ?? null, date, saleEndDate)
     await prisma.replacement.upsert({

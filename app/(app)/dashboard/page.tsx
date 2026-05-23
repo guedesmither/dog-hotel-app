@@ -98,6 +98,8 @@ export default function DashboardPage() {
     }
   }, [session, router])
 
+  const [expiredReplacements, setExpiredReplacements] = useState<ReplacementItem[]>([])
+
   useEffect(() => {
     fetch('/api/replacements?status=PENDING')
       .then(r => r.json()).then(setReplacements).catch(() => {})
@@ -105,14 +107,27 @@ export default function DashboardPage() {
       .then(r => r.json()).then((d: ReplacementItem[]) => setReplacements(prev => [
         ...prev.filter(r => r.status !== 'SCHEDULED'), ...d
       ])).catch(() => {})
+    fetch('/api/replacements?status=EXPIRED')
+      .then(r => r.json()).then(setExpiredReplacements).catch(() => {})
   }, [])
 
   async function loadReplacements() {
-    const [p, s] = await Promise.all([
+    const [p, s, e] = await Promise.all([
       fetch('/api/replacements?status=PENDING').then(r => r.json()),
       fetch('/api/replacements?status=SCHEDULED').then(r => r.json()),
+      fetch('/api/replacements?status=EXPIRED').then(r => r.json()),
     ])
     setReplacements([...p, ...s])
+    setExpiredReplacements(e)
+  }
+
+  async function markExpired(id: string) {
+    await fetch(`/api/replacements/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'EXPIRED' }),
+    })
+    await loadReplacements()
   }
 
   async function scheduleReplacement(id: string, date: string) {
@@ -490,20 +505,21 @@ export default function DashboardPage() {
           )}
         </>
       )}
-      {/* REPLACEMENTS SECTION */}
+      {/* REPLACEMENTS SECTION — active */}
       {replacements.length > 0 && (
         <div className="mt-8">
           <h2 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
             <RefreshCw className="w-5 h-5 text-orange-500" />
             Reposições Pendentes
+            <span className="text-sm font-normal text-gray-400">({replacements.length})</span>
           </h2>
           <div className="space-y-3">
             {replacements.map((r) => {
-              const isExpired = r.billingMonthEnd < today && r.status !== 'DONE'
+              const isOverdue = r.billingMonthEnd < today
               const inputDate = schedulingDate[r.id] || ''
               return (
                 <div key={r.id} className={`card flex flex-col sm:flex-row sm:items-center gap-3 ${
-                  isExpired ? 'border-red-200 bg-red-50' : r.status === 'SCHEDULED' ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'
+                  isOverdue ? 'border-red-200 bg-red-50' : r.status === 'SCHEDULED' ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'
                 }`}>
                   <div className="flex items-center gap-3 flex-1">
                     <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-xl shrink-0 overflow-hidden border border-gray-100">
@@ -516,7 +532,7 @@ export default function DashboardPage() {
                         <Link href={`/dogs/${r.dog.id}`} className="hover:underline">{r.dog.name}</Link>
                       </p>
                       <p className="text-xs text-gray-500">
-                        Ausente em {formatDate(r.absentDate)} · prazo até <span className={isExpired ? 'text-red-600 font-semibold' : 'text-gray-600'}>{formatDate(r.billingMonthEnd)}</span>
+                        Ausente em {formatDate(r.absentDate)} · prazo até <span className={isOverdue ? 'text-red-600 font-semibold' : 'text-gray-600'}>{formatDate(r.billingMonthEnd)}</span>
                       </p>
                       {r.status === 'SCHEDULED' && r.scheduledDate && (
                         <p className="text-xs text-green-700 flex items-center gap-1 mt-0.5">
@@ -532,7 +548,6 @@ export default function DashboardPage() {
                           type="date"
                           value={inputDate}
                           min={today}
-                          max={r.billingMonthEnd}
                           onChange={(e) => setSchedulingDate(prev => ({ ...prev, [r.id]: e.target.value }))}
                           className="input text-xs py-1 px-2 w-36"
                         />
@@ -543,6 +558,15 @@ export default function DashboardPage() {
                         >
                           Agendar
                         </button>
+                        {isOverdue && (
+                          <button
+                            onClick={() => markExpired(r.id)}
+                            title="Marcar como perdida (exceção)"
+                            className="text-xs px-2 py-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200"
+                          >
+                            Arquivar
+                          </button>
+                        )}
                       </>
                     ) : (
                       <button
@@ -557,6 +581,44 @@ export default function DashboardPage() {
               )
             })}
           </div>
+        </div>
+      )}
+
+      {/* EXPIRED REPLACEMENTS SECTION */}
+      {expiredReplacements.length > 0 && (
+        <div className="mt-6">
+          <details>
+            <summary className="text-sm font-semibold text-gray-400 cursor-pointer flex items-center gap-2 list-none">
+              <AlertCircle className="w-4 h-4 text-gray-400" />
+              Reposições Perdidas ({expiredReplacements.length})
+              <span className="text-xs font-normal text-gray-400 ml-1">— clique para ver</span>
+            </summary>
+            <div className="space-y-2 mt-3">
+              {expiredReplacements.map((r) => (
+                <div key={r.id} className="card flex flex-col sm:flex-row sm:items-center gap-3 border-gray-200 bg-gray-50 opacity-70">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-lg shrink-0 overflow-hidden border border-gray-100">
+                      {r.dog.photoUrl
+                        ? <img src={r.dog.photoUrl} alt={r.dog.name} className="w-full h-full object-cover rounded-xl" />
+                        : '🐶'}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-600 text-sm">{r.dog.name}</p>
+                      <p className="text-xs text-gray-400">
+                        Ausente em {formatDate(r.absentDate)} · prazo era {formatDate(r.billingMonthEnd)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => markDone(r.id)}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-gray-200 text-gray-600 hover:bg-gray-300 shrink-0"
+                  >
+                    Reativar
+                  </button>
+                </div>
+              ))}
+            </div>
+          </details>
         </div>
       )}
     </div>
