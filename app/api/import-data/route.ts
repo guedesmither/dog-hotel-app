@@ -100,49 +100,54 @@ export async function POST(req: NextRequest) {
       console.log('✅ Produtos importados')
     }
 
-    // Importar vendas
+    // Importar vendas (upsert para atualizar dados incompletos)
     if (sales && sales.length > 0) {
       for (const sale of sales) {
-        const existing = await prisma.sales.findUnique({ where: { id: sale.id } })
-        if (!existing) {
-          await prisma.sales.create({
-            data: {
-              id: sale.id,
-              dogId: sale.dogId || null,
-              saleType: sale.saleType,
-              saleDate: sale.saleDate ? new Date(sale.saleDate) : new Date(),
-              serviceDate: sale.serviceDate ? new Date(sale.serviceDate) : null,
-              startDate: sale.startDate ? new Date(sale.startDate) : null,
-              endDate: sale.endDate ? new Date(sale.endDate) : null,
-              basePrice: sale.basePrice || 0,
-              finalPrice: sale.finalPrice || 0,
-              discount: sale.discount || 0,
-              isExempt: sale.isExempt || false,
-              paymentMethod: sale.paymentMethod || null,
-              paymentFee: sale.paymentFee || 0,
-              amountReceived: sale.amountReceived || null,
-              paymentStatus: sale.paymentStatus || 'PENDENTE',
-              paymentDate: sale.paymentDate || null,
-              notes: sale.notes || null,
-              manualBaixa: sale.manualBaixa || false,
-              manualBaixaDate: sale.manualBaixaDate ? new Date(sale.manualBaixaDate) : null,
-              createdAt: sale.createdAt ? new Date(sale.createdAt) : new Date(),
-            }
-          })
-          // Import sale items
-          if (sale.items && sale.items.length > 0) {
-            for (const item of sale.items) {
-              await prisma.saleItem.create({
-                data: {
-                  id: item.id,
-                  saleId: sale.id,
-                  productId: item.productId || null,
-                  quantity: item.quantity || 1,
-                  unitPrice: item.unitPrice || 0,
-                  totalPrice: item.totalPrice || 0,
-                }
-              })
-            }
+        const saleData = {
+          dogId: sale.dogId || null,
+          saleType: sale.saleType,
+          saleDate: sale.saleDate ? new Date(sale.saleDate) : new Date(),
+          serviceDate: sale.serviceDate ? new Date(sale.serviceDate) : null,
+          startDate: sale.startDate ? new Date(sale.startDate) : null,
+          endDate: sale.endDate ? new Date(sale.endDate) : null,
+          basePrice: sale.basePrice || 0,
+          finalPrice: sale.finalPrice || 0,
+          discount: sale.discount || 0,
+          isExempt: sale.isExempt || false,
+          paymentMethod: sale.paymentMethod || null,
+          paymentFee: sale.paymentFee || 0,
+          amountReceived: sale.amountReceived || null,
+          paymentStatus: sale.paymentStatus || 'PENDENTE',
+          paymentDate: sale.paymentDate || null,
+          notes: sale.notes || null,
+          manualBaixa: sale.manualBaixa || false,
+          manualBaixaDate: sale.manualBaixaDate ? new Date(sale.manualBaixaDate) : null,
+        }
+        await prisma.sales.upsert({
+          where: { id: sale.id },
+          update: saleData,
+          create: { id: sale.id, ...saleData, createdAt: sale.createdAt ? new Date(sale.createdAt) : new Date() },
+        })
+        // Upsert sale items
+        if (sale.items && sale.items.length > 0) {
+          for (const item of sale.items) {
+            await prisma.saleItem.upsert({
+              where: { id: item.id },
+              update: {
+                productId: item.productId || null,
+                quantity: item.quantity || 1,
+                unitPrice: item.unitPrice || 0,
+                totalPrice: item.totalPrice || 0,
+              },
+              create: {
+                id: item.id,
+                saleId: sale.id,
+                productId: item.productId || null,
+                quantity: item.quantity || 1,
+                unitPrice: item.unitPrice || 0,
+                totalPrice: item.totalPrice || 0,
+              }
+            })
           }
         }
       }
