@@ -84,7 +84,9 @@ export default function AgendaPage() {
   const [error, setError] = useState<{ message: string; details?: string } | null>(null)
   const [showError, setShowError] = useState(false)
   const [dogPackages, setDogPackages] = useState<any>(null)
-  const [viewMode, setViewMode] = useState<'week' | 'dog'>('week')
+  const [viewMode, setViewMode] = useState<'week' | 'dog'>(() =>
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'dog' : 'week'
+  )
   const [selectedDogId, setSelectedDogId] = useState<string>('')
   const [dogTimeline, setDogTimeline] = useState<any[]>([])
   const [loadingTimeline, setLoadingTimeline] = useState(false)

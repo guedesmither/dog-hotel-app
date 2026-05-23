@@ -245,12 +245,12 @@ export default function FinanceiroPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left font-medium text-gray-600">Cão</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Tutor</th>
-                    <th className="px-4 py-3 text-center font-medium text-gray-600">Frequência</th>
-                    <th className="px-4 py-3 text-right font-medium text-gray-600">Valor Base</th>
-                    <th className="px-4 py-3 text-right font-medium text-gray-600">Desconto</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600 hidden sm:table-cell">Tutor</th>
+                    <th className="px-4 py-3 text-center font-medium text-gray-600 hidden md:table-cell">Frequência</th>
+                    <th className="px-4 py-3 text-right font-medium text-gray-600 hidden md:table-cell">Valor Base</th>
+                    <th className="px-4 py-3 text-right font-medium text-gray-600 hidden md:table-cell">Desconto</th>
                     <th className="px-4 py-3 text-right font-medium text-gray-600">Valor Final</th>
-                    <th className="px-4 py-3 text-center font-medium text-gray-600">Dias Presente</th>
+                    <th className="px-4 py-3 text-center font-medium text-gray-600 hidden sm:table-cell">Dias Presente</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -262,14 +262,14 @@ export default function FinanceiroPage() {
                         </Link>
                         {d.dog.matricula && <span className="text-xs text-gray-400 ml-2">({d.dog.matricula})</span>}
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{d.dog.ownerName}</td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3 text-gray-600 hidden sm:table-cell">{d.dog.ownerName}</td>
+                      <td className="px-4 py-3 text-center hidden md:table-cell">
                         {d.dog.frequencyDays ? FREQUENCY_LABELS[d.dog.frequencyDays] : '-'}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right hidden md:table-cell">
                         R$ {d.pricing.basePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="px-4 py-3 text-right text-red-500">
+                      <td className="px-4 py-3 text-right text-red-500 hidden md:table-cell">
                         {d.pricing.discountAmount > 0 && (
                           <span>
                             -R$ {d.pricing.discountAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -320,7 +320,7 @@ export default function FinanceiroPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3 text-center hidden sm:table-cell">
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
                           d.monthStats.daysPresent >= d.monthStats.daysScheduled 
                             ? 'bg-green-100 text-green-700' 

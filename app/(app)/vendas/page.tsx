@@ -105,7 +105,7 @@ function VendasContent() {
   const [notes, setNotes] = useState<string>('')
   const [saleStartDate, setSaleStartDate] = useState<string>('')
   const [saleEndDate, setSaleEndDate] = useState<string>('')
-  const [selectedMonth, setSelectedMonth] = useState<string>('')
+  const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7))
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
@@ -169,7 +169,9 @@ function VendasContent() {
   const loadSales = async () => {
     try {
       const params = new URLSearchParams()
+      const currentYearMonth = new Date().toISOString().slice(0, 7)
       if (selectedMonth) params.append('yearMonth', selectedMonth)
+      else if (!startDate && !endDate && !selectedDogId && !searchTerm) params.append('yearMonth', currentYearMonth)
       if (startDate) params.append('startDate', startDate)
       if (endDate) params.append('endDate', endDate)
       if (statusFilter) {
@@ -679,10 +681,10 @@ function VendasContent() {
                   <tr>
                     <th className="px-3 py-2 text-left font-semibold text-gray-700">Data</th>
                     <th className="px-3 py-2 text-left font-semibold text-gray-700">Itens</th>
-                    <th className="px-3 py-2 text-right font-semibold text-gray-700">Valor Bruto</th>
-                    <th className="px-3 py-2 text-right font-semibold text-gray-700">Desconto</th>
+                    <th className="px-3 py-2 text-right font-semibold text-gray-700 hidden md:table-cell">Valor Bruto</th>
+                    <th className="px-3 py-2 text-right font-semibold text-gray-700 hidden md:table-cell">Desconto</th>
                     <th className="px-3 py-2 text-right font-semibold text-gray-700">Valor Final</th>
-                    <th className="px-3 py-2 text-right font-semibold text-gray-700">Valor Pago</th>
+                    <th className="px-3 py-2 text-right font-semibold text-gray-700 hidden sm:table-cell">Valor Pago</th>
                     <th className="px-3 py-2 text-center font-semibold text-gray-700">Status</th>
                     <th className="px-3 py-2 text-center font-semibold text-gray-700">Ações</th>
                   </tr>
@@ -742,16 +744,16 @@ function VendasContent() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 py-2 text-right font-semibold text-gray-800">
+                        <td className="px-3 py-2 text-right font-semibold text-gray-800 hidden md:table-cell">
                           R$ {sale.basePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-3 py-2 text-right font-semibold text-red-600">
+                        <td className="px-3 py-2 text-right font-semibold text-red-600 hidden md:table-cell">
                           {sale.discount && sale.discount > 0 ? `R$ ${sale.discount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
                         </td>
                         <td className="px-3 py-2 text-right font-semibold text-gray-800">
                           R$ {sale.finalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-3 py-2 text-right font-semibold text-green-600">
+                        <td className="px-3 py-2 text-right font-semibold text-green-600 hidden sm:table-cell">
                           R$ {(sale.amountReceived ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </td>
                         <td className="px-3 py-2 text-center">
