@@ -45,27 +45,21 @@ export default function LoginPage() {
       <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl w-full max-w-md p-8 border border-white/60">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div
-            className="inline-flex items-center justify-center w-20 h-20 rounded-3xl mb-4 shadow-lg"
-            style={{ background: 'linear-gradient(135deg, #4D2075, #7B4FA6)' }}
-          >
-            <span className="text-4xl">🐾</span>
-          </div>
-          <h1 className="text-2xl font-bold" style={{ color: '#4D2075' }}>AU-Ê Petcare</h1>
-          <p className="text-sm mt-1 font-medium" style={{ color: '#4AA8AE' }}>Creche & Hotel para Cães</p>
+          <img src="/logo.png" alt="AU-Ê Petcare" className="h-24 w-auto mx-auto mb-3 object-contain" />
+          <p className="text-sm font-medium" style={{ color: '#4AA8AE' }}>Creche & Hotel para Cães</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="label">Email</label>
+            <label className="label">Usuário ou Email</label>
             <input
-              type="email"
+              type="text"
               className="input"
-              placeholder="seu@email.com"
+              placeholder="usuário ou email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              autoComplete="email"
+              autoComplete="username"
             />
           </div>
 
