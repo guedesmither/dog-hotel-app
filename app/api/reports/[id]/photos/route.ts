@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
 
 export async function POST(
   req: NextRequest,
@@ -20,18 +18,14 @@ export async function POST(
     return NextResponse.json({ error: 'Arquivo necessário' }, { status: 400 })
   }
 
+  if (file.size > 5 * 1024 * 1024) {
+    return NextResponse.json({ error: 'Foto muito grande (máx. 5MB)' }, { status: 400 })
+  }
+
   const bytes = await file.arrayBuffer()
-  const buffer = Buffer.from(bytes)
-
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', params.id)
-  await mkdir(uploadDir, { recursive: true })
-
-  const ext = file.name.split('.').pop()
-  const filename = `${Date.now()}.${ext}`
-  const filepath = path.join(uploadDir, filename)
-  await writeFile(filepath, buffer)
-
-  const url = `/uploads/${params.id}/${filename}`
+  const base64 = Buffer.from(bytes).toString('base64')
+  const mimeType = file.type || 'image/jpeg'
+  const url = `data:${mimeType};base64,${base64}`
 
   const photo = await prisma.reportPhoto.create({
     data: {

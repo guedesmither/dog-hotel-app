@@ -183,9 +183,10 @@ export default function ReportPage() {
 
   function handleChange(key: keyof Report, value: string | boolean) {
     if (!report) return
-    setReport((prev) => prev ? { ...prev, [key]: value } : prev)
+    const updated = { ...report, [key]: value }
+    setReport(updated)
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(() => saveReport({ ...report, [key]: value }), 1200)
+    saveTimerRef.current = setTimeout(() => saveReport(updated), 1200)
   }
 
   async function saveReport(data: Report) {
@@ -674,7 +675,7 @@ export default function ReportPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,image/heic,image/heif"
               className="hidden"
               onChange={uploadPhoto}
               multiple={false}
