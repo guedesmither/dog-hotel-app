@@ -374,9 +374,21 @@ export default function ReportPage() {
       const files: File[] = []
       for (const photo of report.photos) {
         try {
-          const res = await fetch(photo.url)
-          const blob = await res.blob()
-          const ext = photo.url.split('.').pop() || 'jpg'
+          let blob: Blob
+          if (photo.url.startsWith('data:')) {
+            // base64 data URI — parse directly without fetch (fetch of data: URI unreliable on iOS)
+            const [meta, b64] = photo.url.split(',')
+            const mimeMatch = meta.match(/data:([^;]+)/)
+            const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+            const binary = atob(b64)
+            const bytes = new Uint8Array(binary.length)
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+            blob = new Blob([bytes], { type: mime })
+          } else {
+            const res = await fetch(photo.url)
+            blob = await res.blob()
+          }
+          const ext = blob.type.split('/')[1] || 'jpg'
           const file = new File([blob], `foto-${photo.id}.${ext}`, { type: blob.type || 'image/jpeg' })
           files.push(file)
         } catch { /* skip failed photo */ }
@@ -676,6 +688,7 @@ export default function ReportPage() {
               ref={fileInputRef}
               type="file"
               accept="image/*,image/heic,image/heif"
+              capture="environment"
               className="hidden"
               onChange={uploadPhoto}
               multiple={false}
