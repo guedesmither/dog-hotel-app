@@ -308,78 +308,58 @@ export default function RelatorioPage() {
 
                 <div className="card overflow-x-auto">
                   <h3 className="font-semibold text-gray-800 mb-4">Receita por Mês</h3>
-                  {/* Enhanced bar chart with trend line */}
                   {(() => {
                     const months = data.byMonth
-                    const maxNet = Math.max(...months.map(x => x.net))
-                    // Calculate trend line points
+                    if (months.length === 0) return null
+                    const W = 600; const H = 160; const PAD = 8
+                    const maxNet = Math.max(...months.map(x => x.net), 1)
+                    const xPos = (i: number) => PAD + (i / Math.max(months.length - 1, 1)) * (W - PAD * 2)
+                    const yPos = (v: number) => H - PAD - (v / maxNet) * (H - PAD * 2)
+                    // Trend line (linear regression)
                     const n = months.length
-                    let trendPoints: number[] = []
-                    if (n >= 2) {
-                      const x = months.map((_, i) => i)
-                      const y = months.map(m => m.net)
-                      const sumX = x.reduce((a, b) => a + b, 0)
-                      const sumY = y.reduce((a, b) => a + b, 0)
-                      const sumXY = x.reduce((acc, xi, i) => acc + xi * y[i], 0)
-                      const sumXX = x.reduce((acc, xi) => acc + xi * xi, 0)
-                      const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
-                      const intercept = (sumY - slope * sumX) / n
-                      trendPoints = months.map((_, i) => slope * i + intercept)
-                    }
+                    const xs = months.map((_, i) => i)
+                    const ys = months.map(m => m.net)
+                    const sumX = xs.reduce((a, b) => a + b, 0)
+                    const sumY = ys.reduce((a, b) => a + b, 0)
+                    const sumXY = xs.reduce((acc, xi, i) => acc + xi * ys[i], 0)
+                    const sumXX = xs.reduce((acc, xi) => acc + xi * xi, 0)
+                    const denom = n * sumXX - sumX * sumX
+                    const slope = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0
+                    const intercept = (sumY - slope * sumX) / n
+                    const trendY = months.map((_, i) => slope * i + intercept)
+                    const netPoints = months.map((m, i) => `${xPos(i)},${yPos(m.net)}`).join(' ')
+                    const receivedPoints = months.map((m, i) => `${xPos(i)},${yPos(m.received)}`).join(' ')
+                    const trendPoints = trendY.map((v, i) => `${xPos(i)},${yPos(Math.max(0, v))}`).join(' ')
                     return (
                       <>
-                        <div className="relative mb-6">
-                          {/* Chart container with trend line */}
-                          <div className="relative h-28 px-2">
-                            {/* Trend line using CSS divs */}
-                            {trendPoints.length > 1 && (
-                              <div className="absolute inset-0 pointer-events-none z-10">
-                                {trendPoints.map((val, i) => {
-                                  if (i === trendPoints.length - 1) return null
-                                  const nextVal = trendPoints[i + 1]
-                                  const x1 = (i / (months.length - 1)) * 100
-                                  const x2 = ((i + 1) / (months.length - 1)) * 100
-                                  const y1 = maxNet > 0 ? 100 - (val / maxNet) * 100 : 50
-                                  const y2 = maxNet > 0 ? 100 - (nextVal / maxNet) * 100 : 50
-                                  const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2))
-                                  const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI
-                                  return (
-                                    <div
-                                      key={i}
-                                      className="absolute border-t-2 border-dashed border-indigo-500"
-                                      style={{
-                                        left: `${x1}%`,
-                                        top: `${y1}%`,
-                                        width: `${length}%`,
-                                        transform: `rotate(${angle}deg)`,
-                                        transformOrigin: '0 0',
-                                      }}
-                                    />
-                                  )
-                                })}
-                              </div>
-                            )}
-                            {/* Bars */}
-                            <div className="flex items-end gap-2 h-full relative z-0">
-                              {months.map((m, idx) => (
-                                <div key={m.month} className="flex-1 flex flex-col items-center gap-0.5" title={`${fmtMonth(m.month)}: ${R$(m.net)}`}>
-                                  <div className="w-full bg-amber-400 rounded-t transition-all hover:bg-amber-500" style={{ height: `${pct(m.net, maxNet)}%`, minHeight: 2 }} />
-                                  <span className="text-xs text-gray-400 rotate-45 origin-left whitespace-nowrap">{fmtMonth(m.month)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          {/* Legend */}
-                          {trendPoints.length > 1 && (
-                            <div className="flex items-center justify-center gap-2 mt-2">
-                              <div className="flex items-center gap-1.5">
-                                <div className="w-6 border-t-2 border-dashed border-indigo-500" />
-                                <span className="text-xs text-gray-500">Linha de Tendência (Projeção)</span>
-                              </div>
-                              <span className="text-xs text-gray-400">•</span>
-                              <span className="text-xs text-gray-500">{months.length} meses analisados</span>
-                            </div>
-                          )}
+                        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 160 }}>
+                          {/* Grid lines */}
+                          {[0.25, 0.5, 0.75, 1].map(f => (
+                            <line key={f} x1={PAD} x2={W - PAD} y1={yPos(maxNet * f)} y2={yPos(maxNet * f)}
+                              stroke="#f3f4f6" strokeWidth="1" />
+                          ))}
+                          {/* Received area fill */}
+                          <polyline points={receivedPoints} fill="none" stroke="#10b981" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" opacity="0.7" />
+                          {/* Net revenue line */}
+                          <polyline points={netPoints} fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+                          {/* Trend line */}
+                          {n >= 3 && <polyline points={trendPoints} fill="none" stroke="#6366f1" strokeWidth="1.5" strokeDasharray="6 4" strokeLinejoin="round" strokeLinecap="round" />}
+                          {/* Dots for net */}
+                          {months.map((m, i) => (
+                            <circle key={i} cx={xPos(i)} cy={yPos(m.net)} r="3" fill="#f59e0b" stroke="white" strokeWidth="1.5">
+                              <title>{fmtMonth(m.month)}: {R$(m.net)}</title>
+                            </circle>
+                          ))}
+                          {/* Month labels */}
+                          {months.map((m, i) => (
+                            <text key={i} x={xPos(i)} y={H - 1} textAnchor="middle" fontSize="9" fill="#9ca3af">{fmtMonth(m.month)}</text>
+                          ))}
+                        </svg>
+                        <div className="flex items-center justify-center gap-4 mt-2 flex-wrap">
+                          <div className="flex items-center gap-1.5"><div className="w-5 h-0.5 bg-amber-400 rounded" /><span className="text-xs text-gray-500">Líquido</span></div>
+                          <div className="flex items-center gap-1.5"><div className="w-5 h-0.5 bg-emerald-500 rounded" /><span className="text-xs text-gray-500">Recebido</span></div>
+                          {n >= 3 && <div className="flex items-center gap-1.5"><svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#6366f1" strokeWidth="1.5" strokeDasharray="4 3" /></svg><span className="text-xs text-gray-500">Tendência</span></div>}
+                          <span className="text-xs text-gray-400">{months.length} meses</span>
                         </div>
                       </>
                     )

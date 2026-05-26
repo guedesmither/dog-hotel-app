@@ -139,12 +139,6 @@ const navSections: NavSection[] = [
         roles: ['ADMIN', 'MANAGER'],
       },
       {
-        href: '/financeiro',
-        label: 'Financeiro',
-        icon: <DollarSign className="w-5 h-5" />,
-        roles: ['ADMIN', 'MANAGER'],
-      },
-      {
         href: '/relatorio',
         label: 'Relatório',
         icon: <TrendingUp className="w-5 h-5" />,
