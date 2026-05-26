@@ -150,6 +150,7 @@ export default function ReportPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [sharingPhotos, setSharingPhotos] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -683,7 +684,7 @@ export default function ReportPage() {
         {/* PHOTOS */}
         <div className="card">
           <h2 className="font-bold text-gray-800 mb-4 text-lg">📸 Fotos do Dia</h2>
-          <div className="mb-4">
+          <div className="mb-4 flex gap-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -693,13 +694,29 @@ export default function ReportPage() {
               onChange={uploadPhoto}
               multiple={false}
             />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*,image/heic,image/heif"
+              className="hidden"
+              onChange={uploadPhoto}
+              multiple={false}
+            />
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingPhoto}
-              className="btn-secondary flex items-center gap-2 w-full justify-center"
+              className="btn-secondary flex items-center gap-2 flex-1 justify-center"
             >
               <Camera className="w-4 h-4" />
-              {uploadingPhoto ? 'Enviando...' : 'Adicionar Foto'}
+              {uploadingPhoto ? 'Enviando...' : 'Câmera'}
+            </button>
+            <button
+              onClick={() => galleryInputRef.current?.click()}
+              disabled={uploadingPhoto}
+              className="btn-secondary flex items-center gap-2 flex-1 justify-center"
+            >
+              <span className="text-base leading-none">🖼️</span>
+              {uploadingPhoto ? 'Enviando...' : 'Álbum'}
             </button>
           </div>
 
