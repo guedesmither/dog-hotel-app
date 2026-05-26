@@ -95,7 +95,7 @@ export default function AgendaPage() {
   const [showDogSearch, setShowDogSearch] = useState(false)
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set())
   const [addSearch, setAddSearch] = useState('')
-  const [suggestedDogIds, setSuggestedDogIds] = useState<Set<string>>(new Set())
+  const [suggestedDogSales, setSuggestedDogSales] = useState<Map<string, string[]>>(new Map())
 
   const weekStartStr = toDateStr(weekStart)
 
@@ -211,15 +211,17 @@ export default function AgendaPage() {
       const yearMonth = date.slice(0, 7)
       const res = await fetch(`/api/sales?yearMonth=${yearMonth}`)
       if (!res.ok) return
-      const sales: Array<{ dogId: string; saleType: string; status: string }> = await res.json()
-      // Dogs with active sales (not CANCELLED) that have no agenda entry for the date
-      const inDate = new Set((data?.entries ?? []).filter(e => e.date === date).map(e => e.dogId))
-      const ids = new Set(
-        sales
-          .filter(s => s.status !== 'CANCELLED' && !inDate.has(s.dogId))
-          .map(s => s.dogId)
-      )
-      setSuggestedDogIds(ids)
+      const sales: Array<{ dogId: string | null; saleType: string; paymentStatus: string }> = await res.json()
+      // Build map dogId → unique saleTypes for active (non-cancelled) sales
+      const map = new Map<string, string[]>()
+      for (const s of sales) {
+        if (!s.dogId) continue
+        if (s.paymentStatus === 'CANCELADO') continue
+        const existing = map.get(s.dogId) ?? []
+        if (!existing.includes(s.saleType)) existing.push(s.saleType)
+        map.set(s.dogId, existing)
+      }
+      setSuggestedDogSales(map)
     } catch { /* silent */ }
   }
 
@@ -923,58 +925,89 @@ export default function AgendaPage() {
                       {pendingAddDog && pendingAddDog.date === date ? (
                         // Step 2: choose type or package
                         <>
-                          <p className="text-xs text-gray-500 font-medium px-1">Adicionar como:</p>
-                          {dogPackages && dogPackages.length > 0 && (
+                        {(() => {
+                          const dogSaleTypes = suggestedDogSales.get(pendingAddDog!.dogId) ?? []
+                          // Map saleType → agenda modalities
+                          const showCreche = dogSaleTypes.length === 0 || dogSaleTypes.some(t => t === 'MENSAL' || t === 'AVULSO')
+                          const showAvulso = dogSaleTypes.length === 0 || dogSaleTypes.includes('AVULSO')
+                          const showHotel = dogSaleTypes.length === 0 || dogSaleTypes.includes('HOTEL')
+                          const showPacote = dogSaleTypes.length === 0 || dogSaleTypes.includes('PACOTE') || (dogPackages && dogPackages.length > 0)
+                          const showReposicao = true // always available
+                          return (
                             <>
-                              <p className="text-xs text-gray-400 font-medium px-1 mt-2">Usar pacote:</p>
-                              {dogPackages.map((pkg: any) => (
-                                <button
-                                  key={pkg.id}
-                                  onClick={() => addDog(pendingAddDog!.dogId, date, 'CRECHE', pkg.id)}
-                                  className="w-full text-left px-2 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-xs font-medium text-green-700 transition-colors flex items-center justify-between"
-                                >
-                                  <span>📦 {pkg.packageType} ({pkg.remainingDays} dias)</span>
-                                  <span className="text-xs text-green-600">Expira: {new Date(pkg.expiryDate).toLocaleDateString('pt-BR')}</span>
+                              <p className="text-xs text-gray-500 font-medium px-1">Adicionar como:</p>
+                              {showPacote && dogPackages && dogPackages.length > 0 && (
+                                <>
+                                  <p className="text-xs text-gray-400 font-medium px-1 mt-1">📦 Pacote:</p>
+                                  {dogPackages.map((pkg: any) => (
+                                    <button
+                                      key={pkg.id}
+                                      onClick={() => addDog(pendingAddDog!.dogId, date, 'PACOTE', pkg.id)}
+                                      className="w-full text-left px-2 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-xs font-medium text-green-700 transition-colors flex items-center justify-between"
+                                    >
+                                      <span>📦 {pkg.packageType} ({pkg.remainingDays} dias)</span>
+                                      <span className="text-xs text-green-600">Expira: {new Date(pkg.expiryDate).toLocaleDateString('pt-BR')}</span>
+                                    </button>
+                                  ))}
+                                </>
+                              )}
+                              {showCreche && (
+                                <button onClick={() => addDog(pendingAddDog!.dogId, date, 'CRECHE')}
+                                  className="w-full text-left px-2 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-xs font-medium text-amber-700 transition-colors">
+                                  🐾 Creche
                                 </button>
-                              ))}
-                            </>
-                          )}
-                          <button onClick={() => addDog(pendingAddDog!.dogId, date, 'CRECHE')}
-                            className="w-full text-left px-2 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-xs font-medium text-amber-700 transition-colors">
-                            🐾 Creche
-                          </button>
-                          <button onClick={() => addDog(pendingAddDog!.dogId, date, 'AVULSO')}
-                            className="w-full text-left px-2 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-xs font-medium text-orange-700 transition-colors">
-                            💵 Avulso
-                          </button>
-                          {dogPackages && dogPackages.length > 0 && (
-                            <>
-                              <p className="text-xs text-gray-400 font-medium px-1 mt-2">Usar pacote (venda):</p>
-                              {dogPackages.map((pkg: any) => (
-                                <button
-                                  key={pkg.id}
-                                  onClick={() => addDog(pendingAddDog!.dogId, date, 'PACOTE', pkg.id)}
-                                  className="w-full text-left px-2 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-xs font-medium text-green-700 transition-colors flex items-center justify-between"
-                                >
-                                  <span>📦 {pkg.packageType} ({pkg.remainingDays} dias)</span>
-                                  <span className="text-xs text-green-600">Expira: {new Date(pkg.expiryDate).toLocaleDateString('pt-BR')}</span>
+                              )}
+                              {showAvulso && (
+                                <button onClick={() => addDog(pendingAddDog!.dogId, date, 'AVULSO')}
+                                  className="w-full text-left px-2 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-xs font-medium text-orange-700 transition-colors">
+                                  💵 Avulso
                                 </button>
-                              ))}
+                              )}
+                              {showHotel && (
+                                <button onClick={() => addDog(pendingAddDog!.dogId, date, 'HOTEL')}
+                                  className="w-full text-left px-2 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-xs font-medium text-blue-700 transition-colors">
+                                  🏨 Hotel
+                                </button>
+                              )}
+                              {showReposicao && (
+                                <button onClick={() => addDog(pendingAddDog!.dogId, date, 'REPOSICAO')}
+                                  className="w-full text-left px-2 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-xs font-medium text-purple-700 transition-colors">
+                                  🔄 Reposição
+                                </button>
+                              )}
+                              {dogSaleTypes.length > 0 && (
+                                <details className="mt-1">
+                                  <summary className="text-[10px] text-gray-400 cursor-pointer hover:text-gray-600 px-1">+ outras modalidades</summary>
+                                  <div className="mt-0.5 space-y-0.5">
+                                    {!showCreche && (
+                                      <button onClick={() => addDog(pendingAddDog!.dogId, date, 'CRECHE')}
+                                        className="w-full text-left px-2 py-1.5 rounded-lg bg-gray-50 hover:bg-amber-50 text-xs font-medium text-gray-600 transition-colors">
+                                        🐾 Creche
+                                      </button>
+                                    )}
+                                    {!showAvulso && (
+                                      <button onClick={() => addDog(pendingAddDog!.dogId, date, 'AVULSO')}
+                                        className="w-full text-left px-2 py-1.5 rounded-lg bg-gray-50 hover:bg-orange-50 text-xs font-medium text-gray-600 transition-colors">
+                                        💵 Avulso
+                                      </button>
+                                    )}
+                                    {!showHotel && (
+                                      <button onClick={() => addDog(pendingAddDog!.dogId, date, 'HOTEL')}
+                                        className="w-full text-left px-2 py-1.5 rounded-lg bg-gray-50 hover:bg-blue-50 text-xs font-medium text-gray-600 transition-colors">
+                                        🏨 Hotel
+                                      </button>
+                                    )}
+                                  </div>
+                                </details>
+                              )}
+                              <button onClick={() => {
+                                setPendingAddDog(null)
+                                setDogPackages(null)
+                              }}
+                                className="w-full text-xs text-gray-400 hover:text-gray-600 py-0.5">← Voltar</button>
                             </>
-                          )}
-                          <button onClick={() => addDog(pendingAddDog!.dogId, date, 'HOTEL')}
-                            className="w-full text-left px-2 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-xs font-medium text-blue-700 transition-colors">
-                            🏨 Hotel
-                          </button>
-                          <button onClick={() => addDog(pendingAddDog!.dogId, date, 'REPOSICAO')}
-                            className="w-full text-left px-2 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-xs font-medium text-purple-700 transition-colors">
-                            🔄 Reposição
-                          </button>
-                          <button onClick={() => {
-                            setPendingAddDog(null)
-                            setDogPackages(null)
-                          }}
-                            className="w-full text-xs text-gray-400 hover:text-gray-600 py-0.5">← Voltar</button>
+                          )
+                        })()}
                         </>
                       ) : (
                         // Step 1: choose dog
@@ -994,8 +1027,8 @@ export default function AgendaPage() {
                               const filtered = q
                                 ? all.filter(d => d.name.toLowerCase().includes(q) || d.ownerName.toLowerCase().includes(q))
                                 : all
-                              const suggested = filtered.filter(d => suggestedDogIds.has(d.id))
-                              const others = filtered.filter(d => !suggestedDogIds.has(d.id))
+                              const suggested = filtered.filter(d => suggestedDogSales.has(d.id))
+                              const others = filtered.filter(d => !suggestedDogSales.has(d.id))
                               const sorted = [...suggested, ...others]
                               if (sorted.length === 0) return <p className="text-xs text-gray-400 text-center py-1">Nenhum encontrado</p>
                               return (
@@ -1015,7 +1048,7 @@ export default function AgendaPage() {
                                           loadDogPackages(dog.id)
                                         }}
                                         className={`w-full flex items-center gap-1.5 text-left px-2 py-1 rounded-lg text-xs transition-colors ${
-                                          suggestedDogIds.has(dog.id)
+                                          suggestedDogSales.has(dog.id)
                                             ? 'bg-amber-50 hover:bg-amber-100 border border-amber-200'
                                             : 'hover:bg-gray-50'
                                         }`}
@@ -1024,7 +1057,7 @@ export default function AgendaPage() {
                                           {dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="w-full h-full object-cover" /> : '🐶'}
                                         </div>
                                         <span className="font-medium text-gray-700 truncate">{dog.name}</span>
-                                        {suggestedDogIds.has(dog.id) && <span className="ml-auto text-[9px] text-amber-500 shrink-0">⭐</span>}
+                                        {suggestedDogSales.has(dog.id) && <span className="ml-auto text-[9px] text-amber-500 shrink-0">⭐</span>}
                                       </button>
                                     </>
                                   ))}
