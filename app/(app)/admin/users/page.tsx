@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Plus, Edit, UserCheck, UserX } from 'lucide-react'
+import { Plus, Edit, UserCheck, UserX, Link2, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { ROLE_LABELS, ROLE_COLORS, formatDateShort } from '@/lib/utils'
 
@@ -36,6 +36,8 @@ export default function UsersPage() {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState(defaultForm)
   const [saving, setSaving] = useState(false)
+  const [resetLink, setResetLink] = useState<string | null>(null)
+  const [generatingReset, setGeneratingReset] = useState<string | null>(null)
 
   useEffect(() => {
     if (role && role !== 'ADMIN') { router.push('/dashboard'); return }
@@ -90,6 +92,24 @@ export default function UsersPage() {
     }
   }
 
+  async function generateResetLink(userId: string) {
+    setGeneratingReset(userId)
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setResetLink(data.url)
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao gerar link')
+    } finally {
+      setGeneratingReset(null)
+    }
+  }
+
   async function toggleActive(user: UserItem) {
     try {
       await fetch('/api/users', {
@@ -121,6 +141,27 @@ export default function UsersPage() {
           Novo Usuário
         </button>
       </div>
+
+      {resetLink && (
+        <div className="card mb-6 border-green-200 bg-green-50">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-green-800 mb-1">🔗 Link de redefinição de senha (válido por 24h)</p>
+              <p className="text-xs text-green-700 break-all font-mono bg-white rounded p-2 border border-green-200">{resetLink}</p>
+              <p className="text-xs text-gray-500 mt-1">Envie este link para o usuário pelo WhatsApp ou email.</p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={() => { navigator.clipboard.writeText(resetLink); toast.success('Link copiado!') }}
+                className="btn-secondary flex items-center gap-1.5 text-xs"
+              >
+                <Copy className="w-3.5 h-3.5" /> Copiar
+              </button>
+              <button onClick={() => setResetLink(null)} className="text-gray-400 hover:text-gray-600 text-xs px-2">✕</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="card mb-6 border-amber-200">
@@ -212,10 +253,18 @@ export default function UsersPage() {
                   <td className="py-3 px-2 text-gray-500">{formatDateShort(user.createdAt.split('T')[0])}</td>
                   <td className="py-3 px-2">
                     <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => openEdit(user)} className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
+                      <button onClick={() => openEdit(user)} title="Editar" className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button onClick={() => toggleActive(user)} className={`p-1.5 rounded-lg transition-colors ${user.active ? 'text-red-500 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}>
+                      <button
+                        onClick={() => generateResetLink(user.id)}
+                        disabled={generatingReset === user.id}
+                        title="Gerar link de redefinição de senha"
+                        className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      >
+                        <Link2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => toggleActive(user)} title={user.active ? 'Desativar' : 'Ativar'} className={`p-1.5 rounded-lg transition-colors ${user.active ? 'text-red-500 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}>
                         {user.active ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                       </button>
                     </div>

@@ -16,6 +16,8 @@ model User {
   active         Boolean            @default(true)
   tutorDogId     String?
   tutorDog       Dog?               @relation("TutorDog", fields: [tutorDogId], references: [id])
+  resetToken     String?
+  resetTokenExp  DateTime?
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   reports        DailyReport[]
