@@ -165,9 +165,7 @@ export default function DashboardPage() {
       const entries: any[] = await rosterRes.json()
       setRosterEntries(entries)
       const rosterIds = new Set(entries.map((e: any) => e.dogId || e.dog?.id))
-      const todayDogs = allDogs.filter(d =>
-        d.stays.some(s => s.active) || rosterIds.has(d.id)
-      )
+      const todayDogs = allDogs.filter(d => rosterIds.has(d.id))
       setDogs(todayDogs)
     } finally {
       setLoading(false)
