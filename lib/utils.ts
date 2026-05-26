@@ -157,7 +157,7 @@ export function generateWhatsAppMessage(data: {
     lines.push('')
   }
 
-  lines.push(`_${data.hotelName || 'AU-Ê Petcare'} �_`)
+  lines.push(`_${data.hotelName || 'AU-Ê Petcare'} 🐶_`)
 
   return lines.join('\n')
 }
