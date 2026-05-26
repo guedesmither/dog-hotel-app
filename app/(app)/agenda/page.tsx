@@ -94,6 +94,8 @@ export default function AgendaPage() {
   const [dogSearch, setDogSearch] = useState('')
   const [showDogSearch, setShowDogSearch] = useState(false)
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set())
+  const [addSearch, setAddSearch] = useState('')
+  const [suggestedDogIds, setSuggestedDogIds] = useState<Set<string>>(new Set())
 
   const weekStartStr = toDateStr(weekStart)
 
@@ -203,6 +205,23 @@ export default function AgendaPage() {
   useEffect(() => {
     if (viewMode === 'dog' && selectedDogId) loadDogTimeline(selectedDogId)
   }, [viewMode, selectedDogId])
+
+  async function loadSuggestedDogs(date: string) {
+    try {
+      const yearMonth = date.slice(0, 7)
+      const res = await fetch(`/api/sales?yearMonth=${yearMonth}`)
+      if (!res.ok) return
+      const sales: Array<{ dogId: string; saleType: string; status: string }> = await res.json()
+      // Dogs with active sales (not CANCELLED) that have no agenda entry for the date
+      const inDate = new Set((data?.entries ?? []).filter(e => e.date === date).map(e => e.dogId))
+      const ids = new Set(
+        sales
+          .filter(s => s.status !== 'CANCELLED' && !inDate.has(s.dogId))
+          .map(s => s.dogId)
+      )
+      setSuggestedDogIds(ids)
+    } catch { /* silent */ }
+  }
 
   async function loadDogPackages(dogId: string) {
     try {
@@ -960,29 +979,60 @@ export default function AgendaPage() {
                       ) : (
                         // Step 1: choose dog
                         <>
-                          <p className="text-xs text-gray-500 font-medium px-1">Adicionar:</p>
-                          <div className="max-h-32 overflow-y-auto space-y-1">
-                            {dogsNotInDate(date).length === 0 ? (
-                              <p className="text-xs text-gray-400 text-center py-1">Todos adicionados</p>
-                            ) : (
-                              dogsNotInDate(date).map(dog => (
-                                <button
-                                  key={dog.id}
-                                  onClick={() => {
-                                    setPendingAddDog({ dogId: dog.id, date })
-                                    loadDogPackages(dog.id)
-                                  }}
-                                  className="w-full flex items-center gap-1.5 text-left px-2 py-1 rounded-lg hover:bg-amber-50 text-xs transition-colors"
-                                >
-                                  <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-xs">
-                                    {dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="w-full h-full object-cover" /> : '🐶'}
-                                  </div>
-                                  <span className="font-medium text-gray-700 truncate">{dog.name}</span>
-                                </button>
-                              ))
-                            )}
+                          <input
+                            autoFocus
+                            type="text"
+                            placeholder="Buscar cão..."
+                            value={addSearch}
+                            onChange={e => setAddSearch(e.target.value)}
+                            className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 bg-white mb-1"
+                          />
+                          <div className="max-h-40 overflow-y-auto space-y-0.5">
+                            {(() => {
+                              const all = dogsNotInDate(date)
+                              const q = addSearch.toLowerCase()
+                              const filtered = q
+                                ? all.filter(d => d.name.toLowerCase().includes(q) || d.ownerName.toLowerCase().includes(q))
+                                : all
+                              const suggested = filtered.filter(d => suggestedDogIds.has(d.id))
+                              const others = filtered.filter(d => !suggestedDogIds.has(d.id))
+                              const sorted = [...suggested, ...others]
+                              if (sorted.length === 0) return <p className="text-xs text-gray-400 text-center py-1">Nenhum encontrado</p>
+                              return (
+                                <>
+                                  {suggested.length > 0 && !q && (
+                                    <p className="text-[10px] text-amber-600 font-semibold px-1 pt-0.5">⭐ Com venda ativa este mês</p>
+                                  )}
+                                  {sorted.map((dog, idx) => (
+                                    <>
+                                      {!q && idx === suggested.length && suggested.length > 0 && (
+                                        <p key="sep" className="text-[10px] text-gray-400 px-1 pt-1">Outros cães</p>
+                                      )}
+                                      <button
+                                        key={dog.id}
+                                        onClick={() => {
+                                          setPendingAddDog({ dogId: dog.id, date })
+                                          loadDogPackages(dog.id)
+                                        }}
+                                        className={`w-full flex items-center gap-1.5 text-left px-2 py-1 rounded-lg text-xs transition-colors ${
+                                          suggestedDogIds.has(dog.id)
+                                            ? 'bg-amber-50 hover:bg-amber-100 border border-amber-200'
+                                            : 'hover:bg-gray-50'
+                                        }`}
+                                      >
+                                        <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-xs">
+                                          {dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="w-full h-full object-cover" /> : '🐶'}
+                                        </div>
+                                        <span className="font-medium text-gray-700 truncate">{dog.name}</span>
+                                        {suggestedDogIds.has(dog.id) && <span className="ml-auto text-[9px] text-amber-500 shrink-0">⭐</span>}
+                                      </button>
+                                    </>
+                                  ))}
+                                </>
+                              )
+                            })()}
                           </div>
-                          <button onClick={() => setAddingToDate(null)}
+                          <button onClick={() => { setAddingToDate(null); setAddSearch('') }}
                             className="w-full text-xs text-gray-400 hover:text-gray-600 py-0.5">
                             Cancelar
                           </button>
@@ -991,7 +1041,7 @@ export default function AgendaPage() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => setAddingToDate(date)}
+                      onClick={() => { setAddingToDate(date); setAddSearch(''); loadSuggestedDogs(date) }}
                       className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-amber-400 hover:text-amber-600 hover:bg-amber-50 transition-colors text-xs"
                     >
                       <Plus className="w-3.5 h-3.5" /> Adicionar
