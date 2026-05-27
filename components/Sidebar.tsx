@@ -56,7 +56,7 @@ const navSections: NavSection[] = [
         href: '/dashboard',
         label: 'Dashboard',
         icon: <LayoutDashboard className="w-5 h-5" />,
-        roles: ['ADMIN', 'MANAGER'],
+        roles: ['ADMIN', 'MANAGER', 'MONITOR'],
       },
     ],
   },
@@ -67,7 +67,7 @@ const navSections: NavSection[] = [
         href: '/dogs',
         label: 'Cães',
         icon: <Dog className="w-5 h-5" />,
-        roles: ['ADMIN', 'MANAGER'],
+        roles: ['ADMIN', 'MANAGER', 'MONITOR'],
       },
       {
         href: '/dogs/new',

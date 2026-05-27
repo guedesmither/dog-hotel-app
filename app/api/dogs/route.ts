@@ -8,10 +8,6 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
   const sessionUser = session.user as { role: string; tutorDogId?: string }
-  // MONITOR can only access via monitoria screens
-  if (sessionUser.role === 'MONITOR') {
-    return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
-  }
 
   const { searchParams } = new URL(req.url)
   const active = searchParams.get('active')
