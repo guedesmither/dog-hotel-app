@@ -74,6 +74,9 @@ export function generateWhatsAppMessage(data: {
   lunchStatus: string
   lunchQty?: string | null
   lunchNotes?: string | null
+  afternoonSnackStatus: string
+  afternoonSnackQty?: string | null
+  afternoonSnackNotes?: string | null
   dinnerStatus: string
   dinnerQty?: string | null
   dinnerNotes?: string | null
@@ -111,7 +114,8 @@ export function generateWhatsAppMessage(data: {
   }
   fmtMeal('☀️', 'Café da manhã', data.breakfastStatus, data.breakfastQty, data.breakfastNotes)
   fmtMeal('🌤️', 'Almoço', data.lunchStatus, data.lunchQty, data.lunchNotes)
-  fmtMeal('🌙', 'Janta', data.dinnerStatus, data.dinnerQty, data.dinnerNotes)
+  fmtMeal('�', 'Lanche da tarde', data.afternoonSnackStatus, data.afternoonSnackQty, data.afternoonSnackNotes)
+  fmtMeal('�🌙', 'Janta', data.dinnerStatus, data.dinnerQty, data.dinnerNotes)
 
   if (meals.length > 0) {
     lines.push('🍽️ *Refeições:*')
@@ -163,7 +167,14 @@ export function generateWhatsAppMessage(data: {
 }
 
 export function buildWhatsAppUrl(phone: string, message: string) {
-  const cleanPhone = phone.replace(/\D/g, '')
+  // Remove tudo exceto dígitos e o sinal de +
+  let cleanPhone = phone.replace(/[^\d+]/g, '')
+  
+  // Se não começar com +, adiciona
+  if (!cleanPhone.startsWith('+')) {
+    cleanPhone = '+' + cleanPhone
+  }
+  
   const encoded = encodeURIComponent(message)
   return `https://wa.me/${cleanPhone}?text=${encoded}`
 }

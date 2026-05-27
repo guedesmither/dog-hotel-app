@@ -32,6 +32,9 @@ interface Report {
   lunchStatus: string
   lunchQty: string | null
   lunchNotes: string | null
+  afternoonSnackStatus: string
+  afternoonSnackQty: string | null
+  afternoonSnackNotes: string | null
   dinnerStatus: string
   dinnerQty: string | null
   dinnerNotes: string | null
@@ -324,6 +327,9 @@ export default function ReportPage() {
       lunchStatus: report.lunchStatus,
       lunchQty: report.lunchQty,
       lunchNotes: report.lunchNotes,
+      afternoonSnackStatus: report.afternoonSnackStatus,
+      afternoonSnackQty: report.afternoonSnackQty,
+      afternoonSnackNotes: report.afternoonSnackNotes,
       dinnerStatus: report.dinnerStatus,
       dinnerQty: report.dinnerQty,
       dinnerNotes: report.dinnerNotes,
@@ -424,7 +430,7 @@ export default function ReportPage() {
     return (
       <div className="text-center py-16">
         <p className="text-gray-500">Relatório não encontrado</p>
-        <Link href={`/dogs/${params.id}`} className="btn-secondary mt-4 inline-block">Voltar</Link>
+        <Link href="/alimentacao" className="btn-secondary mt-4 inline-block">Voltar</Link>
       </div>
     )
   }
@@ -434,7 +440,7 @@ export default function ReportPage() {
   return (
     <div className="max-w-2xl mx-auto pb-8">
       <div className="flex items-center gap-3 mb-2">
-        <Link href={`/dogs/${params.id}`} className="p-2 rounded-lg hover:bg-amber-100 transition-colors">
+        <Link href="/alimentacao" className="p-2 rounded-lg hover:bg-amber-100 transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </Link>
         <div className="flex-1">
@@ -513,6 +519,7 @@ export default function ReportPage() {
           <div className="space-y-4">
             <MealSection title="Café da Manhã" emoji="☀️" statusKey="breakfastStatus" qtyKey="breakfastQty" notesKey="breakfastNotes" report={report} onChange={handleChange} saving={saving} />
             <MealSection title="Almoço" emoji="🌤️" statusKey="lunchStatus" qtyKey="lunchQty" notesKey="lunchNotes" report={report} onChange={handleChange} saving={saving} />
+            <MealSection title="Lanche da Tarde" emoji="🍪" statusKey="afternoonSnackStatus" qtyKey="afternoonSnackQty" notesKey="afternoonSnackNotes" report={report} onChange={handleChange} saving={saving} />
             <MealSection title="Janta" emoji="🌙" statusKey="dinnerStatus" qtyKey="dinnerQty" notesKey="dinnerNotes" report={report} onChange={handleChange} saving={saving} />
           </div>
         </div>

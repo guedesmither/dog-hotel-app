@@ -323,15 +323,18 @@ const dogData = [
 async function main() {
   for (const data of dogData) {
     try {
-      const dog = await prisma.dog.findUnique({ where: { matricula: data.matricula } })
+      // Buscar pelo nome (case insensitive)
+      const dog = await prisma.dog.findFirst({ 
+        where: { name: { contains: data.name, mode: 'insensitive' } }
+      })
       
       if (!dog) {
-        console.log(`⚠️  Cão ${data.name} (${data.matricula}) não encontrado`)
+        console.log(`⚠️  Cão ${data.name} não encontrado`)
         continue
       }
 
       await prisma.dog.update({
-        where: { matricula: data.matricula },
+        where: { id: dog.id },
         data: {
           scheduledDays: data.scheduledDays,
           serviceType: data.serviceType,
@@ -350,9 +353,9 @@ async function main() {
         },
       })
       
-      console.log(`✅ ${data.name} (${data.matricula}) atualizado`)
+      console.log(`✅ ${dog.name} atualizado`)
     } catch (error) {
-      console.error(`❌ Erro ao atualizar ${data.name} (${data.matricula}):`, error.message)
+      console.error(`❌ Erro ao atualizar ${data.name}:`, error.message)
     }
   }
   
