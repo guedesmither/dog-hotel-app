@@ -360,7 +360,12 @@ export default function DashboardPage() {
                               {dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="w-full h-full object-cover rounded-lg" /> : '🐶'}
                             </div>
                             <div>
-                              <Link href={`/dogs/${dog.id}`} className="font-semibold text-gray-800 hover:underline">{dog.name}</Link>
+                              <div className="flex items-center gap-1.5">
+                                <Link href={`/dogs/${dog.id}`} className="font-semibold text-gray-800 hover:underline">{dog.name}</Link>
+                                {report && !isAbsent && (
+                                  <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">📋</span>
+                                )}
+                              </div>
                               <p className="text-xs text-gray-400">{dog.breed}</p>
                             </div>
                           </div>
@@ -480,6 +485,9 @@ export default function DashboardPage() {
                           <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium">✗ Faltou</span>
                         ) : (
                           <span className="text-xs bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded font-medium">⏳ Pendente</span>
+                        )}
+                        {hasReport && !isAbsent && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">📋 Relatório</span>
                         )}
                       </div>
                       <p className="text-sm text-gray-500 truncate">{dog.breed}</p>
