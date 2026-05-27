@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { Dog, ClipboardList, CheckCircle2, Clock, AlertCircle, UserX, UserCheck, RefreshCw, CalendarCheck, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react'
+import { Dog, ClipboardList, CheckCircle2, Clock, AlertCircle, UserX, UserCheck, RefreshCw, CalendarCheck, ChevronLeft, ChevronRight, LayoutGrid, List, Camera, X, Upload } from 'lucide-react'
 import { formatDate, getTodayString, MEAL_STATUS_COLORS, MOOD_EMOJIS } from '@/lib/utils'
 
 
@@ -66,6 +66,12 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards')
   const today = selectedDate
   const isToday = selectedDate === realToday
+  
+  // Check-in modal state
+  const [checkInModal, setCheckInModal] = useState<{ open: boolean; dogId: string; dogName: string } | null>(null)
+  const [checkInNotes, setCheckInNotes] = useState('')
+  const [checkInPhotos, setCheckInPhotos] = useState<Array<{ file: File; preview: string }>>([])
+  const [uploadingCheckIn, setUploadingCheckIn] = useState(false)
 
   function shiftDate(days: number) {
     const d = new Date(selectedDate + 'T12:00:00')
@@ -90,18 +96,62 @@ export default function DashboardPage() {
     }
   }
 
-  async function markPresent(dogId: string) {
-    setTogglingAbsent(dogId)
+  async function markPresent(dogId: string, dogName: string) {
+    // Open check-in modal with photo option
+    setCheckInModal({ open: true, dogId, dogName })
+  }
+
+  async function completeCheckIn() {
+    if (!checkInModal) return
+    setUploadingCheckIn(true)
     try {
+      // 1. Mark present
       await fetch('/api/roster/presence', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dogId, date: today, present: true }),
+        body: JSON.stringify({ dogId: checkInModal.dogId, date: today, present: true }),
       })
+      
+      // 2. If photos exist, upload them
+      if (checkInPhotos.length > 0 || checkInNotes.trim()) {
+        const formData = new FormData()
+        formData.append('dogId', checkInModal.dogId)
+        formData.append('date', today)
+        formData.append('notes', checkInNotes)
+        checkInPhotos.forEach((photo, idx) => {
+          formData.append(`photo${idx}`, photo.file)
+        })
+        
+        await fetch('/api/checkin/photos', {
+          method: 'POST',
+          body: formData,
+        })
+      }
+      
+      setCheckInModal(null)
+      setCheckInNotes('')
+      setCheckInPhotos([])
       await loadDay()
     } finally {
-      setTogglingAbsent(null)
+      setUploadingCheckIn(false)
     }
+  }
+
+  function handleCheckInPhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files
+    if (!files) return
+    
+    Array.from(files).forEach(file => {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        setCheckInPhotos(prev => [...prev, { file, preview: event.target?.result as string }])
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  function removeCheckInPhoto(index: number) {
+    setCheckInPhotos(prev => prev.filter((_, i) => i !== index))
   }
 
   useEffect(() => {
@@ -365,7 +415,7 @@ export default function DashboardPage() {
                           <div className="flex items-center gap-1 justify-center">
                             {!isAbsent && present !== true && (
                               <button
-                                onClick={() => markPresent(dog.id)}
+                                onClick={() => markPresent(dog.id, dog.name)}
                                 disabled={togglingAbsent === dog.id}
                                 className="text-xs bg-green-100 text-green-700 hover:bg-green-200 py-1 px-2 rounded font-medium"
                                 title="Confirmar presença"
@@ -499,7 +549,7 @@ export default function DashboardPage() {
                   <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2 flex-wrap">
                     {!isAbsent && present !== true && (
                       <button
-                        onClick={() => markPresent(dog.id)}
+                        onClick={() => markPresent(dog.id, dog.name)}
                         disabled={togglingAbsent === dog.id}
                         className="flex-1 min-w-[80px] text-center text-xs bg-green-100 hover:bg-green-200 text-green-700 py-2 px-3 rounded-lg font-medium transition-colors"
                       >
@@ -655,6 +705,119 @@ export default function DashboardPage() {
               ))}
             </div>
           </details>
+        </div>
+      )}
+
+      {/* CHECK-IN MODAL */}
+      {checkInModal?.open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Check-in: {checkInModal.dogName}</h3>
+                <button
+                  onClick={() => setCheckInModal(null)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <p className="text-sm text-gray-500 mb-4">
+                Confirme a presença do cão. Fotos são opcionais — use para documentar qualquer observação importante na entrada (ex: arranhão, comportamento, etc).
+              </p>
+
+              {/* Photo Upload */}
+              <div className="mb-4">
+                <label className="label flex items-center gap-2">
+                  <Camera className="w-4 h-4" /> Fotos de Check-in (opcional)
+                </label>
+                
+                {/* Photo Preview Grid */}
+                {checkInPhotos.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {checkInPhotos.map((photo, idx) => (
+                      <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200">
+                        <img src={photo.preview} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => removeCheckInPhoto(idx)}
+                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Photo Buttons */}
+                <div className="flex gap-2">
+                  <label className="flex-1 cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={handleCheckInPhotoSelect}
+                      multiple
+                    />
+                    <span className="btn-secondary flex items-center justify-center gap-2 w-full text-xs">
+                      <Camera className="w-4 h-4" /> Câmera
+                    </span>
+                  </label>
+                  <label className="flex-1 cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleCheckInPhotoSelect}
+                      multiple
+                    />
+                    <span className="btn-secondary flex items-center justify-center gap-2 w-full text-xs">
+                      <Upload className="w-4 h-4" /> Galeria
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="mb-4">
+                <label className="label">Observações na entrada (opcional)</label>
+                <textarea
+                  className="input min-h-[80px] text-sm"
+                  placeholder="Ex: Cão chegou com arranhão na pata esquerda, está mais quieto que o normal..."
+                  value={checkInNotes}
+                  onChange={(e) => setCheckInNotes(e.target.value)}
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setCheckInModal(null)}
+                  className="btn-secondary flex-1"
+                  disabled={uploadingCheckIn}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={completeCheckIn}
+                  disabled={uploadingCheckIn}
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
+                >
+                  {uploadingCheckIn ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" /> Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <UserCheck className="w-4 h-4" /> Confirmar Check-in
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

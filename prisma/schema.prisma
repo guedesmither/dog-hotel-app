@@ -142,6 +142,7 @@ model DailyReport {
   medicationNotes  String?
   mood             String?
   generalNotes     String?
+  checkInNotes     String?
   sentToWhatsApp   Boolean       @default(false)
   lastEditedById   String?
   activities       Activity[]
@@ -234,6 +235,7 @@ model ReportPhoto {
   reportId  String
   report    DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
   url       String
+  type      String      @default("REPORT") // REPORT, CHECKIN, CHECKOUT
   caption   String?
   createdAt DateTime    @default(now())
 }
