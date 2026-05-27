@@ -50,7 +50,11 @@ interface DogItem {
   feedingInstructions: string | null
   feedingTimesPerDay: string | null
   feedingGramsPerMeal: string | null
+  medications: string | null
   allergies: string | null
+  notes: string | null
+  vetName: string | null
+  vetPhone: string | null
   report: DogReport | null
   loadingReport: boolean
 }
@@ -390,13 +394,80 @@ function DogMonitoringCard({
         </div>
       )}
 
-      {/* Instruções da ficha */}
-      {(dog.feedingType || dog.feedingInstructions || dog.allergies) && (
-        <div className="bg-amber-50 rounded-lg p-2.5 mb-3 text-xs space-y-0.5 border border-amber-100">
-          {dog.feedingType && <p><span className="text-gray-500">Tipo:</span> <span className="font-medium text-gray-700">{dog.feedingType}</span></p>}
-          {dog.feedingGramsPerMeal && <p><span className="text-gray-500">Qtd:</span> <span className="font-medium text-gray-700">{dog.feedingGramsPerMeal}</span></p>}
-          {dog.feedingInstructions && <p><span className="text-gray-500">Obs:</span> <span className="font-medium text-gray-700">{dog.feedingInstructions}</span></p>}
-          {dog.allergies && <p className="text-red-600 font-semibold">⚠️ {dog.allergies}</p>}
+      {/* Instruções da ficha - Ficha Técnica */}
+      {(dog.feedingType || dog.feedingInstructions || dog.allergies || dog.medications || dog.notes || dog.vetName) && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 mb-3 border border-amber-200 shadow-sm">
+          <div className="flex items-center gap-1.5 mb-2 text-amber-800">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            <span className="text-xs font-bold uppercase tracking-wide">Ficha Técnica</span>
+          </div>
+          
+          <div className="space-y-1.5 text-xs">
+            {/* Alimentação */}
+            {dog.feedingType && (
+              <div className="flex items-start gap-2">
+                <span className="text-gray-500 shrink-0 w-16">🍖 Tipo:</span>
+                <span className="font-medium text-gray-700">{dog.feedingType}</span>
+              </div>
+            )}
+            {dog.feedingTimesPerDay && (
+              <div className="flex items-start gap-2">
+                <span className="text-gray-500 shrink-0 w-16">⏰ Vezes:</span>
+                <span className="font-medium text-gray-700">{dog.feedingTimesPerDay}x ao dia</span>
+              </div>
+            )}
+            {dog.feedingGramsPerMeal && (
+              <div className="flex items-start gap-2">
+                <span className="text-gray-500 shrink-0 w-16">⚖️ Qtd:</span>
+                <span className="font-medium text-gray-700">{dog.feedingGramsPerMeal} por refeição</span>
+              </div>
+            )}
+            {dog.feedingInstructions && (
+              <div className="flex items-start gap-2">
+                <span className="text-gray-500 shrink-0 w-16">📝 Obs:</span>
+                <span className="font-medium text-gray-700">{dog.feedingInstructions}</span>
+              </div>
+            )}
+            
+            {/* Medicação */}
+            {dog.medications && (
+              <div className="flex items-start gap-2 bg-blue-50 p-1.5 rounded border border-blue-100">
+                <span className="text-blue-600 shrink-0 w-16 font-semibold">💊 Meds:</span>
+                <span className="font-medium text-blue-800">{dog.medications}</span>
+              </div>
+            )}
+            
+            {/* Alergias - Alerta */}
+            {dog.allergies && (
+              <div className="flex items-start gap-2 bg-red-50 p-1.5 rounded border border-red-100">
+                <span className="text-red-600 shrink-0 w-16 font-semibold">⚠️ Alergia:</span>
+                <span className="font-medium text-red-700">{dog.allergies}</span>
+              </div>
+            )}
+            
+            {/* Observações gerais */}
+            {dog.notes && (
+              <div className="flex items-start gap-2">
+                <span className="text-gray-500 shrink-0 w-16">📋 Geral:</span>
+                <span className="font-medium text-gray-700">{dog.notes}</span>
+              </div>
+            )}
+            
+            {/* Veterinário */}
+            {dog.vetName && (
+              <div className="flex items-start gap-2 mt-2 pt-2 border-t border-amber-200/50">
+                <span className="text-gray-500 shrink-0 w-16">👨‍⚕️ Vet:</span>
+                <div className="flex-1">
+                  <span className="font-medium text-gray-700">{dog.vetName}</span>
+                  {dog.vetPhone && (
+                    <a href={`tel:${dog.vetPhone}`} className="block text-amber-600 hover:underline mt-0.5">
+                      📞 {dog.vetPhone}
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
