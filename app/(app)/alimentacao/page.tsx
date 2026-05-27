@@ -395,13 +395,18 @@ function DogMonitoringCard({
       )}
 
       {/* Instruções da ficha - Ficha Técnica */}
-      {(dog.feedingType || dog.feedingInstructions || dog.allergies || dog.medications || dog.notes || dog.vetName) && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 mb-3 border border-amber-200 shadow-sm">
-          <div className="flex items-center gap-1.5 mb-2 text-amber-800">
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 mb-3 border border-amber-200 shadow-sm">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5 text-amber-800">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             <span className="text-xs font-bold uppercase tracking-wide">Ficha Técnica</span>
           </div>
-          
+          <a href={`/dogs/${dog.id}`} className="text-[10px] text-amber-600 hover:underline">
+            Ver ficha completa →
+          </a>
+        </div>
+        
+        {(dog.feedingType || dog.feedingInstructions || dog.allergies || dog.medications || dog.notes || dog.vetName || dog.feedingTimesPerDay || dog.feedingGramsPerMeal) ? (
           <div className="space-y-1.5 text-xs">
             {/* Alimentação */}
             {dog.feedingType && (
@@ -430,18 +435,28 @@ function DogMonitoringCard({
             )}
             
             {/* Medicação */}
-            {dog.medications && (
+            {dog.medications ? (
               <div className="flex items-start gap-2 bg-blue-50 p-1.5 rounded border border-blue-100">
                 <span className="text-blue-600 shrink-0 w-16 font-semibold">💊 Meds:</span>
                 <span className="font-medium text-blue-800">{dog.medications}</span>
               </div>
+            ) : (
+              <div className="flex items-start gap-2 text-gray-400">
+                <span className="shrink-0 w-16">💊 Meds:</span>
+                <span>Sem medicação cadastrada</span>
+              </div>
             )}
             
             {/* Alergias - Alerta */}
-            {dog.allergies && (
+            {dog.allergies ? (
               <div className="flex items-start gap-2 bg-red-50 p-1.5 rounded border border-red-100">
                 <span className="text-red-600 shrink-0 w-16 font-semibold">⚠️ Alergia:</span>
                 <span className="font-medium text-red-700">{dog.allergies}</span>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 text-gray-400">
+                <span className="shrink-0 w-16">⚠️ Alergia:</span>
+                <span>Sem alergias cadastradas</span>
               </div>
             )}
             
@@ -468,8 +483,14 @@ function DogMonitoringCard({
               </div>
             )}
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-xs text-gray-400 italic">
+            Nenhuma informação de alimentação, medicação ou alergia cadastrada nesta ficha.
+            <br />
+            <a href={`/dogs/${dog.id}/edit`} className="text-amber-600 hover:underline">Cadastrar informações →</a>
+          </p>
+        )}
+      </div>
 
       {dog.loadingReport ? (
         <p className="text-xs text-gray-400 animate-pulse text-center py-2">Carregando...</p>
