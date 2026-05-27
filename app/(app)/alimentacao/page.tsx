@@ -283,12 +283,13 @@ const MOODS = [
 ]
 
 const DEFAULT_ACTIVITIES = [
-  'Socialização',
-  'Brincadeiras',
-  'Banho de sol',
-  'Descanso',
-  'Passeio',
+  'Bolinha',
   'Piscina',
+  'Corrida',
+  'Enriquecimento ambiental',
+  'Adestramento comportamental',
+  'Musicoterapia',
+  'Circuito',
 ]
 
 function DogMonitoringCard({
