@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { Dog, ClipboardList, CheckCircle2, Clock, AlertCircle, UserX, RefreshCw, CalendarCheck, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react'
+import { Dog, ClipboardList, CheckCircle2, Clock, AlertCircle, UserX, UserCheck, RefreshCw, CalendarCheck, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react'
 import { formatDate, getTodayString, MEAL_STATUS_COLORS, MOOD_EMOJIS } from '@/lib/utils'
 
 
@@ -85,6 +85,20 @@ export default function DashboardPage() {
       })
       await loadDay()
       await loadReplacements()
+    } finally {
+      setTogglingAbsent(null)
+    }
+  }
+
+  async function markPresent(dogId: string) {
+    setTogglingAbsent(dogId)
+    try {
+      await fetch('/api/roster/presence', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dogId, date: today, present: true }),
+      })
+      await loadDay()
     } finally {
       setTogglingAbsent(null)
     }
@@ -319,7 +333,7 @@ export default function DashboardPage() {
                               ? <span className="text-xs text-green-600 font-semibold">✓ Presente</span>
                               : present === false
                                 ? <span className="text-xs text-red-500 font-semibold">✗ Faltou</span>
-                                : <span className="text-xs text-gray-400">—</span>
+                                : <span className="text-xs text-amber-500 font-medium">⏳ Pendente</span>
                           }
                         </td>
                         <td className="px-3 py-2 text-center">
@@ -349,6 +363,16 @@ export default function DashboardPage() {
                         </td>
                         <td className="px-3 py-2 text-center">
                           <div className="flex items-center gap-1 justify-center">
+                            {!isAbsent && present !== true && (
+                              <button
+                                onClick={() => markPresent(dog.id)}
+                                disabled={togglingAbsent === dog.id}
+                                className="text-xs bg-green-100 text-green-700 hover:bg-green-200 py-1 px-2 rounded font-medium"
+                                title="Confirmar presença"
+                              >
+                                <UserCheck className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             {!isAbsent && (
                               <Link href={`/dogs/${dog.id}/report`} className="text-xs bg-amber-600 hover:bg-amber-700 text-white py-1 px-2 rounded font-medium">📝</Link>
                             )}
@@ -358,6 +382,7 @@ export default function DashboardPage() {
                               className={`text-xs py-1 px-2 rounded font-medium ${
                                 isAbsent ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                               }`}
+                              title={isAbsent ? 'Desfazer ausência' : 'Marcar ausente'}
                             >
                               {isAbsent ? '↩' : '🚫'}
                             </button>
@@ -381,9 +406,11 @@ export default function DashboardPage() {
                 report.breakfastStatus !== 'PENDING' &&
                 report.lunchStatus !== 'PENDING' &&
                 report.dinnerStatus !== 'PENDING'
+              const rosterEntry = rosterEntries.find((e: any) => (e.dogId || e.dog?.id) === dog.id)
+              const present = rosterEntry?.present
 
               return (
-                <div key={dog.id} className={`card hover:shadow-md transition-shadow ${isAbsent ? 'opacity-60 bg-gray-50' : ''}`}>
+                <div key={dog.id} className={`card hover:shadow-md transition-shadow ${isAbsent ? 'opacity-60 bg-gray-50' : present === true ? 'border-green-200' : ''}`}>
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-2xl shrink-0 overflow-hidden">
                       {dog.photoUrl ? (
@@ -393,14 +420,16 @@ export default function DashboardPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-bold text-gray-900">{dog.name}</h3>
                         {isAbsent ? (
                           <span className="text-xs bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded font-medium">Ausente</span>
-                        ) : allMealsDone ? (
-                          <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                        ) : present === true ? (
+                          <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">✓ Presente</span>
+                        ) : present === false ? (
+                          <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium">✗ Faltou</span>
                         ) : (
-                          <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                          <span className="text-xs bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded font-medium">⏳ Pendente</span>
                         )}
                       </div>
                       <p className="text-sm text-gray-500 truncate">{dog.breed}</p>
@@ -467,11 +496,20 @@ export default function DashboardPage() {
                     </p>
                   )}
 
-                  <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2 flex-wrap">
+                    {!isAbsent && present !== true && (
+                      <button
+                        onClick={() => markPresent(dog.id)}
+                        disabled={togglingAbsent === dog.id}
+                        className="flex-1 min-w-[80px] text-center text-xs bg-green-100 hover:bg-green-200 text-green-700 py-2 px-3 rounded-lg font-medium transition-colors"
+                      >
+                        <UserCheck className="w-3.5 h-3.5 inline mr-1" /> Confirmar Presença
+                      </button>
+                    )}
                     {!isAbsent && (
                       <Link
                         href={`/dogs/${dog.id}/report`}
-                        className="flex-1 text-center text-xs bg-amber-600 hover:bg-amber-700 text-white py-2 px-3 rounded-lg font-medium transition-colors"
+                        className={`text-center text-xs bg-amber-600 hover:bg-amber-700 text-white py-2 px-3 rounded-lg font-medium transition-colors ${present === true ? 'flex-1' : 'flex-1'}`}
                       >
                         📝 Relatório do Dia
                       </Link>
