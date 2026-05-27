@@ -365,6 +365,9 @@ export default function DashboardPage() {
                                 {report && !isAbsent && (
                                   <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">📋</span>
                                 )}
+                                {report?.sentToWhatsApp && !isAbsent && (
+                                  <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">📤</span>
+                                )}
                               </div>
                               <p className="text-xs text-gray-400">{dog.breed}</p>
                             </div>
@@ -488,6 +491,9 @@ export default function DashboardPage() {
                         )}
                         {hasReport && !isAbsent && (
                           <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">📋 Relatório</span>
+                        )}
+                        {report?.sentToWhatsApp && !isAbsent && (
+                          <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">📤 WhatsApp</span>
                         )}
                       </div>
                       <p className="text-sm text-gray-500 truncate">{dog.breed}</p>
