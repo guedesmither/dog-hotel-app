@@ -91,7 +91,7 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dogId, date: today, present: currentAbsent }),
       })
-      await loadDay()
+      await loadDay(true)
       await loadReplacements()
     } finally {
       setTogglingAbsent(null)
@@ -133,7 +133,7 @@ export default function DashboardPage() {
       setCheckInModal(null)
       setCheckInNotes('')
       setCheckInPhotos([])
-      await loadDay()
+      await loadDay(true)
     } finally {
       setUploadingCheckIn(false)
     }
@@ -230,8 +230,8 @@ export default function DashboardPage() {
     await loadReplacements()
   }
 
-  async function loadDay() {
-    setLoading(true)
+  async function loadDay(silent = false) {
+    if (!silent) setLoading(true)
     try {
       const [dogsRes, rosterRes] = await Promise.all([
         fetch('/api/dogs?active=true'),
@@ -244,7 +244,7 @@ export default function DashboardPage() {
       const todayDogs = allDogs.filter(d => rosterIds.has(d.id))
       setDogs(todayDogs)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 

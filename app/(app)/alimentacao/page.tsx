@@ -73,6 +73,14 @@ export default function AlimentacaoPage() {
   const todayLabel = format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })
   const today = getTodayString()
 
+  const reloadDog = useCallback(async (dogId: string) => {
+    try {
+      const r = await fetch(`/api/dogs/${dogId}/reports?date=${today}`)
+      const report = await r.json()
+      setDogs((prev) => prev.map((d) => d.id === dogId ? { ...d, report } : d))
+    } catch { /* silent */ }
+  }, [today])
+
   const loadDogs = useCallback(async () => {
     setLoading(true)
     try {
@@ -266,7 +274,7 @@ export default function AlimentacaoPage() {
               dog={dog}
               saving={savingId === dog.id}
               onUpdate={(field, value) => updateMeal(dog, field, value)}
-              onReload={loadDogs}
+              onReload={() => reloadDog(dog.id)}
             />
           ))}
         </div>
