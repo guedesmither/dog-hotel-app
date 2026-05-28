@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const status = searchParams.get('status')
 
-  const where = status ? { status } : {}
+  const where = status ? { status, dog: { isBolsista: false } } : { dog: { isBolsista: false } }
 
   const replacements = await prisma.replacement.findMany({
     where,

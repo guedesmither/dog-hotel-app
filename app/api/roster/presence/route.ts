@@ -89,12 +89,17 @@ export async function PATCH(req: NextRequest) {
       where: { id: dogId },
       select: {
         monthlyStartDay: true,
+        isBolsista: true,
         sales: {
           where: { saleType: 'MENSAL' },
           orderBy: { startDate: 'asc' },
         },
       },
     })
+    // Bolsistas have free schedule access — no replacement needed
+    if (dog?.isBolsista) {
+      return NextResponse.json({ success: true })
+    }
     // Find the sale whose period covers the absent date
     const absentDateObj = new Date(date + 'T12:00:00')
     const coveringSale = (dog as any)?.sales?.find((s: any) => {
