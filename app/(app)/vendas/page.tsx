@@ -110,6 +110,7 @@ function VendasContent() {
   const [endDate, setEndDate] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [productSearchTerm, setProductSearchTerm] = useState('')
   const [selectedDogId, setSelectedDogId] = useState<string>(urlDogId || '')
   const [searchDropdownOpen, setSearchDropdownOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -467,8 +468,8 @@ function VendasContent() {
   }
 
   const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchTerm.toLowerCase())
+    p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+    p.category.toLowerCase().includes(productSearchTerm.toLowerCase())
   )
 
   const totalSales = sales.reduce((sum, sale) => sum + sale.finalPrice, 0)
@@ -510,8 +511,8 @@ function VendasContent() {
                   type="text"
                   className="input pl-10"
                   placeholder="Buscar produtos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={productSearchTerm}
+                  onChange={(e) => setProductSearchTerm(e.target.value)}
                 />
               </div>
             </div>
