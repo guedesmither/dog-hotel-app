@@ -900,7 +900,7 @@ function VendasContent() {
                           <div className="flex flex-col gap-0.5 mt-0.5">
                             <div className="flex items-center gap-1">
                               <span className={`text-xs ${alreadyApplied ? 'text-green-600' : 'text-amber-600'}`}>
-                                {alreadyApplied ? '✓ ' : ''}Último preço: R$ {lp.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-gray-400">({lpDate})</span>
+                                {alreadyApplied ? '✓ ' : ''}Último preço: R$ {(lp.finalPrice ?? lp.unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-gray-400">({lpDate})</span>
                               </span>
                               {!alreadyApplied && (
                                 <button
