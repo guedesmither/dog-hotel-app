@@ -521,16 +521,19 @@ function DogMonitoringCard({
                       onBlur={(e) => onUpdate(qtyKey, e.target.value)} />
                   </div>
                   <div className="flex gap-1.5">
-                    {MEAL_STATUSES.map((s) => (
-                      <button key={s} onClick={() => onUpdate(statusKey, s)}
-                        className={`flex-1 text-xs px-2 py-1.5 rounded-lg border font-medium transition-all ${
-                          dog.report![statusKey] === s
-                            ? MEAL_STATUS_COLORS[s] + ' border-transparent shadow-sm'
-                            : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                        }`}>
-                        {MEAL_STATUS_SHORT[s]}
-                      </button>
-                    ))}
+                    {MEAL_STATUSES.map((s) => {
+                      const currentVal = (dog.report![statusKey] ?? 'PENDING') as string
+                      return (
+                        <button key={s} onClick={() => onUpdate(statusKey, s)}
+                          className={`flex-1 text-xs px-2 py-1.5 rounded-lg border font-medium transition-all ${
+                            currentVal === s
+                              ? MEAL_STATUS_COLORS[s] + ' border-transparent shadow-sm'
+                              : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                          }`}>
+                          {MEAL_STATUS_SHORT[s]}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               ))}

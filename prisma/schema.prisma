@@ -130,10 +130,13 @@ model DailyReport {
   breakfastStatus  String        @default("PENDING")
   breakfastQty     String?
   breakfastNotes   String?
-  lunchStatus      String        @default("PENDING")
-  lunchQty         String?
-  lunchNotes       String?
-  dinnerStatus     String        @default("PENDING")
+  lunchStatus           String        @default("PENDING")
+  lunchQty              String?
+  lunchNotes            String?
+  afternoonSnackStatus  String        @default("PENDING")
+  afternoonSnackQty     String?
+  afternoonSnackNotes   String?
+  dinnerStatus          String        @default("PENDING")
   dinnerQty        String?
   dinnerNotes      String?
   absent           Boolean       @default(false)
