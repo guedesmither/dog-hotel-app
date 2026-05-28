@@ -32,8 +32,10 @@ interface DogWithStay {
     absent: boolean
     breakfastStatus: string
     lunchStatus: string
+    afternoonSnackStatus: string
     dinnerStatus: string
     mood: string | null
+    sentToWhatsApp: boolean
     activities: Array<{ participated: boolean }>
     author?: { name: string }
     lastEditedByName?: string | null
@@ -399,6 +401,7 @@ export default function DashboardPage() {
                             <div className="flex gap-1 justify-center">
                               <MealDot status={report.breakfastStatus} />
                               <MealDot status={report.lunchStatus} />
+                              <MealDot status={report.afternoonSnackStatus} />
                               <MealDot status={report.dinnerStatus} />
                             </div>
                           ) : <span className="text-xs text-gray-400">—</span>}
@@ -529,6 +532,7 @@ export default function DashboardPage() {
                         <div className="flex gap-1.5">
                           <MealDot status={report.breakfastStatus} />
                           <MealDot status={report.lunchStatus} />
+                          <MealDot status={report.afternoonSnackStatus} />
                           <MealDot status={report.dinnerStatus} />
                         </div>
                       </div>
