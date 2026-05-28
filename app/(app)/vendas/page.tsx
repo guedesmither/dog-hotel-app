@@ -170,8 +170,16 @@ function VendasContent() {
     try {
       const params = new URLSearchParams()
       const currentYearMonth = new Date().toISOString().slice(0, 7)
-      if (selectedMonth) params.append('yearMonth', selectedMonth)
-      else if (!startDate && !endDate && !selectedDogId && !searchTerm) params.append('yearMonth', currentYearMonth)
+      const hasTextSearch = !!(selectedDogId || searchTerm)
+      if (!hasTextSearch) {
+        if (startDate && endDate) {
+          // date range takes priority over month
+        } else if (selectedMonth) {
+          params.append('yearMonth', selectedMonth)
+        } else {
+          params.append('yearMonth', currentYearMonth)
+        }
+      }
       if (startDate) params.append('startDate', startDate)
       if (endDate) params.append('endDate', endDate)
       if (statusFilter) {
