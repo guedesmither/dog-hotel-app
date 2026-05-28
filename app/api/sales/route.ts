@@ -43,6 +43,10 @@ export async function GET(req: NextRequest) {
       if (statusFilter === 'AGENDADO') {
         where.paymentStatus = { in: ['AGENDADO', 'PROGRAMADA'] }
         where.manualBaixa = false
+      } else if (statusFilter === 'PENDENTE') {
+        // Include AGENDADO/PROGRAMADA too — they auto-transition to PENDENTE
+        // when service is delivered. Post-filter applied after calculation.
+        where.paymentStatus = { in: ['PENDENTE', 'AGENDADO', 'PROGRAMADA'] }
       } else {
         where.paymentStatus = statusFilter
       }
@@ -164,8 +168,12 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // Auto-transition: PROGRAMADA/AGENDADO → PENDENTE when service enters ANDAMENTO
-        if (serviceStatus === 'ANDAMENTO' && (sale.paymentStatus === 'PROGRAMADA' || sale.paymentStatus === 'AGENDADO')) {
+        // Auto-transition: PROGRAMADA/AGENDADO → PENDENTE when service is delivered (OK or ANDAMENTO)
+        if (
+          (serviceStatus === 'ANDAMENTO' || serviceStatus === 'OK') &&
+          (sale.paymentStatus === 'PROGRAMADA' || sale.paymentStatus === 'AGENDADO') &&
+          !sale.isExempt
+        ) {
           await prisma.sales.update({
             where: { id: sale.id },
             data: { paymentStatus: 'PENDENTE' },
@@ -179,9 +187,14 @@ export async function GET(req: NextRequest) {
       return { ...sale, paymentStatus: effectivePaymentStatus ?? sale.paymentStatus, serviceStatus }
     }))
 
+    // Post-filter by paymentStatus when PENDENTE (since we broadened the DB query)
+    const postPaymentFiltered = (statusFilter === 'PENDENTE')
+      ? salesWithPackages.filter((s: any) => s.paymentStatus === 'PENDENTE')
+      : salesWithPackages
+
     // Apply serviceStatus filter post-calculation (since it's computed, not stored)
     const filtered = serviceStatusFilter
-      ? salesWithPackages.filter((s: any) => {
+      ? postPaymentFiltered.filter((s: any) => {
           const st: string = s.serviceStatus ?? ''
           if (serviceStatusFilter === 'ANDAMENTO') {
             // X/Y pattern (e.g. "3/10") also counts as ANDAMENTO
@@ -189,7 +202,7 @@ export async function GET(req: NextRequest) {
           }
           return st === serviceStatusFilter
         })
-      : salesWithPackages
+      : postPaymentFiltered
 
     return NextResponse.json(filtered)
   } catch (error) {
