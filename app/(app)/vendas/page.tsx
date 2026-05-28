@@ -235,7 +235,19 @@ function VendasContent() {
       const res = await fetch(`/api/sales/last-price?dogId=${dogId}&productId=${productId}`)
       if (res.ok) {
         const data = await res.json()
-        if (data) setLastPrices(prev => ({ ...prev, [productId]: data }))
+        if (data) {
+          setLastPrices(prev => ({ ...prev, [productId]: data }))
+          // Auto-apply last unit price
+          setCart(prev => prev.map(item =>
+            item.productId === productId
+              ? { ...item, unitPrice: data.unitPrice, totalPrice: item.quantity * data.unitPrice }
+              : item
+          ))
+          // Auto-apply last discount if any
+          if (data.discount && data.discount > 0) {
+            setDiscount(String(data.discount))
+          }
+        }
       }
     } catch {}
   }
