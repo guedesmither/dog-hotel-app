@@ -165,6 +165,16 @@ export default function DashboardPage() {
   }, [session, router])
 
   const [expiredReplacements, setExpiredReplacements] = useState<ReplacementItem[]>([])
+  const [expandedDogs, setExpandedDogs] = useState<Set<string>>(new Set())
+
+  function toggleDogExpand(dogId: string) {
+    setExpandedDogs(prev => {
+      const next = new Set(prev)
+      if (next.has(dogId)) next.delete(dogId)
+      else next.add(dogId)
+      return next
+    })
+  }
 
   useEffect(() => {
     fetch('/api/replacements?status=PENDING')
@@ -609,84 +619,149 @@ export default function DashboardPage() {
           )}
         </>
       )}
-      {/* REPLACEMENTS SECTION — active */}
-      {replacements.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-            <RefreshCw className="w-5 h-5 text-orange-500" />
-            Reposições Pendentes
-            <span className="text-sm font-normal text-gray-400">({replacements.length})</span>
-          </h2>
-          <div className="space-y-3">
-            {replacements.map((r) => {
-              const isOverdue = r.billingMonthEnd < today
-              const inputDate = schedulingDate[r.id] || ''
-              return (
-                <div key={r.id} className={`card flex flex-col sm:flex-row sm:items-center gap-3 ${
-                  isOverdue ? 'border-red-200 bg-red-50' : r.status === 'SCHEDULED' ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'
-                }`}>
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-xl shrink-0 overflow-hidden border border-gray-100">
-                      {r.dog.photoUrl
-                        ? <img src={r.dog.photoUrl} alt={r.dog.name} className="w-full h-full object-cover rounded-xl" />
-                        : '🐶'}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-800 text-sm">
-                        <Link href={`/dogs/${r.dog.id}`} className="hover:underline">{r.dog.name}</Link>
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Ausente em {formatDate(r.absentDate)} · prazo até <span className={isOverdue ? 'text-red-600 font-semibold' : 'text-gray-600'}>{formatDate(r.billingMonthEnd)}</span>
-                      </p>
-                      {r.status === 'SCHEDULED' && r.scheduledDate && (
-                        <p className="text-xs text-green-700 flex items-center gap-1 mt-0.5">
-                          <CalendarCheck className="w-3 h-3" /> Agendada para {formatDate(r.scheduledDate)}
+      {/* REPLACEMENTS SECTION — grouped by dog */}
+      {replacements.length > 0 && (() => {
+        // Group by dog
+        const grouped = replacements.reduce((acc, r) => {
+          if (!acc[r.dog.id]) acc[r.dog.id] = { dog: r.dog, items: [] }
+          acc[r.dog.id].items.push(r)
+          return acc
+        }, {} as Record<string, { dog: ReplacementItem['dog']; items: ReplacementItem[] }>)
+        const groups = Object.values(grouped)
+        // Sort: overdue first, then pending, then scheduled
+        groups.sort((a, b) => {
+          const score = (items: ReplacementItem[]) => {
+            if (items.some(i => i.billingMonthEnd < today)) return 0
+            if (items.some(i => i.status === 'PENDING')) return 1
+            return 2
+          }
+          return score(a.items) - score(b.items)
+        })
+        const overdueCount = replacements.filter(r => r.billingMonthEnd < today).length
+        const scheduledCount = replacements.filter(r => r.status === 'SCHEDULED').length
+        const pendingCount = replacements.filter(r => r.status === 'PENDING' && r.billingMonthEnd >= today).length
+        return (
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <RefreshCw className="w-5 h-5 text-orange-500" />
+                Reposições
+                <span className="text-sm font-normal text-gray-400">({groups.length} {groups.length === 1 ? 'cão' : 'cães'})</span>
+              </h2>
+              <div className="flex gap-2 text-xs">
+                {overdueCount > 0 && <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">{overdueCount} vencida{overdueCount > 1 ? 's' : ''}</span>}
+                {pendingCount > 0 && <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">{pendingCount} pendente{pendingCount > 1 ? 's' : ''}</span>}
+                {scheduledCount > 0 && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">{scheduledCount} agendada{scheduledCount > 1 ? 's' : ''}</span>}
+              </div>
+            </div>
+            <div className="space-y-2">
+              {groups.map(({ dog, items }) => {
+                const isExpanded = expandedDogs.has(dog.id)
+                const hasOverdue = items.some(i => i.billingMonthEnd < today)
+                const hasScheduled = items.every(i => i.status === 'SCHEDULED')
+                const pendingItems = items.filter(i => i.status === 'PENDING')
+                const scheduledItems = items.filter(i => i.status === 'SCHEDULED')
+                const borderClass = hasOverdue ? 'border-red-200' : hasScheduled ? 'border-green-200' : 'border-orange-200'
+                const bgClass = hasOverdue ? 'bg-red-50' : hasScheduled ? 'bg-green-50' : 'bg-orange-50'
+                return (
+                  <div key={dog.id} className={`rounded-xl border-2 overflow-hidden ${borderClass}`}>
+                    {/* Dog header — click to expand */}
+                    <button
+                      onClick={() => toggleDogExpand(dog.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 ${bgClass} hover:brightness-95 transition-all text-left`}
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-lg shrink-0 overflow-hidden border border-white/60">
+                        {dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="w-full h-full object-cover rounded-xl" /> : '🐶'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Link href={`/dogs/${dog.id}`} onClick={e => e.stopPropagation()} className="font-bold text-gray-800 text-sm hover:underline">{dog.name}</Link>
+                          {hasOverdue && <span className="text-[10px] bg-red-200 text-red-700 px-1.5 py-0.5 rounded-full font-semibold">Vencida</span>}
+                          {hasScheduled && !hasOverdue && <span className="text-[10px] bg-green-200 text-green-700 px-1.5 py-0.5 rounded-full font-semibold">Agendada</span>}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {items.length} reposição{items.length > 1 ? 'ões' : ''}
+                          {pendingItems.length > 0 && ` · ${pendingItems.length} pendente${pendingItems.length > 1 ? 's' : ''}`}
+                          {scheduledItems.length > 0 && ` · ${scheduledItems.length} agendada${scheduledItems.length > 1 ? 's' : ''}`}
                         </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {r.status !== 'SCHEDULED' ? (
-                      <>
-                        <input
-                          type="date"
-                          value={inputDate}
-                          min={today}
-                          onChange={(e) => setSchedulingDate(prev => ({ ...prev, [r.id]: e.target.value }))}
-                          className="input text-xs py-1 px-2 w-36"
-                        />
-                        <button
-                          onClick={() => scheduleReplacement(r.id, inputDate)}
-                          disabled={!inputDate || schedulingId === r.id}
-                          className="btn-primary text-xs py-1.5 px-3 disabled:opacity-40"
-                        >
-                          Agendar
-                        </button>
-                        {isOverdue && (
-                          <button
-                            onClick={() => markExpired(r.id)}
-                            title="Marcar como perdida (exceção)"
-                            className="text-xs px-2 py-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200"
-                          >
-                            Arquivar
-                          </button>
-                        )}
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => markDone(r.id)}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700"
-                      >
-                        ✓ Realizada
-                      </button>
+                      </div>
+                      <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${isExpanded ? 'rotate-90' : ''}`} />
+                    </button>
+
+                    {/* Drilldown — list of reposições */}
+                    {isExpanded && (
+                      <div className="divide-y divide-gray-100 bg-white">
+                        {items.map((r) => {
+                          const isOverdue = r.billingMonthEnd < today
+                          const inputDate = schedulingDate[r.id] || ''
+                          return (
+                            <div key={r.id} className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                                    r.status === 'SCHEDULED' ? 'bg-green-100 text-green-700'
+                                    : isOverdue ? 'bg-red-100 text-red-700'
+                                    : 'bg-orange-100 text-orange-700'
+                                  }`}>
+                                    {r.status === 'SCHEDULED' ? '📅 Agendada' : isOverdue ? '🔴 Vencida' : '⏳ Pendente'}
+                                  </span>
+                                  <span className="text-xs text-gray-600">Ausente em <strong>{formatDate(r.absentDate)}</strong></span>
+                                  <span className="text-xs text-gray-400">prazo até <span className={isOverdue ? 'text-red-600 font-semibold' : ''}>{formatDate(r.billingMonthEnd)}</span></span>
+                                </div>
+                                {r.status === 'SCHEDULED' && r.scheduledDate && (
+                                  <p className="text-xs text-green-700 flex items-center gap-1 mt-1">
+                                    <CalendarCheck className="w-3 h-3" /> Agendada para {formatDate(r.scheduledDate)}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {r.status !== 'SCHEDULED' ? (
+                                  <>
+                                    <input
+                                      type="date"
+                                      value={inputDate}
+                                      min={today}
+                                      onChange={(e) => setSchedulingDate(prev => ({ ...prev, [r.id]: e.target.value }))}
+                                      className="input text-xs py-1 px-2 w-36"
+                                    />
+                                    <button
+                                      onClick={() => scheduleReplacement(r.id, inputDate)}
+                                      disabled={!inputDate || schedulingId === r.id}
+                                      className="btn-primary text-xs py-1.5 px-3 disabled:opacity-40"
+                                    >
+                                      Agendar
+                                    </button>
+                                    {isOverdue && (
+                                      <button
+                                        onClick={() => markExpired(r.id)}
+                                        title="Marcar como perdida (exceção)"
+                                        className="text-xs px-2 py-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                      >
+                                        Arquivar
+                                      </button>
+                                    )}
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => markDone(r.id)}
+                                    className="text-xs px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700"
+                                  >
+                                    ✓ Realizada
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
                     )}
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* EXPIRED REPLACEMENTS SECTION */}
       {expiredReplacements.length > 0 && (
