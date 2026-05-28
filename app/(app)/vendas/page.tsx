@@ -141,7 +141,7 @@ function VendasContent() {
   const [showCobrancaModal, setShowCobrancaModal] = useState(false)
   const [printSaleId, setPrintSaleId] = useState<string | undefined>(undefined)
   const [showPrintModal, setShowPrintModal] = useState(false)
-  const [lastPrices, setLastPrices] = useState<Record<string, { unitPrice: number; saleDate: string }>>({})
+  const [lastPrices, setLastPrices] = useState<Record<string, { unitPrice: number; saleDate: string; discount?: number; finalPrice?: number; basePrice?: number }>>({})
 
   const loadProducts = async () => {
     try {
@@ -882,16 +882,33 @@ function VendasContent() {
                         const lp = lastPrices[item.productId!]
                         const alreadyApplied = lp.unitPrice === item.unitPrice
                         const lpDate = new Date(lp.saleDate).toLocaleDateString('pt-BR', { month: '2-digit', year: '2-digit' })
+                        const lastDiscount = lp.discount ?? 0
+                        const discountAlreadyApplied = lastDiscount > 0 && parseFloat(discount) === lastDiscount
                         return (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <span className={`text-xs ${alreadyApplied ? 'text-green-600' : 'text-amber-600'}`}>
-                              {alreadyApplied ? '✓ ' : ''}Última: R$ {lp.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-gray-400">({lpDate})</span>
-                            </span>
-                            {!alreadyApplied && (
-                              <button
-                                onClick={() => applyLastPrice(item.productId!, lp.unitPrice)}
-                                className="text-xs text-amber-700 font-semibold underline hover:text-amber-900"
-                              >Usar</button>
+                          <div className="flex flex-col gap-0.5 mt-0.5">
+                            <div className="flex items-center gap-1">
+                              <span className={`text-xs ${alreadyApplied ? 'text-green-600' : 'text-amber-600'}`}>
+                                {alreadyApplied ? '✓ ' : ''}Último preço: R$ {lp.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-gray-400">({lpDate})</span>
+                              </span>
+                              {!alreadyApplied && (
+                                <button
+                                  onClick={() => applyLastPrice(item.productId!, lp.unitPrice)}
+                                  className="text-xs text-amber-700 font-semibold underline hover:text-amber-900"
+                                >Usar</button>
+                              )}
+                            </div>
+                            {lastDiscount > 0 && (
+                              <div className="flex items-center gap-1">
+                                <span className={`text-xs ${discountAlreadyApplied ? 'text-green-600' : 'text-purple-600'}`}>
+                                  {discountAlreadyApplied ? '✓ ' : ''}Último desconto: R$ {lastDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                                {!discountAlreadyApplied && (
+                                  <button
+                                    onClick={() => setDiscount(String(lastDiscount))}
+                                    className="text-xs text-purple-700 font-semibold underline hover:text-purple-900"
+                                  >Usar</button>
+                                )}
+                              </div>
                             )}
                           </div>
                         )

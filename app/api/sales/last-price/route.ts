@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     orderBy: { sale: { saleDate: 'desc' } },
     select: {
       unitPrice: true,
-      sale: { select: { saleDate: true } },
+      sale: { select: { saleDate: true, discount: true, finalPrice: true, basePrice: true } },
     },
   })
 
@@ -34,5 +34,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     unitPrice: lastItem.unitPrice,
     saleDate: lastItem.sale.saleDate,
+    discount: lastItem.sale.discount ?? 0,
+    finalPrice: lastItem.sale.finalPrice,
+    basePrice: lastItem.sale.basePrice,
   })
 }
