@@ -358,8 +358,29 @@ export default function ReportPage() {
     await forceSave()
     const url = buildWhatsAppUrl(report.dog.ownerPhone, buildMessage())
     window.open(url, '_blank')
-    await markSent()
-    toast.success('WhatsApp aberto com a mensagem!')
+    toast((t) => (
+      <div className="flex flex-col gap-2">
+        <span className="font-semibold">WhatsApp aberto! Enviou a mensagem?</span>
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id)
+              await markSent()
+              toast.success('✅ Marcado como enviado!')
+            }}
+            className="bg-green-500 text-white px-3 py-1 rounded-lg text-sm font-medium"
+          >
+            Sim, enviei
+          </button>
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm font-medium"
+          >
+            Não
+          </button>
+        </div>
+      </div>
+    ), { duration: 10000 })
   }
 
   async function shareWithPhotos() {

@@ -28,6 +28,8 @@ interface DogReport {
   breakfastQty: string | null
   lunchStatus: string
   lunchQty: string | null
+  afternoonSnackStatus: string
+  afternoonSnackQty: string | null
   dinnerStatus: string
   dinnerQty: string | null
   mood: string | null

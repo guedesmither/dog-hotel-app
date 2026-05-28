@@ -115,7 +115,7 @@ export function generateWhatsAppMessage(data: {
   fmtMeal('☀️', 'Café da manhã', data.breakfastStatus, data.breakfastQty, data.breakfastNotes)
   fmtMeal('🌤️', 'Almoço', data.lunchStatus, data.lunchQty, data.lunchNotes)
   fmtMeal('�', 'Lanche da tarde', data.afternoonSnackStatus, data.afternoonSnackQty, data.afternoonSnackNotes)
-  fmtMeal('�🌙', 'Janta', data.dinnerStatus, data.dinnerQty, data.dinnerNotes)
+  fmtMeal('�', 'Janta', data.dinnerStatus, data.dinnerQty, data.dinnerNotes)
 
   if (meals.length > 0) {
     lines.push('🍽️ *Refeições:*')
@@ -167,12 +167,12 @@ export function generateWhatsAppMessage(data: {
 }
 
 export function buildWhatsAppUrl(phone: string, message: string) {
-  // Remove tudo exceto dígitos e o sinal de +
-  let cleanPhone = phone.replace(/[^\d+]/g, '')
+  // Remove tudo exceto dígitos
+  let cleanPhone = phone.replace(/\D/g, '')
   
-  // Se não começar com +, adiciona
-  if (!cleanPhone.startsWith('+')) {
-    cleanPhone = '+' + cleanPhone
+  // Garante o código do Brasil (55)
+  if (!cleanPhone.startsWith('55')) {
+    cleanPhone = '55' + cleanPhone
   }
   
   const encoded = encodeURIComponent(message)
