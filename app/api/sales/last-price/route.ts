@@ -25,18 +25,38 @@ export async function GET(req: NextRequest) {
     orderBy: { sale: { saleDate: 'desc' } },
     select: {
       unitPrice: true,
-      sale: { select: { saleDate: true, discount: true, finalPrice: true, basePrice: true, startDate: true, endDate: true, saleType: true } },
+      totalPrice: true,
+      quantity: true,
+      sale: {
+        select: {
+          saleDate: true,
+          discount: true,
+          finalPrice: true,
+          basePrice: true,
+          startDate: true,
+          endDate: true,
+          saleType: true,
+          items: { select: { totalPrice: true } },
+        },
+      },
     },
   })
 
   if (!lastItem) return NextResponse.json(null)
 
+  // Calculate this item's proportional share of the discount
+  const saleDiscount = lastItem.sale.discount ?? 0
+  const saleBasePrice = lastItem.sale.basePrice ?? lastItem.sale.items.reduce((s, i) => s + i.totalPrice, 0)
+  const itemShare = saleBasePrice > 0 ? lastItem.totalPrice / saleBasePrice : 1
+  const itemDiscount = Math.round(saleDiscount * itemShare * 100) / 100
+  const itemFinalPrice = lastItem.totalPrice - itemDiscount
+
   return NextResponse.json({
     unitPrice: lastItem.unitPrice,
     saleDate: lastItem.sale.saleDate,
-    discount: lastItem.sale.discount ?? 0,
-    finalPrice: lastItem.sale.finalPrice,
-    basePrice: lastItem.sale.basePrice,
+    discount: itemDiscount,
+    finalPrice: itemFinalPrice,
+    basePrice: lastItem.totalPrice,
     startDate: lastItem.sale.startDate,
     endDate: lastItem.sale.endDate,
     saleType: lastItem.sale.saleType,
