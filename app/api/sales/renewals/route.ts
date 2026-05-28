@@ -35,15 +35,21 @@ export async function GET(req: NextRequest) {
   const results = await Promise.all(expiringSales.map(async (sale) => {
     if (!sale.endDate || !sale.dogId) return null
 
-    const nextStart = new Date(sale.endDate)
-    nextStart.setDate(nextStart.getDate() + 1)
+    const saleEndDate = new Date(sale.endDate)
+    saleEndDate.setHours(12, 0, 0, 0)
 
+    // Check if any MENSAL sale exists for this dog that starts after or overlaps with this period
+    // Also check by saleDate (sales created after the endDate of current period)
     const renewal = await prisma.sales.findFirst({
       where: {
         dogId: sale.dogId,
         saleType: 'MENSAL',
-        startDate: { gte: nextStart },
+        id: { not: sale.id },
         paymentStatus: { not: 'CANCELADO' },
+        OR: [
+          { startDate: { gt: saleEndDate } },
+          { saleDate: { gt: saleEndDate } },
+        ],
       },
     })
 
