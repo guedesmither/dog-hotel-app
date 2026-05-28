@@ -96,26 +96,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   }
 
-  const { saleIds } = await req.json()
-  if (!saleIds || !Array.isArray(saleIds) || saleIds.length === 0) {
-    return NextResponse.json({ error: 'saleIds obrigatório' }, { status: 400 })
+  const body = await req.json()
+  // Support both { items: [{saleId, start, end}] } and legacy { saleIds: [...] }
+  const items: Array<{ saleId: string; start?: string; end?: string }> =
+    body.items ?? (body.saleIds as string[]).map((id: string) => ({ saleId: id }))
+
+  if (!items || items.length === 0) {
+    return NextResponse.json({ error: 'items obrigatório' }, { status: 400 })
   }
 
   const originals = await prisma.sales.findMany({
-    where: { id: { in: saleIds } },
+    where: { id: { in: items.map(i => i.saleId) } },
     include: { items: true },
   })
 
   const created = await Promise.all(originals.map(async (sale) => {
     if (!sale.endDate) return null
 
-    const endDate = new Date(sale.endDate)
-    endDate.setHours(12, 0, 0, 0)
-    const newStart = new Date(endDate)
-    newStart.setDate(newStart.getDate() + 1)
-    const newEnd = new Date(newStart)
-    newEnd.setMonth(newEnd.getMonth() + 1)
-    newEnd.setDate(newEnd.getDate() - 1)
+    const customDates = items.find(i => i.saleId === sale.id)
+    let newStart: Date
+    let newEnd: Date
+
+    if (customDates?.start && customDates?.end) {
+      newStart = new Date(customDates.start + 'T12:00:00')
+      newEnd = new Date(customDates.end + 'T12:00:00')
+    } else {
+      const endDate = new Date(sale.endDate)
+      endDate.setHours(12, 0, 0, 0)
+      newStart = new Date(endDate)
+      newStart.setDate(newStart.getDate() + 1)
+      newEnd = new Date(newStart)
+      newEnd.setMonth(newEnd.getMonth() + 1)
+      newEnd.setDate(newEnd.getDate() - 1)
+    }
 
     return prisma.sales.create({
       data: {

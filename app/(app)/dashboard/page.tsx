@@ -89,6 +89,8 @@ export default function DashboardPage() {
   const [renewals, setRenewals] = useState<RenewalItem[]>([])
   const [selectedRenewals, setSelectedRenewals] = useState<Set<string>>(new Set())
   const [renewingLoading, setRenewingLoading] = useState(false)
+  const [dismissedRenewals, setDismissedRenewals] = useState<Set<string>>(new Set())
+  const [editingDates, setEditingDates] = useState<Record<string, { start: string; end: string }>>({})
 
   async function loadRenewals() {
     try {
@@ -101,10 +103,14 @@ export default function DashboardPage() {
     if (selectedRenewals.size === 0) return
     setRenewingLoading(true)
     try {
+      const items = Array.from(selectedRenewals).map(id => {
+        const r = renewals.find(x => x.id === id)!
+        return { saleId: id, start: r.suggestedStart, end: r.suggestedEnd }
+      })
       const res = await fetch('/api/sales/renewals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ saleIds: Array.from(selectedRenewals) }),
+        body: JSON.stringify({ items }),
       })
       if (res.ok) {
         const { created } = await res.json()
@@ -840,39 +846,107 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="divide-y divide-purple-100">
-              {renewals.map(r => (
-                <div key={r.id} className="flex items-center gap-3 px-4 py-3 hover:bg-purple-50/60">
-                  <input
-                    type="checkbox"
-                    checked={selectedRenewals.has(r.id)}
-                    onChange={() => {
-                      const s = new Set(selectedRenewals)
-                      s.has(r.id) ? s.delete(r.id) : s.add(r.id)
-                      setSelectedRenewals(s)
-                    }}
-                    className="w-4 h-4 accent-purple-600 shrink-0"
-                  />
-                  <div className="w-8 h-8 rounded-lg bg-white border border-purple-200 flex items-center justify-center overflow-hidden shrink-0">
-                    {r.dog.photoUrl ? <img src={r.dog.photoUrl} alt={r.dog.name} className="w-full h-full object-cover" /> : '🐶'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-800 text-sm">{r.dog.name}</span>
-                      {r.isOverdue
-                        ? <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-semibold">Vencida há {Math.abs(r.daysUntilExpiry)}d</span>
-                        : <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold">Vence em {r.daysUntilExpiry}d</span>
-                      }
+              {renewals.filter(r => !dismissedRenewals.has(r.id)).map(r => {
+                const isEditing = !!editingDates[r.id]
+                const dates = editingDates[r.id] || { start: r.suggestedStart, end: r.suggestedEnd }
+                return (
+                  <div key={r.id} className="px-4 py-3 hover:bg-purple-50/60">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedRenewals.has(r.id)}
+                        onChange={() => {
+                          const s = new Set(selectedRenewals)
+                          s.has(r.id) ? s.delete(r.id) : s.add(r.id)
+                          setSelectedRenewals(s)
+                        }}
+                        className="w-4 h-4 accent-purple-600 shrink-0"
+                      />
+                      <div className="w-8 h-8 rounded-lg bg-white border border-purple-200 flex items-center justify-center overflow-hidden shrink-0">
+                        {r.dog.photoUrl ? <img src={r.dog.photoUrl} alt={r.dog.name} className="w-full h-full object-cover" /> : '🐶'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-800 text-sm">{r.dog.name}</span>
+                          {r.isOverdue
+                            ? <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-semibold">Vencida há {Math.abs(r.daysUntilExpiry)}d</span>
+                            : <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold">Vence em {r.daysUntilExpiry}d</span>
+                          }
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          {r.items[0]?.product?.name} · até {new Date(r.endDate + 'T12:00:00').toLocaleDateString('pt-BR')}
+                          {' · '}R$ {r.finalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                        {!isEditing && (
+                          <p className="text-xs text-purple-600 font-medium">
+                            Próximo: {new Date(dates.start + 'T12:00:00').toLocaleDateString('pt-BR')} → {new Date(dates.end + 'T12:00:00').toLocaleDateString('pt-BR')}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => {
+                            if (isEditing) {
+                              const e = { ...editingDates }
+                              delete e[r.id]
+                              setEditingDates(e)
+                            } else {
+                              setEditingDates(prev => ({ ...prev, [r.id]: { start: r.suggestedStart, end: r.suggestedEnd } }))
+                            }
+                          }}
+                          className="text-xs px-2 py-1 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 font-medium"
+                        >
+                          {isEditing ? 'Cancelar' : '✏️'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            const s = new Set(dismissedRenewals)
+                            s.add(r.id)
+                            setDismissedRenewals(s)
+                            const sel = new Set(selectedRenewals)
+                            sel.delete(r.id)
+                            setSelectedRenewals(sel)
+                          }}
+                          className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 font-medium"
+                          title="Ignorar este alerta"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      {r.items[0]?.product?.name} · até {new Date(r.endDate + 'T12:00:00').toLocaleDateString('pt-BR')}
-                      {' · '}R$ {r.finalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                    <p className="text-xs text-purple-600 font-medium">
-                      Próximo: {new Date(r.suggestedStart + 'T12:00:00').toLocaleDateString('pt-BR')} → {new Date(r.suggestedEnd + 'T12:00:00').toLocaleDateString('pt-BR')}
-                    </p>
+                    {isEditing && (
+                      <div className="mt-2 ml-7 flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-gray-500">Vigência:</span>
+                        <input
+                          type="date"
+                          value={dates.start}
+                          onChange={e => setEditingDates(prev => ({ ...prev, [r.id]: { ...prev[r.id], start: e.target.value } }))}
+                          className="input text-xs py-1 px-2 h-7 w-36"
+                        />
+                        <span className="text-xs text-gray-400">→</span>
+                        <input
+                          type="date"
+                          value={dates.end}
+                          min={dates.start}
+                          onChange={e => setEditingDates(prev => ({ ...prev, [r.id]: { ...prev[r.id], end: e.target.value } }))}
+                          className="input text-xs py-1 px-2 h-7 w-36"
+                        />
+                        <button
+                          onClick={() => {
+                            setRenewals(prev => prev.map(x => x.id === r.id ? { ...x, suggestedStart: dates.start, suggestedEnd: dates.end } : x))
+                            const e = { ...editingDates }
+                            delete e[r.id]
+                            setEditingDates(e)
+                          }}
+                          className="text-xs px-2 py-1 rounded-lg bg-purple-600 text-white hover:bg-purple-700 font-medium"
+                        >
+                          Confirmar
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>
