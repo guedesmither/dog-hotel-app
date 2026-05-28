@@ -141,7 +141,7 @@ function VendasContent() {
   const [showCobrancaModal, setShowCobrancaModal] = useState(false)
   const [printSaleId, setPrintSaleId] = useState<string | undefined>(undefined)
   const [showPrintModal, setShowPrintModal] = useState(false)
-  const [lastPrices, setLastPrices] = useState<Record<string, { unitPrice: number; saleDate: string; discount?: number; finalPrice?: number; basePrice?: number }>>({})
+  const [lastPrices, setLastPrices] = useState<Record<string, { unitPrice: number; saleDate: string; discount?: number; finalPrice?: number; basePrice?: number; startDate?: string | null; endDate?: string | null; saleType?: string }>>({})
 
   const loadProducts = async () => {
     try {
@@ -246,6 +246,18 @@ function VendasContent() {
           // Auto-apply last discount if any
           if (data.discount && data.discount > 0) {
             setDiscount(String(data.discount))
+          }
+          // Auto-fill next period for MENSAL (CRECHE) — advance by one month
+          if ((data.saleType === 'MENSAL' || data.saleType === 'CRECHE') && data.endDate) {
+            const lastEnd = new Date(data.endDate)
+            lastEnd.setHours(12, 0, 0, 0)
+            const nextStart = new Date(lastEnd)
+            nextStart.setDate(nextStart.getDate() + 1)
+            const nextEnd = new Date(nextStart)
+            nextEnd.setMonth(nextEnd.getMonth() + 1)
+            nextEnd.setDate(nextEnd.getDate() - 1)
+            setSaleStartDate(nextStart.toISOString().split('T')[0])
+            setSaleEndDate(nextEnd.toISOString().split('T')[0])
           }
         }
       }

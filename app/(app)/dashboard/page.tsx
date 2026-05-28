@@ -4,9 +4,25 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { Dog, ClipboardList, CheckCircle2, Clock, AlertCircle, UserX, UserCheck, RefreshCw, CalendarCheck, ChevronLeft, ChevronRight, LayoutGrid, List, Camera, X, Upload } from 'lucide-react'
+import { Dog, ClipboardList, CheckCircle2, Clock, AlertCircle, UserX, UserCheck, RefreshCw, CalendarCheck, ChevronLeft, ChevronRight, LayoutGrid, List, Camera, X, Upload, BellRing } from 'lucide-react'
 import { formatDate, getTodayString, MEAL_STATUS_COLORS, MOOD_EMOJIS } from '@/lib/utils'
+import { toast } from 'react-hot-toast'
 
+
+interface RenewalItem {
+  id: string
+  dogId: string
+  dog: { id: string; name: string; photoUrl: string | null; ownerName: string | null }
+  endDate: string
+  daysUntilExpiry: number
+  isOverdue: boolean
+  finalPrice: number
+  basePrice: number
+  discount: number
+  items: Array<{ product: { id: string; name: string } | null }>
+  suggestedStart: string
+  suggestedEnd: string
+}
 
 interface ReplacementItem {
   id: string
@@ -70,6 +86,37 @@ export default function DashboardPage() {
   const isToday = selectedDate === realToday
   
   // Check-in modal state
+  const [renewals, setRenewals] = useState<RenewalItem[]>([])
+  const [selectedRenewals, setSelectedRenewals] = useState<Set<string>>(new Set())
+  const [renewingLoading, setRenewingLoading] = useState(false)
+
+  async function loadRenewals() {
+    try {
+      const res = await fetch('/api/sales/renewals?days=10')
+      if (res.ok) setRenewals(await res.json())
+    } catch {}
+  }
+
+  async function programRenewals() {
+    if (selectedRenewals.size === 0) return
+    setRenewingLoading(true)
+    try {
+      const res = await fetch('/api/sales/renewals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ saleIds: Array.from(selectedRenewals) }),
+      })
+      if (res.ok) {
+        const { created } = await res.json()
+        toast.success(`${created} mensalidade${created > 1 ? 's' : ''} programada${created > 1 ? 's' : ''}!`)
+        setSelectedRenewals(new Set())
+        loadRenewals()
+      }
+    } finally {
+      setRenewingLoading(false)
+    }
+  }
+
   const [checkInModal, setCheckInModal] = useState<{ open: boolean; dogId: string; dogName: string } | null>(null)
   const [checkInNotes, setCheckInNotes] = useState('')
   const [checkInPhotos, setCheckInPhotos] = useState<Array<{ file: File; preview: string }>>([])
@@ -249,6 +296,7 @@ export default function DashboardPage() {
   }
 
   useEffect(() => { loadDay() }, [today])
+  useEffect(() => { loadRenewals() }, [])
 
   const hotelDogs = dogs.filter((d) => d.stays.some((s) => s.active))
   const crecheDogs = dogs.filter((d) => !d.stays.some((s) => s.active))
@@ -762,6 +810,73 @@ export default function DashboardPage() {
           </div>
         )
       })()}
+
+      {/* RENEWALS PANEL */}
+      {renewals.length > 0 && (
+        <div className="mt-8">
+          <div className="rounded-2xl border-2 border-purple-200 bg-purple-50 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 bg-purple-100 border-b border-purple-200">
+              <h2 className="font-bold text-purple-800 flex items-center gap-2 text-sm">
+                <BellRing className="w-4 h-4" />
+                Mensalidades a Renovar
+                <span className="bg-purple-200 text-purple-700 text-xs px-2 py-0.5 rounded-full">{renewals.length}</span>
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedRenewals(
+                    selectedRenewals.size === renewals.length ? new Set() : new Set(renewals.map(r => r.id))
+                  )}
+                  className="text-xs text-purple-600 hover:text-purple-800 font-medium underline"
+                >
+                  {selectedRenewals.size === renewals.length ? 'Desmarcar todos' : 'Selecionar todos'}
+                </button>
+                <button
+                  onClick={programRenewals}
+                  disabled={selectedRenewals.size === 0 || renewingLoading}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-purple-600 text-white font-semibold disabled:opacity-40 hover:bg-purple-700 transition-colors"
+                >
+                  {renewingLoading ? 'Programando...' : `Programar ${selectedRenewals.size > 0 ? `(${selectedRenewals.size})` : ''}`}
+                </button>
+              </div>
+            </div>
+            <div className="divide-y divide-purple-100">
+              {renewals.map(r => (
+                <div key={r.id} className="flex items-center gap-3 px-4 py-3 hover:bg-purple-50/60">
+                  <input
+                    type="checkbox"
+                    checked={selectedRenewals.has(r.id)}
+                    onChange={() => {
+                      const s = new Set(selectedRenewals)
+                      s.has(r.id) ? s.delete(r.id) : s.add(r.id)
+                      setSelectedRenewals(s)
+                    }}
+                    className="w-4 h-4 accent-purple-600 shrink-0"
+                  />
+                  <div className="w-8 h-8 rounded-lg bg-white border border-purple-200 flex items-center justify-center overflow-hidden shrink-0">
+                    {r.dog.photoUrl ? <img src={r.dog.photoUrl} alt={r.dog.name} className="w-full h-full object-cover" /> : '🐶'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-800 text-sm">{r.dog.name}</span>
+                      {r.isOverdue
+                        ? <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-semibold">Vencida há {Math.abs(r.daysUntilExpiry)}d</span>
+                        : <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold">Vence em {r.daysUntilExpiry}d</span>
+                      }
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {r.items[0]?.product?.name} · até {new Date(r.endDate + 'T12:00:00').toLocaleDateString('pt-BR')}
+                      {' · '}R$ {r.finalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xs text-purple-600 font-medium">
+                      Próximo: {new Date(r.suggestedStart + 'T12:00:00').toLocaleDateString('pt-BR')} → {new Date(r.suggestedEnd + 'T12:00:00').toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* EXPIRED REPLACEMENTS SECTION */}
       {expiredReplacements.length > 0 && (
