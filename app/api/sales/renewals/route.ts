@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
 
     return prisma.sales.create({
       data: {
-        saleDate: new Date(),
+        saleDate: newStart,
         saleType: 'MENSAL',
         basePrice: sale.basePrice,
         discount: sale.discount,
