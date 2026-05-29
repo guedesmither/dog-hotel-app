@@ -358,29 +358,37 @@ export default function ReportPage() {
     await forceSave()
     const url = buildWhatsAppUrl(report.dog.ownerPhone, buildMessage())
     window.open(url, '_blank')
+    // Auto-mark as sent immediately
+    await markSent()
     toast((t) => (
       <div className="flex flex-col gap-2">
-        <span className="font-semibold">WhatsApp aberto! Enviou a mensagem?</span>
+        <span className="font-semibold">✅ WhatsApp aberto e marcado como enviado!</span>
         <div className="flex gap-2">
           <button
             onClick={async () => {
               toast.dismiss(t.id)
-              await markSent()
-              toast.success('✅ Marcado como enviado!')
+              // Undo: mark as not sent
+              await fetch(`/api/reports/${report.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...report, sentToWhatsApp: false }),
+              })
+              setReport((prev) => prev ? { ...prev, sentToWhatsApp: false } : prev)
+              toast.success('Desfeito!')
             }}
-            className="bg-green-500 text-white px-3 py-1 rounded-lg text-sm font-medium"
+            className="bg-amber-500 text-white px-3 py-1 rounded-lg text-sm font-medium"
           >
-            Sim, enviei
+            Desfazer
           </button>
           <button
             onClick={() => toast.dismiss(t.id)}
             className="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm font-medium"
           >
-            Não
+            OK
           </button>
         </div>
       </div>
-    ), { duration: 10000 })
+    ), { duration: 8000 })
   }
 
   async function shareWithPhotos() {
@@ -451,7 +459,7 @@ export default function ReportPage() {
     return (
       <div className="text-center py-16">
         <p className="text-gray-500">Relatório não encontrado</p>
-        <Link href="/alimentacao" className="btn-secondary mt-4 inline-block">Voltar</Link>
+        <Link href="/dashboard" className="btn-secondary mt-4 inline-block">Voltar</Link>
       </div>
     )
   }
@@ -461,7 +469,7 @@ export default function ReportPage() {
   return (
     <div className="max-w-2xl mx-auto pb-8">
       <div className="flex items-center gap-3 mb-2">
-        <Link href="/alimentacao" className="p-2 rounded-lg hover:bg-amber-100 transition-colors">
+        <Link href="/dashboard" className="p-2 rounded-lg hover:bg-amber-100 transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </Link>
         <div className="flex-1">

@@ -303,6 +303,16 @@ export default function DashboardPage() {
 
   useEffect(() => { loadDay() }, [today])
   useEffect(() => { loadRenewals() }, [])
+  
+  // Reload when window gains focus (returning from report page)
+  useEffect(() => {
+    const handleFocus = () => {
+      loadDay(true) // silent reload
+      loadReplacements()
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [today])
 
   const hotelDogs = dogs.filter((d) => d.stays.some((s) => s.active))
   const crecheDogs = dogs.filter((d) => !d.stays.some((s) => s.active))

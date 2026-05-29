@@ -122,6 +122,13 @@ export default function AlimentacaoPage() {
   }, [today])
 
   useEffect(() => { loadDogs() }, [loadDogs])
+  
+  // Reload when window gains focus (sync with other tabs/pages)
+  useEffect(() => {
+    const handleFocus = () => loadDogs()
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [today])
 
   async function addDog(dog: DogItem) {
     if (dogs.find((d) => d.id === dog.id)) return
