@@ -737,16 +737,13 @@ function VendasContent() {
                             function fmtDate(d: string | Date | null | undefined) {
                               if (!d) return ''
                               const s = typeof d === 'string' ? d : d.toISOString()
-                              // Extract YYYY-MM-DD from ISO or use directly
                               const datePart = s.includes('T') ? s.split('T')[0] : s
                               return new Date(datePart + 'T12:00:00').toLocaleDateString('pt-BR')
                             }
-                            // For period-based sales, show the service period instead of sale date
+                            // For period-based sales, show start date as the scheduled payment date
                             const hasPeriod = sale.startDate && (sale.saleType === 'MENSAL' || sale.saleType === 'HOTEL' || sale.saleType === 'PACOTE')
                             if (hasPeriod) {
-                              const start = fmtDate(sale.startDate)
-                              const end = fmtDate(sale.endDate)
-                              return <span title={`Venda: ${fmtDate(sale.saleDate)}`}>{start}{end ? ` → ${end}` : ''}</span>
+                              return <span title={`Venda: ${fmtDate(sale.saleDate)} · Vigência: ${fmtDate(sale.startDate)} → ${fmtDate(sale.endDate)}`}>{fmtDate(sale.startDate)}</span>
                             }
                             return fmtDate(sale.saleDate)
                           })()}
