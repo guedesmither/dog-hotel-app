@@ -155,8 +155,9 @@ async function seedDate(date: string) {
   // 1. Add bolsista dogs — no MENSAL sale required
   // scheduledDays set → seeds on those days only
   // scheduledDays empty → manual only (not auto-seeded)
+  // Only CRECHE service type
   const bolsistaDogs = await (prisma.dog as any).findMany({
-    where: { isBolsista: true, isActive: true },
+    where: { isBolsista: true, isActive: true, serviceType: 'CRECHE' },
     select: { id: true, name: true, serviceType: true, scheduledDays: true },
   })
   for (const d of bolsistaDogs) {
@@ -226,8 +227,9 @@ async function seedDate(date: string) {
   }
 
   // 3. Add dogs with active packages (PACOTE) that have remaining days
+  // Only CRECHE service type to avoid mixing with hotel dogs
   const dogsWithPackages = await prisma.dog.findMany({
-    where: { isActive: true },
+    where: { isActive: true, serviceType: 'CRECHE' },
     include: {
       packages: {
         where: {
