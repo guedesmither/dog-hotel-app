@@ -733,7 +733,16 @@ function VendasContent() {
                     sales.map(sale => (
                       <tr key={sale.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="px-3 py-3 text-gray-500 text-xs whitespace-nowrap">
-                          {new Date(sale.saleDate).toLocaleDateString('pt-BR')}
+                          {(() => {
+                            // For period-based sales, show the service period instead of sale date
+                            const hasPeriod = sale.startDate && (sale.saleType === 'MENSAL' || sale.saleType === 'HOTEL' || sale.saleType === 'PACOTE')
+                            if (hasPeriod) {
+                              const start = new Date(sale.startDate! + 'T12:00:00').toLocaleDateString('pt-BR')
+                              const end = sale.endDate ? new Date(sale.endDate + 'T12:00:00').toLocaleDateString('pt-BR') : ''
+                              return <span title={`Venda: ${new Date(sale.saleDate).toLocaleDateString('pt-BR')}`}>{start}{end ? ` → ${end}` : ''}</span>
+                            }
+                            return new Date(sale.saleDate).toLocaleDateString('pt-BR')
+                          })()}
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-start gap-3">
