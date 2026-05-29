@@ -201,10 +201,12 @@ async function seedDate(date: string) {
   if (eligibleIds.size > 0) {
     // Only add dogs that (1) have an active MENSAL sale covering this date
     // AND (2) are scheduled to attend on this day of the week
+    // AND (3) are CRECHE service type (not HOTEL or other)
     const crecheDogs = await prisma.dog.findMany({
       where: {
         id: { in: Array.from(eligibleIds) },
         isActive: true,
+        serviceType: 'CRECHE',
         AND: [
           { scheduledDays: { not: null } },
           { scheduledDays: { not: '' } },
