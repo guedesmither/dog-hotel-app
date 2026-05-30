@@ -291,12 +291,10 @@ export default function AlimentacaoPage() {
 }
 
 const MOODS = [
-  { value: 'FELIZ', emoji: '😄', label: 'Feliz' },
   { value: 'CALMO', emoji: '😌', label: 'Calmo' },
+  { value: 'MAIS_QUIETINHO', emoji: '😶', label: 'Mais quietinho' },
   { value: 'AGITADO', emoji: '🤪', label: 'Agitado' },
-  { value: 'ANSIOSO', emoji: '😟', label: 'Ansioso' },
-  { value: 'APATICO', emoji: '😔', label: 'Apático' },
-  { value: 'AGRESSIVO', emoji: '😡', label: 'Agressivo' },
+  { value: 'FELIZ', emoji: '�', label: 'Feliz' },
 ]
 
 const DEFAULT_ACTIVITIES = [

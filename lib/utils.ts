@@ -48,21 +48,17 @@ export const MEAL_STATUS_COLORS: Record<string, string> = {
 }
 
 export const MOOD_OPTIONS = [
-  { value: 'feliz', label: '😄 Feliz e animado' },
-  { value: 'calmo', label: '😌 Calmo e tranquilo' },
-  { value: 'agitado', label: '😤 Agitado' },
-  { value: 'ansioso', label: '😰 Ansioso' },
-  { value: 'cansado', label: '😴 Cansado' },
-  { value: 'agressivo', label: '😠 Agressivo' },
+  { value: 'calmo', label: 'Calmo' },
+  { value: 'mais quietinho', label: 'Mais quietinho' },
+  { value: 'agitado', label: 'Agitado' },
+  { value: 'feliz', label: 'Feliz' },
 ]
 
 export const MOOD_EMOJIS: Record<string, string> = {
-  feliz: '😄',
-  calmo: '😌',
-  agitado: '😤',
-  ansioso: '😰',
-  cansado: '😴',
-  agressivo: '😠',
+  calmo: ':)',
+  'mais quietinho': ':|',
+  agitado: ':D',
+  feliz: ':)',
 }
 
 export function generateWhatsAppMessage(data: {
@@ -91,15 +87,15 @@ export function generateWhatsAppMessage(data: {
 }) {
   const mealStatusText: Record<string, string> = {
     PENDING: '',
-    ALL: 'Comeu tudo ✅',
-    PARTIAL: 'Comeu parcial 🔸',
-    REFUSED: 'Recusou ❌',
+    ALL: 'Comeu tudo [OK]',
+    PARTIAL: 'Comeu parcial [1/2]',
+    REFUSED: 'Recusou [X]',
   }
 
   const dateFormatted = formatDate(data.date)
   const lines: string[] = []
 
-  lines.push(`🐾 *${data.dogName} — ${dateFormatted}*`)
+  lines.push(`*${data.dogName} - ${dateFormatted}*`)
   lines.push('')
 
   // Refeições — só inclui se tiver status preenchido (não PENDING)
@@ -118,14 +114,14 @@ export function generateWhatsAppMessage(data: {
   fmtMeal('�', 'Janta', data.dinnerStatus, data.dinnerQty, data.dinnerNotes)
 
   if (meals.length > 0) {
-    lines.push('🍽️ *Refeições:*')
+    lines.push('*REFEICOES:*')
     meals.forEach(m => lines.push(m))
     lines.push('')
   }
 
   // Medicação — só se o cão tiver medicação
   if (data.hasMedication) {
-    lines.push(`💊 *Medicação:* ${data.medicationGiven ? 'Administrada ✅' : 'Não administrada ❌'}`)
+    lines.push(`*Medicacao:* ${data.medicationGiven ? 'Administrada [OK]' : 'Nao administrada [X]'}`)
     if (data.medicationNotes) lines.push(`    _${data.medicationNotes}_`)
     lines.push('')
   }
@@ -133,14 +129,14 @@ export function generateWhatsAppMessage(data: {
   // Humor — só se preenchido
   if (data.mood) {
     const moodLabel = data.mood.charAt(0).toUpperCase() + data.mood.slice(1)
-    lines.push(`${MOOD_EMOJIS[data.mood] || '😊'} *Humor:* ${moodLabel}`)
+    lines.push(`${MOOD_EMOJIS[data.mood] || ':)'} *Humor:* ${moodLabel}`)
     lines.push('')
   }
 
   // Atividades — só as que participou
   const participated = data.activities.filter(a => a.participated)
   if (participated.length > 0) {
-    lines.push('🎯 *Atividades:*')
+    lines.push('*ATIVIDADES:*')
     participated.forEach(a => {
       let line = `• ${a.name}`
       if (a.notes) line += ` — _${a.notes}_`
@@ -151,17 +147,17 @@ export function generateWhatsAppMessage(data: {
 
   // Observações — só se preenchido
   if (data.generalNotes?.trim()) {
-    lines.push(`📝 *Observações:*\n${data.generalNotes.trim()}`)
+    lines.push(`*OBSERVACOES:*\n${data.generalNotes.trim()}`)
     lines.push('')
   }
 
   // Fotos
   if (data.photosCount > 0) {
-    lines.push(`📸 *${data.photosCount} foto${data.photosCount > 1 ? 's' : ''}* do dia em anexo!`)
+    lines.push(`[FOTO] *${data.photosCount} foto${data.photosCount > 1 ? 's' : ''}* do dia em anexo!`)
     lines.push('')
   }
 
-  lines.push(`_${data.hotelName || 'AU-Ê Petcare'} 🐶_`)
+  lines.push(`_${data.hotelName || 'AU-Ê Petcare'}_`)
 
   return lines.join('\n')
 }
