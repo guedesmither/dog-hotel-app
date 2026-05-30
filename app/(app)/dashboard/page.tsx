@@ -339,14 +339,13 @@ export default function DashboardPage() {
             <button onClick={() => shiftDate(-1)} className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
               <ChevronLeft className="w-4 h-4 text-gray-600" />
             </button>
-            <button
-              onClick={() => setSelectedDate(realToday)}
-              className={`text-xs px-2.5 py-1.5 rounded-lg font-medium min-w-[110px] text-center border transition-colors ${
-                isToday ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+            <span
+              className={`text-xs px-2.5 py-1.5 rounded-lg font-medium min-w-[110px] text-center border ${
+                isToday ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-white border-gray-200 text-gray-700'
               }`}
             >
               {formatDate(today)}
-            </button>
+            </span>
             <button onClick={() => shiftDate(1)} className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
               <ChevronRight className="w-4 h-4 text-gray-600" />
             </button>

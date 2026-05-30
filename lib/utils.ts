@@ -108,8 +108,8 @@ export function generateWhatsAppMessage(data: {
     if (notes) line += `\n    _${notes}_`
     meals.push(line)
   }
-  fmtMeal('☀️', 'Café da manhã', data.breakfastStatus, data.breakfastQty, data.breakfastNotes)
-  fmtMeal('🌤️', 'Almoço', data.lunchStatus, data.lunchQty, data.lunchNotes)
+  fmtMeal('[M]', 'Cafe da manha', data.breakfastStatus, data.breakfastQty, data.breakfastNotes)
+  fmtMeal('[A]', 'Almoco', data.lunchStatus, data.lunchQty, data.lunchNotes)
   fmtMeal('�', 'Lanche da tarde', data.afternoonSnackStatus, data.afternoonSnackQty, data.afternoonSnackNotes)
   fmtMeal('�', 'Janta', data.dinnerStatus, data.dinnerQty, data.dinnerNotes)
 
