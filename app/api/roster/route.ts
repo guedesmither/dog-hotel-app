@@ -427,7 +427,13 @@ export async function POST(req: NextRequest) {
 
     const dog = await prisma.dog.findUnique({
       where: { id: dogId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        dogStatus: true,
+        serviceType: true,
+        scheduledDays: true,
+        isActive: true,
         packages: true,
         sales: {
           where: {
@@ -444,7 +450,7 @@ export async function POST(req: NextRequest) {
           },
         },
       },
-    })
+    }) as any
 
     if (!dog) {
       return NextResponse.json({ error: 'Cão não encontrado' }, { status: 404 })
