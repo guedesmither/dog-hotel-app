@@ -110,8 +110,8 @@ export function generateWhatsAppMessage(data: {
   }
   fmtMeal('☕', 'Cafe da manha', data.breakfastStatus, data.breakfastQty, data.breakfastNotes)
   fmtMeal('🍽️', 'Almoco', data.lunchStatus, data.lunchQty, data.lunchNotes)
-  fmtMeal('�', 'Lanche da tarde', data.afternoonSnackStatus, data.afternoonSnackQty, data.afternoonSnackNotes)
-  fmtMeal('�', 'Janta', data.dinnerStatus, data.dinnerQty, data.dinnerNotes)
+  fmtMeal('🥪', 'Lanche da tarde', data.afternoonSnackStatus, data.afternoonSnackQty, data.afternoonSnackNotes)
+  fmtMeal('🌙', 'Janta', data.dinnerStatus, data.dinnerQty, data.dinnerNotes)
 
   if (meals.length > 0) {
     lines.push('🍽️ *REFEICOES:*')
@@ -129,7 +129,7 @@ export function generateWhatsAppMessage(data: {
   // Humor — só se preenchido
   if (data.mood) {
     const moodLabel = data.mood.charAt(0).toUpperCase() + data.mood.slice(1)
-    lines.push(`${MOOD_EMOJIS[data.mood] || ':)'} *Humor:* ${moodLabel}`)
+    lines.push(`${MOOD_EMOJIS[data.mood] || '😊'} *Humor:* ${moodLabel}`)
     lines.push('')
   }
 
@@ -171,20 +171,9 @@ export function buildWhatsAppUrl(phone: string, message: string) {
     cleanPhone = '55' + cleanPhone
   }
   
-  const encoded = encodeURIComponent(message)
-  return `https://wa.me/${cleanPhone}?text=${encoded}`
-}
-
-export const ROLE_LABELS: Record<string, string> = {
-  ADMIN: 'Administrador',
-  MANAGER: 'Gestão',
-  MONITOR: 'Monitor(a)',
-  TUTOR: 'Tutor',
-}
-
-export const ROLE_COLORS: Record<string, string> = {
-  ADMIN: 'bg-purple-100 text-purple-700',
-  MANAGER: 'bg-blue-100 text-blue-700',
-  MONITOR: 'bg-green-100 text-green-700',
-  TUTOR: 'bg-amber-100 text-amber-700',
+  // Codifica a mensagem para URL
+  const encodedMessage = encodeURIComponent(message)
+  
+  // Monta a URL do WhatsApp
+  return `https://wa.me/${cleanPhone}?text=${encodedMessage}`
 }
