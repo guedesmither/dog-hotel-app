@@ -286,6 +286,7 @@ export async function GET(req: NextRequest) {
     scheduledDays: true,
     monthlyStartDay: true,
     dogStatus: true,
+    isBolsista: true, // Bolsista flag for UI
   }
 
   if (weekStart) {
@@ -337,6 +338,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/roster  { dogId, date, type?, isPernoite?, packageId? }
 export async function POST(req: NextRequest) {
+  console.log('[DEBUG] POST /api/roster called')
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
@@ -431,6 +433,7 @@ export async function POST(req: NextRequest) {
         id: true,
         name: true,
         dogStatus: true,
+        isBolsista: true,
         serviceType: true,
         scheduledDays: true,
         isActive: true,
@@ -457,8 +460,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ── BOLSISTA: always eligible, skip all checks ──────────────────────────
-    if (dog.dogStatus === 'BOLSISTA') {
+    console.log(`[DEBUG] Dog ${dogId} status: "${dog.dogStatus}", isBolsista: ${dog.isBolsista}`)
+    if (dog.dogStatus === 'BOLSISTA' || dog.isBolsista === true) {
       // Fall through directly to upsert below
+      console.log(`[DEBUG] Dog ${dogId} is BOLSISTA - skipping eligibility checks`)
     } else {
 
     let eligible = false
