@@ -23,6 +23,8 @@ import {
   Package,
   ChevronDown,
   ChevronRight,
+  ReceiptText,
+  BarChart3,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn, ROLE_LABELS } from '@/lib/utils'
@@ -142,6 +144,18 @@ const navSections: NavSection[] = [
         href: '/relatorio',
         label: 'Relatório',
         icon: <TrendingUp className="w-5 h-5" />,
+        roles: ['ADMIN', 'MANAGER'],
+      },
+      {
+        href: '/lancamentos',
+        label: 'Lançamentos',
+        icon: <ReceiptText className="w-5 h-5" />,
+        roles: ['ADMIN', 'MANAGER'],
+      },
+      {
+        href: '/dre',
+        label: 'DRE',
+        icon: <BarChart3 className="w-5 h-5" />,
         roles: ['ADMIN', 'MANAGER'],
       },
     ],

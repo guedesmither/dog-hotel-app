@@ -313,6 +313,22 @@ model SaleItem {
   createdAt DateTime @default(now())
 }
 
+// Financial entries - despesas e receitas operacionais
+model FinancialEntry {
+  id           String   @id @default(cuid())
+  type         String   // ENTRADA (E) ou SAIDA (S)
+  date         DateTime
+  amount       Float    // Valor absoluto (sempre positivo)
+  account      String   // SEBÁ, VÊ, AUÊ, NICE
+  supplier     String?  // Fornecedor/onde
+  description  String?  // O que
+  category     String   // Categoria DRE
+  period       String   // PRE_INAUGURACAO ou YYYY-MM (ex: 2026-03)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 // Price history for each dog - preserves historical prices
 model DogPriceHistory {
   id              String   @id @default(cuid())
