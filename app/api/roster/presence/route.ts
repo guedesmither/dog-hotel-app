@@ -81,7 +81,7 @@ export async function PATCH(req: NextRequest) {
       update: { absent: true },
       create: { dogId, date, authorId: userId, absent: true },
     })
-    // Only create replacement for MENSAL/CRECHE dogs (not Hotel or Reposicao)
+    // Only create replacement for MENSAL/CRECHE dogs (not Hotel, Reposicao, or Pacote)
     if (isHotelOrReposicao) {
       return NextResponse.json({ success: true })
     }
@@ -90,6 +90,7 @@ export async function PATCH(req: NextRequest) {
       select: {
         monthlyStartDay: true,
         isBolsista: true,
+        serviceType: true,
         sales: {
           where: { saleType: 'MENSAL' },
           orderBy: { startDate: 'asc' },
@@ -98,6 +99,14 @@ export async function PATCH(req: NextRequest) {
     })
     // Bolsistas have free schedule access — no replacement needed
     if (dog?.isBolsista) {
+      return NextResponse.json({ success: true })
+    }
+    // PACOTE dogs don't get replacements — they use package credits
+    if (dog?.serviceType === 'PACOTE') {
+      return NextResponse.json({ success: true })
+    }
+    // Must have an active MENSAL sale to qualify for replacement
+    if (!dog?.sales || dog.sales.length === 0) {
       return NextResponse.json({ success: true })
     }
     // Find the sale whose period covers the absent date
