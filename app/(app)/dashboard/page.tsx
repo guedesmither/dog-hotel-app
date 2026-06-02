@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { Dog, ClipboardList, CheckCircle2, Clock, AlertCircle, UserX, UserCheck, RefreshCw, CalendarCheck, ChevronLeft, ChevronRight, LayoutGrid, List, Camera, X, Upload, BellRing } from 'lucide-react'
+import { Dog, ClipboardList, CheckCircle2, Clock, AlertCircle, UserX, UserCheck, RefreshCw, CalendarCheck, ChevronLeft, ChevronRight, LayoutGrid, List, Camera, X, Upload, BellRing, Pencil } from 'lucide-react'
 import { formatDate, getTodayString, MEAL_STATUS_COLORS, MOOD_EMOJIS } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
 
@@ -219,6 +219,8 @@ export default function DashboardPage() {
 
   const [expiredReplacements, setExpiredReplacements] = useState<ReplacementItem[]>([])
   const [expandedDogs, setExpandedDogs] = useState<Set<string>>(new Set())
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingDate, setEditingDate] = useState<string>('')
 
   function toggleDogExpand(dogId: string) {
     setExpandedDogs(prev => {
@@ -281,6 +283,34 @@ export default function DashboardPage() {
       body: JSON.stringify({ status: 'DONE' }),
     })
     await loadReplacements()
+  }
+
+  function startEditing(id: string, currentDate: string) {
+    setEditingId(id)
+    setEditingDate(currentDate)
+  }
+
+  async function saveEditedDate(id: string) {
+    if (!editingDate) return
+    setSchedulingId(id)
+    try {
+      await fetch(`/api/replacements/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledDate: editingDate }),
+      })
+      await loadReplacements()
+      setEditingId(null)
+      setEditingDate('')
+      toast.success('Data da reposição atualizada!')
+    } finally {
+      setSchedulingId(null)
+    }
+  }
+
+  function cancelEditing() {
+    setEditingId(null)
+    setEditingDate('')
   }
 
   async function loadDay(silent = false) {
@@ -804,13 +834,45 @@ export default function DashboardPage() {
                                       </button>
                                     )}
                                   </>
+                                ) : editingId === r.id ? (
+                                  <>
+                                    <input
+                                      type="date"
+                                      value={editingDate}
+                                      min={today}
+                                      onChange={(e) => setEditingDate(e.target.value)}
+                                      className="input text-xs py-1 px-2 w-36"
+                                    />
+                                    <button
+                                      onClick={() => saveEditedDate(r.id)}
+                                      disabled={!editingDate || schedulingId === r.id}
+                                      className="btn-primary text-xs py-1.5 px-3 disabled:opacity-40"
+                                    >
+                                      Salvar
+                                    </button>
+                                    <button
+                                      onClick={cancelEditing}
+                                      className="text-xs px-2 py-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </>
                                 ) : (
-                                  <button
-                                    onClick={() => markDone(r.id)}
-                                    className="text-xs px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700"
-                                  >
-                                    ✓ Realizada
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => markDone(r.id)}
+                                      className="text-xs px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700"
+                                    >
+                                      ✓ Realizada
+                                    </button>
+                                    <button
+                                      onClick={() => startEditing(r.id, r.scheduledDate || '')}
+                                      title="Editar data da reposição"
+                                      className="text-xs px-2 py-1.5 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 flex items-center gap-1"
+                                    >
+                                      <Pencil className="w-3 h-3" /> Editar
+                                    </button>
+                                  </>
                                 )}
                               </div>
                             </div>
