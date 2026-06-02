@@ -221,6 +221,7 @@ export default function DashboardPage() {
   const [expandedDogs, setExpandedDogs] = useState<Set<string>>(new Set())
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingDate, setEditingDate] = useState<string>('')
+  const [doneReplacements, setDoneReplacements] = useState<ReplacementItem[]>([])
 
   function toggleDogExpand(dogId: string) {
     setExpandedDogs(prev => {
@@ -240,16 +241,20 @@ export default function DashboardPage() {
       ])).catch(() => {})
     fetch('/api/replacements?status=EXPIRED')
       .then(r => r.json()).then(setExpiredReplacements).catch(() => {})
+    fetch('/api/replacements?status=DONE')
+      .then(r => r.json()).then(setDoneReplacements).catch(() => {})
   }, [])
 
   async function loadReplacements() {
-    const [p, s, e] = await Promise.all([
+    const [p, s, e, d] = await Promise.all([
       fetch('/api/replacements?status=PENDING').then(r => r.json()),
       fetch('/api/replacements?status=SCHEDULED').then(r => r.json()),
       fetch('/api/replacements?status=EXPIRED').then(r => r.json()),
+      fetch('/api/replacements?status=DONE').then(r => r.json()),
     ])
     setReplacements([...p, ...s])
     setExpiredReplacements(e)
+    setDoneReplacements(d)
   }
 
   async function markExpired(id: string) {
@@ -884,6 +889,55 @@ export default function DashboardPage() {
                 )
               })}
             </div>
+          </div>
+        )
+      })()}
+
+      {/* DONE REPLACEMENTS - Collapsible */}
+      {doneReplacements.length > 0 && (() => {
+        const doneGroups = Object.entries(
+          doneReplacements.reduce((acc, r) => {
+            const key = r.dog.id
+            if (!acc[key]) acc[key] = { dog: r.dog, items: [] }
+            acc[key].items.push(r)
+            return acc
+          }, {} as Record<string, { dog: ReplacementItem['dog']; items: ReplacementItem[] }>)
+        ).sort((a, b) => a[1].dog.name.localeCompare(b[1].dog.name))
+        return (
+          <div className="mt-8">
+            <details className="rounded-xl border-2 border-gray-200 bg-gray-50 overflow-hidden">
+              <summary className="flex items-center justify-between px-4 py-3 bg-gray-100 border-b border-gray-200 cursor-pointer select-none">
+                <h2 className="font-bold text-gray-700 flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  Reposições Realizadas
+                  <span className="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full">{doneReplacements.length}</span>
+                </h2>
+                <span className="text-xs text-gray-400">Clique para expandir</span>
+              </summary>
+              <div className="divide-y divide-gray-100 bg-white">
+                {doneGroups.map(([_, { dog, items }]) => (
+                  <div key={dog.id} className="px-4 py-3">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
+                        {dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="w-full h-full object-cover" /> : '🐶'}
+                      </div>
+                      <Link href={`/dogs/${dog.id}`} className="font-bold text-gray-800 text-sm hover:underline">{dog.name}</Link>
+                      <span className="text-xs text-gray-400">{items.length} realizada{items.length > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="space-y-1 ml-11">
+                      {items.map(r => (
+                        <div key={r.id} className="flex items-center gap-2 text-xs text-gray-500">
+                          <span className="text-green-600 font-medium">✓</span>
+                          <span>Ausente: {formatDate(r.absentDate)}</span>
+                          <span className="text-gray-300">|</span>
+                          <span>Reposição: {r.scheduledDate ? formatDate(r.scheduledDate) : '—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
           </div>
         )
       })()}
