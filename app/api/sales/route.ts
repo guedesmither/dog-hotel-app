@@ -117,10 +117,17 @@ export async function GET(req: NextRequest) {
           })
           const pkg = packages[0]
           if (pkg) {
-            // Fix negative remainingDays calculation
-            const effectiveRemaining = Math.max(0, pkg.remainingDays)
-            const daysUsed = pkg.totalDays - effectiveRemaining
-            serviceStatus = `${daysUsed}/${pkg.totalDays}`
+            // Calculate days used from actual roster entries in package window (ignore remainingDays from DB)
+            const purchaseDate = pkg.purchaseDate.toISOString().split('T')[0]
+            const expiryDate = pkg.expiryDate.toISOString().split('T')[0]
+            const usedDays = await prisma.dailyRoster.count({
+              where: {
+                dogId: sale.dogId!,
+                date: { gte: purchaseDate, lte: expiryDate },
+                type: { not: 'HOTEL' }
+              }
+            })
+            serviceStatus = `${usedDays}/${pkg.totalDays}`
           } else {
             // No Package record — count AVULSO roster entries in the sale window as usage
             const windowStart = sale.startDate
