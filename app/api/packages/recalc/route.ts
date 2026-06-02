@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // POST /api/packages/recalc
-// Recalculate remainingDays for all packages based on actual roster entries
+// Recalculate remainingDays for all packages based on ALL roster entries since purchase
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
     newRemaining: number
     totalDays: number
     daysUsed: number
+    rosterDays: string[]
     corrected: boolean
   }> = []
 
@@ -28,14 +29,28 @@ export async function POST(req: NextRequest) {
   const packages = await prisma.package.findMany({
     where: { isActive: true },
     include: {
-      dog: { select: { id: true, name: true } },
-      rosterEntries: { select: { date: true } }
+      dog: { select: { id: true, name: true } }
     }
   })
 
   for (const pkg of packages) {
-    const daysUsed = pkg.rosterEntries?.length || 0
-    const newRemaining = pkg.totalDays - daysUsed
+    const purchaseDate = pkg.purchaseDate.toISOString().split('T')[0]
+    const expiryDate = pkg.expiryDate.toISOString().split('T')[0]
+
+    // Count ALL roster entries for this dog between purchase and expiry
+    const rosterEntries = await prisma.dailyRoster.findMany({
+      where: {
+        dogId: pkg.dogId,
+        date: { gte: purchaseDate, lte: expiryDate },
+        // Count any type except HOTEL (reposicao, creche, pacote all count)
+        type: { not: 'HOTEL' }
+      },
+      select: { date: true },
+      orderBy: { date: 'asc' }
+    })
+
+    const daysUsed = rosterEntries.length
+    const newRemaining = Math.max(0, pkg.totalDays - daysUsed)
     
     // Only update if there's a discrepancy
     if (newRemaining !== pkg.remainingDays) {
@@ -52,6 +67,7 @@ export async function POST(req: NextRequest) {
       newRemaining: newRemaining,
       totalDays: pkg.totalDays,
       daysUsed: daysUsed,
+      rosterDays: rosterEntries.map(r => r.date),
       corrected: newRemaining !== pkg.remainingDays
     })
   }
