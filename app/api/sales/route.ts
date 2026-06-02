@@ -117,7 +117,10 @@ export async function GET(req: NextRequest) {
           })
           const pkg = packages[0]
           if (pkg) {
-            serviceStatus = `${pkg.totalDays - pkg.remainingDays}/${pkg.totalDays}`
+            // Fix negative remainingDays calculation
+            const effectiveRemaining = Math.max(0, pkg.remainingDays)
+            const daysUsed = pkg.totalDays - effectiveRemaining
+            serviceStatus = `${daysUsed}/${pkg.totalDays}`
           } else {
             // No Package record — count AVULSO roster entries in the sale window as usage
             const windowStart = sale.startDate
