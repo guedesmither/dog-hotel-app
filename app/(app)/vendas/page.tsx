@@ -5,6 +5,8 @@ import { useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
 import { DollarSign, Plus, Trash2, ShoppingCart, Package, Calendar, Search, FileText, Printer } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import CobrancaModal from './CobrancaModal'
 import PrintModal from './PrintModal'
 
@@ -734,9 +736,14 @@ function VendasContent() {
                           {(() => {
                             function fmtDate(d: string | Date | null | undefined) {
                               if (!d) return ''
-                              const s = typeof d === 'string' ? d : d.toISOString()
-                              const datePart = s.includes('T') ? s.split('T')[0] : s
-                              return new Date(datePart + 'T12:00:00').toLocaleDateString('pt-BR')
+                              // Handle YYYY-MM-DD format directly without timezone issues
+                              if (typeof d === 'string' && d.includes('-') && !d.includes('T')) {
+                                const [year, month, day] = d.split('-').map(Number)
+                                return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`
+                              }
+                              // For ISO dates with time, parse and format
+                              const dateObj = typeof d === 'string' ? parseISO(d) : d
+                              return format(dateObj, 'dd/MM/yyyy', { locale: ptBR })
                             }
                             // For period-based sales, show start date as the scheduled payment date
                             const hasPeriod = sale.startDate && (sale.saleType === 'MENSAL' || sale.saleType === 'HOTEL' || sale.saleType === 'PACOTE')
@@ -916,7 +923,11 @@ function VendasContent() {
                       {item.productId && lastPrices[item.productId] && (() => {
                         const lp = lastPrices[item.productId!]
                         const alreadyApplied = lp.unitPrice === item.unitPrice
-                        const lpDate = new Date(lp.saleDate).toLocaleDateString('pt-BR', { month: '2-digit', year: '2-digit' })
+                        // Fix timezone issue by parsing YYYY-MM-DD directly
+                        const lpDateRaw = lp.saleDate
+                        const lpDate = lpDateRaw.includes('-') && !lpDateRaw.includes('T')
+                          ? (() => { const [y, m] = lpDateRaw.split('-'); return `${m}/${y.slice(2)}`; })()
+                          : format(parseISO(lpDateRaw), 'MM/yy', { locale: ptBR })
                         const lastDiscount = lp.discount ?? 0
                         const discountAlreadyApplied = lastDiscount > 0 && parseFloat(discount) === lastDiscount
                         return (
