@@ -290,6 +290,16 @@ export default function DashboardPage() {
     await loadReplacements()
   }
 
+  async function reactivateReplacement(id: string) {
+    await fetch(`/api/replacements/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'PENDING', scheduledDate: null }),
+    })
+    await loadReplacements()
+    toast.success('Reposição reativada!')
+  }
+
   function startEditing(id: string, currentDate: string) {
     setEditingId(id)
     setEditingDate(currentDate)
@@ -924,13 +934,23 @@ export default function DashboardPage() {
                       <Link href={`/dogs/${dog.id}`} className="font-bold text-gray-800 text-sm hover:underline">{dog.name}</Link>
                       <span className="text-xs text-gray-400">{items.length} realizada{items.length > 1 ? 's' : ''}</span>
                     </div>
-                    <div className="space-y-1 ml-11">
+                    <div className="space-y-2 ml-11">
                       {items.map(r => (
-                        <div key={r.id} className="flex items-center gap-2 text-xs text-gray-500">
-                          <span className="text-green-600 font-medium">✓</span>
-                          <span>Ausente: {formatDate(r.absentDate)}</span>
-                          <span className="text-gray-300">|</span>
-                          <span>Reposição: {r.scheduledDate ? formatDate(r.scheduledDate) : '—'}</span>
+                        <div key={r.id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <span className="text-green-600 font-medium">✓</span>
+                            <span>Ausente: {formatDate(r.absentDate)}</span>
+                            <span className="text-gray-300">|</span>
+                            <span>Reposição: {r.scheduledDate ? formatDate(r.scheduledDate) : '—'}</span>
+                          </div>
+                          <button
+                            onClick={() => reactivateReplacement(r.id)}
+                            disabled={schedulingId === r.id}
+                            className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-50"
+                            title="Reativar esta reposição"
+                          >
+                            {schedulingId === r.id ? '...' : '↺ Reativar'}
+                          </button>
                         </div>
                       ))}
                     </div>
