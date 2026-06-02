@@ -226,37 +226,9 @@ async function seedDate(date: string) {
     }
   }
 
-  // 3. Add dogs with active packages (PACOTE) that have remaining days
-  // Only CRECHE service type to avoid mixing with hotel dogs
-  const dogsWithPackages = await prisma.dog.findMany({
-    where: { isActive: true, serviceType: 'CRECHE' },
-    include: {
-      packages: {
-        where: {
-          isActive: true,
-          remainingDays: { gt: 0 },
-          expiryDate: { gte: targetDateObj }
-        },
-        take: 1
-      }
-    }
-  })
-
-  for (const d of dogsWithPackages) {
-    if (d.packages.length > 0) {
-      // Check if already in roster for this date
-      const exists = await prisma.dailyRoster.findFirst({
-        where: { dogId: d.id, date }
-      })
-      if (!exists) {
-        await prisma.dailyRoster.upsert({
-          where: { dogId_date: { dogId: d.id, date } },
-          update: {},
-          create: { dogId: d.id, date, source: 'AUTO', type: 'PACOTE', packageId: d.packages[0].id },
-        })
-      }
-    }
-  }
+  // NOTE: Dogs with packages (PACOTE) are NOT auto-seeded.
+  // They must be manually added to the roster by the user.
+  // This is the intended behavior: if not manually scheduled, no automatic entry is created.
 
   // Mark this date as seeded so it's never re-seeded even if all entries are deleted
   await prisma.dailyRosterSeed.upsert({
