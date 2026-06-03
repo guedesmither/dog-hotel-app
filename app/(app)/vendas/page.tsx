@@ -237,17 +237,9 @@ function VendasContent() {
         const data = await res.json()
         if (data) {
           setLastPrices(prev => ({ ...prev, [productId]: data }))
-          // Auto-apply last unit price
-          setCart(prev => prev.map(item =>
-            item.productId === productId
-              ? { ...item, unitPrice: data.unitPrice, totalPrice: item.quantity * data.unitPrice }
-              : item
-          ))
-          // Auto-apply last discount if any
-          if (data.discount && data.discount > 0) {
-            setDiscount(String(data.discount))
-          }
-          // Auto-fill next period for MENSAL (CRECHE) — advance by one month
+          // SUGGESTION only — user must click "Usar" button to apply
+          // Removed auto-apply of price and discount to respect user's choice
+          // Auto-fill next period for MENSAL (CRECHE) — advance by one month (dates are helpful)
           if ((data.saleType === 'MENSAL' || data.saleType === 'CRECHE') && data.endDate) {
             const lastEnd = new Date(data.endDate)
             lastEnd.setHours(12, 0, 0, 0)
