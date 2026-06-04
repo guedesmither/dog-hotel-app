@@ -43,6 +43,8 @@ export async function POST(req: NextRequest) {
 
   const results: Array<{ name: string; id: string; action: string; matricula: string | null }> = []
 
+  try {
+
   // Load all dogs ordered by createdAt
   const allDogs = await prisma.dog.findMany({
     orderBy: { createdAt: 'asc' },
@@ -51,6 +53,9 @@ export async function POST(req: NextRequest) {
 
   // Step 1: Clear all matriculas first to avoid unique conflicts
   await prisma.dog.updateMany({ data: { matricula: null } })
+
+  // Track which matriculas are already assigned (to avoid duplicate assignment)
+  const assignedMatriculas = new Set<string>()
 
   // Step 2: Apply known matriculas by name
   // Special case: two "Theodoro" — one CRECHE (C003), one HOTEL (H005)
@@ -61,24 +66,33 @@ export async function POST(req: NextRequest) {
     const normalizedName = dog.name.trim()
 
     if (normalizedName === 'Theodoro') {
-      if (!theodoroCrecheDone && (dog.dogStatus === 'CRECHE' || (!theodoroHotelDone === false))) {
+      if (!theodoroCrecheDone) {
         await prisma.dog.update({ where: { id: dog.id }, data: { matricula: 'C003' } })
         results.push({ name: dog.name, id: dog.id, action: 'SET_KNOWN', matricula: 'C003' })
+        assignedMatriculas.add('C003')
         theodoroCrecheDone = true
         continue
       }
       if (!theodoroHotelDone) {
         await prisma.dog.update({ where: { id: dog.id }, data: { matricula: 'H005' } })
         results.push({ name: dog.name, id: dog.id, action: 'SET_KNOWN', matricula: 'H005' })
+        assignedMatriculas.add('H005')
         theodoroHotelDone = true
         continue
       }
     }
 
-    const knownMatricula = knownMatriculas[normalizedName]
-    if (knownMatricula) {
+    // Normalize accents for lookup (é → e, ú → u, etc.)
+    const nameVariants = [normalizedName, normalizedName.normalize('NFD').replace(/[\u0300-\u036f]/g, '')]
+    let knownMatricula: string | undefined
+    for (const variant of nameVariants) {
+      if (knownMatriculas[variant]) { knownMatricula = knownMatriculas[variant]; break }
+    }
+
+    if (knownMatricula && !assignedMatriculas.has(knownMatricula)) {
       await prisma.dog.update({ where: { id: dog.id }, data: { matricula: knownMatricula } })
       results.push({ name: dog.name, id: dog.id, action: 'SET_KNOWN', matricula: knownMatricula })
+      assignedMatriculas.add(knownMatricula)
     }
   }
 
@@ -126,4 +140,9 @@ export async function POST(req: NextRequest) {
     auto,
     all: results.sort((a, b) => (a.matricula || '').localeCompare(b.matricula || ''))
   })
+
+  } catch (err: any) {
+    console.error('fix-matriculas error:', err)
+    return NextResponse.json({ error: String(err?.message || err) }, { status: 500 })
+  }
 }
