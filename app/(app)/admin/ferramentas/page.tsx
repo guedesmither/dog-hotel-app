@@ -48,21 +48,35 @@ export default function FerramentasPage() {
     }
   }
 
+  const [reseedTarget, setReseedTarget] = useState<'current' | 'next'>('current')
+
+  const getWeekDates = (target: 'current' | 'next') => {
+    const today = new Date()
+    const dayOfWeek = today.getDay() // 0 = Sunday, 1 = Monday, ...
+    // Calculate days to Monday of current week
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    const monday = new Date(today)
+    monday.setDate(today.getDate() + daysToMonday)
+    
+    // If target is next week, add 7 days
+    if (target === 'next') {
+      monday.setDate(monday.getDate() + 7)
+    }
+    
+    const dates = []
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday)
+      d.setDate(monday.getDate() + i)
+      dates.push(d.toISOString().split('T')[0])
+    }
+    return dates
+  }
+
   const reseedAgenda = async () => {
     setLoadingReseed(true)
     setResultReseed(null)
     try {
-      // Get current week dates
-      const today = new Date()
-      const dayOfWeek = today.getDay()
-      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) // Monday
-      const monday = new Date(today.setDate(diff))
-      const dates = []
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(monday)
-        d.setDate(monday.getDate() + i)
-        dates.push(d.toISOString().split('T')[0])
-      }
+      const dates = getWeekDates(reseedTarget)
       const res = await fetch('/api/roster/reseed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -186,15 +200,39 @@ export default function FerramentasPage() {
         <div>
           <h2 className="text-lg font-semibold text-gray-700">🔄 Re-semeadar Agenda</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Recalcula os cães da agenda da semana atual (útil quando bolsistas somem ou vendas novas não aparecem).
+            Recalcula os cães da agenda (útil quando bolsistas somem ou vendas novas não aparecem).
           </p>
         </div>
+        
+        <div className="flex gap-2 mb-2">
+          <button
+            onClick={() => setReseedTarget('current')}
+            className={`px-3 py-1 rounded text-sm font-medium ${
+              reseedTarget === 'current' 
+                ? 'bg-blue-100 text-blue-700 border border-blue-300' 
+                : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
+            }`}
+          >
+            Esta Semana
+          </button>
+          <button
+            onClick={() => setReseedTarget('next')}
+            className={`px-3 py-1 rounded text-sm font-medium ${
+              reseedTarget === 'next' 
+                ? 'bg-blue-100 text-blue-700 border border-blue-300' 
+                : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
+            }`}
+          >
+            Próxima Semana
+          </button>
+        </div>
+        
         <button
           onClick={reseedAgenda}
           disabled={loadingReseed}
           className="px-5 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
         >
-          {loadingReseed ? 'Re-semeando...' : '🔄 Re-semeadar Semana Atual'}
+          {loadingReseed ? 'Re-semeando...' : `🔄 Re-semeadar ${reseedTarget === 'current' ? 'Semana Atual' : 'Próxima Semana'}`}
         </button>
 
         {resultReseed && (
