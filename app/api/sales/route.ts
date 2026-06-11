@@ -386,6 +386,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Auto-reseed agenda for MENSAL sales to add dog to future dates
+    if (saleType === 'MENSAL' && dogId) {
+      try {
+        // Call reseed API internally (server-to-server)
+        const reseedUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+        const response = await fetch(`${reseedUrl}/api/roster/reseed`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ allFuture: true, dogId }),
+        })
+        if (response.ok) {
+          const result = await response.json()
+          console.log('Agenda atualizada automaticamente para venda MENSAL:', result.message)
+        } else {
+          console.log('Re-seed falhou (não crítico), venda criada normalmente')
+        }
+      } catch (reseedErr) {
+        console.error('Erro ao re-seedar agenda (não crítico):', reseedErr)
+      }
+    }
+
     return NextResponse.json(sale)
   } catch (error: any) {
     console.error('Erro ao criar venda:', error)

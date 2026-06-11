@@ -13,6 +13,9 @@ export default function FerramentasPage() {
   const [loadingPackages, setLoadingPackages] = useState(false)
   const [resultPackages, setResultPackages] = useState<any>(null)
 
+  const [loadingReseed, setLoadingReseed] = useState(false)
+  const [resultReseed, setResultReseed] = useState<any>(null)
+
   if (role !== 'ADMIN') {
     return <div className="p-8 text-red-600 font-bold">Acesso negado. Somente ADMIN.</div>
   }
@@ -42,6 +45,35 @@ export default function FerramentasPage() {
       setResultPackages({ error: String(e) })
     } finally {
       setLoadingPackages(false)
+    }
+  }
+
+  const reseedAgenda = async () => {
+    setLoadingReseed(true)
+    setResultReseed(null)
+    try {
+      // Get current week dates
+      const today = new Date()
+      const dayOfWeek = today.getDay()
+      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) // Monday
+      const monday = new Date(today.setDate(diff))
+      const dates = []
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday)
+        d.setDate(monday.getDate() + i)
+        dates.push(d.toISOString().split('T')[0])
+      }
+      const res = await fetch('/api/roster/reseed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dates }),
+      })
+      const data = await res.json()
+      setResultReseed(data)
+    } catch (e) {
+      setResultReseed({ error: String(e) })
+    } finally {
+      setLoadingReseed(false)
     }
   }
 
@@ -139,6 +171,56 @@ export default function FerramentasPage() {
                         <td className="px-3 py-1 text-red-500">{p.before.display}</td>
                         <td className="px-3 py-1 text-green-600 font-bold">{p.after.display}</td>
                         <td className="px-3 py-1 text-gray-500">{p.rosterDays?.join(', ') || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Reseed Agenda */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow p-6 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-700">🔄 Re-semeadar Agenda</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Recalcula os cães da agenda da semana atual (útil quando bolsistas somem ou vendas novas não aparecem).
+          </p>
+        </div>
+        <button
+          onClick={reseedAgenda}
+          disabled={loadingReseed}
+          className="px-5 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
+        >
+          {loadingReseed ? 'Re-semeando...' : '🔄 Re-semeadar Semana Atual'}
+        </button>
+
+        {resultReseed && (
+          <div className="mt-4 space-y-2">
+            <p className="text-sm font-semibold text-green-700">{resultReseed.message}</p>
+            {resultReseed.error && (
+              <p className="text-sm text-red-600">{resultReseed.error}</p>
+            )}
+            {resultReseed.results && (
+              <div className="overflow-auto max-h-80 border rounded-lg">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-100 sticky top-0">
+                    <tr>
+                      <th className="text-left px-3 py-2">Data</th>
+                      <th className="text-left px-3 py-2">Ação</th>
+                      <th className="text-left px-3 py-2">Adicionados</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resultReseed.results.map((r: any) => (
+                      <tr key={r.date} className="border-t">
+                        <td className="px-3 py-1">{r.date}</td>
+                        <td className="px-3 py-1">{r.action}</td>
+                        <td className="px-3 py-1 text-gray-600">
+                          {r.added?.length > 0 ? `${r.added.length} cães` : 'Nenhum'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
