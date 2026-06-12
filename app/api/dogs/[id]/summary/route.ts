@@ -7,7 +7,41 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
+  const role = (session.user as { role: string }).role
   const dogId = params.id
+  
+  // MONITOR não deve ver dados financeiros/sensíveis
+  const isMonitor = role === 'MONITOR'
+
+  // Se for monitor, busca apenas dados básicos do cão sem informações financeiras
+  if (isMonitor) {
+    const dog = await prisma.dog.findUnique({
+      where: { id: dogId },
+      select: {
+        id: true,
+        name: true,
+        breed: true,
+        photoUrl: true,
+        isActive: true,
+        matricula: true,
+        serviceType: true,
+        scheduledDays: true,
+      },
+    })
+    
+    if (!dog) return NextResponse.json({ error: 'Cão não encontrado' }, { status: 404 })
+    
+    // Retorna apenas dados básicos, sem vendas, pacotes, valores, etc.
+    return NextResponse.json({
+      dog,
+      sales: [],
+      replacements: [],
+      packages: [],
+      rosterRecent: [],
+      stats: null,
+      _restricted: true,
+    })
+  }
 
   const [dog, sales, replacements, packages, rosterRecent] = await Promise.all([
     prisma.dog.findUnique({

@@ -221,7 +221,8 @@ export default function DogProfilePage() {
         </div>
       </div>
 
-      {cycleStats && cycleStats.totalRosterDays > 0 && (
+      {/* Estatísticas de ciclo - ocultas para monitores */}
+      {cycleStats && cycleStats.totalRosterDays > 0 && role !== 'MONITOR' && (
         <div className="card mb-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-gray-700 text-sm">📅 {cycleStats.cycleLabel}</h3>
@@ -335,12 +336,13 @@ export default function DogProfilePage() {
             </div>
           </div>
         )}
-        {(dog.serviceType || dog.scheduledDays || dog.monthlyStartDay) && (
+        {(dog.serviceType || dog.scheduledDays) && (
           <div className="card">
             <h3 className="font-semibold text-gray-700 mb-2">🎯 Serviço</h3>
             {dog.serviceType && <p className="text-sm"><span className="text-gray-400">Tipo:</span> <span className="font-medium text-gray-700">{dog.serviceType}</span></p>}
             {dog.scheduledDays && <p className="text-sm mt-1"><span className="text-gray-400">Dias:</span> <span className="text-gray-700">{dog.scheduledDays}</span></p>}
-            {dog.monthlyStartDay && (
+            {/* Vencimento mensalidade - oculto para monitores */}
+            {dog.monthlyStartDay && role !== 'MONITOR' && (
               <p className="text-sm mt-1">
                 <span className="text-gray-400">Vencimento mensalidade:</span>{' '}
                 <span className="font-medium text-amber-700">todo dia {dog.monthlyStartDay}</span>
