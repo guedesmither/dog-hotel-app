@@ -3,16 +3,23 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+interface RevenueByStatus {
+  pago: number
+  pendente: number
+  agendado: number
+  total: number
+}
+
 interface DailyReport {
   date: string
   totalDogs: number
   nonBolsistaDogs: number
   bolsistaDogs: number
   revenue: {
-    mensalidade: number
-    pacotes: number
-    servicos: number
-    total: number
+    mensalidade: RevenueByStatus
+    pacotes: RevenueByStatus
+    servicos: RevenueByStatus
+    total: RevenueByStatus
   }
   details: Array<{
     dogName: string
@@ -20,8 +27,17 @@ interface DailyReport {
     isBolsista: boolean
     type: string
     revenue: number
+    status: string
     breakdown: string
   }>
+}
+
+interface SalesAllocation {
+  sale: any
+  dog: any
+  days: number
+  daysInPeriod: number
+  valuePerDay: number
 }
 
 // GET /api/reports/daily?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
@@ -43,6 +59,48 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // Buscar TODAS as vendas no período do relatório (não só dos cães no roster)
+    const allSales = await prisma.sales.findMany({
+      where: {
+        paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+        dogId: { not: null },
+        OR: [
+          // Vendas que começam no período
+          { startDate: { gte: new Date(startDate), lte: new Date(endDate) } },
+          // Vendas que terminam no período
+          { endDate: { gte: new Date(startDate), lte: new Date(endDate) } },
+          // Vendas que englobam o período
+          {
+            AND: [
+              { startDate: { lte: new Date(startDate) } },
+              { endDate: { gte: new Date(endDate) } }
+            ]
+          },
+          // Vendas mensais sem data fim (vigentes)
+          {
+            saleType: 'MENSAL',
+            OR: [{ endDate: null }, { endDate: { gte: new Date(startDate) } }]
+          }
+        ]
+      },
+      include: {
+        dog: {
+          select: {
+            id: true,
+            name: true,
+            isBolsista: true,
+            scheduledDays: true,
+            serviceType: true
+          }
+        },
+        items: {
+          include: {
+            product: true
+          }
+        }
+      }
+    })
+
     // Buscar todas as entradas da agenda no período
     const rosterEntries = await prisma.dailyRoster.findMany({
       where: {
@@ -64,38 +122,33 @@ export async function GET(req: NextRequest) {
       orderBy: { date: 'asc' }
     })
 
-    // Buscar vendas/serviços associados aos cães
-    const dogIds = Array.from(new Set(rosterEntries.map(e => e.dogId)))
-    
-    const sales = await prisma.sales.findMany({
-      where: {
-        dogId: { in: dogIds },
-        paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO'] }
-      },
-      include: {
-        items: {
-          include: {
-            product: true
-          }
-        }
-      }
-    })
-
     // Agrupar por data
     const reportsByDate: Record<string, DailyReport> = {}
 
+    // Inicializar todos os dias do período
+    const periodStart = new Date(startDate)
+    const periodEnd = new Date(endDate)
+    for (let d = new Date(periodStart); d <= periodEnd; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0]
+      reportsByDate[dateStr] = {
+        date: dateStr,
+        totalDogs: 0,
+        nonBolsistaDogs: 0,
+        bolsistaDogs: 0,
+        revenue: {
+          mensalidade: { pago: 0, pendente: 0, agendado: 0, total: 0 },
+          pacotes: { pago: 0, pendente: 0, agendado: 0, total: 0 },
+          servicos: { pago: 0, pendente: 0, agendado: 0, total: 0 },
+          total: { pago: 0, pendente: 0, agendado: 0, total: 0 }
+        },
+        details: []
+      }
+    }
+
+    // Processar entradas do roster para contagem de cães
     for (const entry of rosterEntries) {
       const date = entry.date
-      if (!reportsByDate[date]) {
-        reportsByDate[date] = {
-          date,
-          totalDogs: 0,
-          nonBolsistaDogs: 0,
-          bolsistaDogs: 0,
-          revenue: { mensalidade: 0, pacotes: 0, servicos: 0, total: 0 },
-          details: []
-        }
-      }
+      if (!reportsByDate[date]) continue
 
       const report = reportsByDate[date]
       const dog = entry.dog
@@ -106,107 +159,144 @@ export async function GET(req: NextRequest) {
       } else {
         report.nonBolsistaDogs++
       }
+    }
 
-      // Calcular receita alocada
-      let revenue = 0
-      let breakdown = ''
+    // Processar TODAS as vendas para alocação de receita
+    for (const sale of allSales) {
+      if (!sale.dog) continue
 
-      if (entry.type === 'CRECHE' && !dog.isBolsista) {
-        // Buscar venda mensal do cão
-        const mensalSale = sales.find(s => 
-          s.dogId === dog.id && 
-          s.saleType === 'MENSAL' &&
-          isDateInRange(date, s.startDate?.toISOString() || null, s.endDate?.toISOString() || null, s.saleDate.toISOString())
-        )
-
-        if (mensalSale) {
-          const totalValue = mensalSale.finalPrice || 0
-          const scheduledDays = dog.scheduledDays || ''
-          const daysInMonth = countScheduledDaysInMonth(scheduledDays, date)
-          
-          if (daysInMonth > 0) {
-            revenue = totalValue / daysInMonth
-            breakdown = `Mensalidade R$${totalValue} ÷ ${daysInMonth} dias = R$${revenue.toFixed(2)}/dia`
-            report.revenue.mensalidade += revenue
-          }
-        }
-      } else if (entry.type === 'PACOTE' || entry.type === 'AVULSO') {
-        // Usar pacote associado
-        if (entry.package) {
-          const pkg = entry.package
-          const daysTotal = pkg.totalDays
-          const pricePaid = pkg.pricePaid || 0
-          
-          if (daysTotal > 0) {
-            revenue = pricePaid / daysTotal
-            breakdown = `Pacote R$${pricePaid} ÷ ${daysTotal} dias = R$${revenue.toFixed(2)}/dia`
-            report.revenue.pacotes += revenue
-          }
-        }
-      } else if (entry.type === 'HOTEL') {
-        // Buscar venda de hotel
-        const hotelSale = sales.find(s => 
-          s.dogId === dog.id && 
-          s.saleType === 'HOTEL' &&
-          isDateInRange(date, s.startDate?.toISOString() || null, s.endDate?.toISOString() || null, s.saleDate.toISOString())
-        )
-        
-        if (hotelSale) {
-          const totalValue = hotelSale.finalPrice || 0
-          const start = hotelSale.startDate?.toISOString() || hotelSale.saleDate.toISOString()
-          const end = hotelSale.endDate?.toISOString() || null
-          const days = getDaysBetween(start, end)
-          
-          if (days > 0) {
-            revenue = totalValue / days
-            breakdown = `Hotel R$${totalValue} ÷ ${days} dias = R$${revenue.toFixed(2)}/dia`
-            report.revenue.servicos += revenue
-          }
-        }
-      }
-
-      // Adicionar serviços extras (banho, etc)
-      if (entry.hasBanho) {
-        // Buscar preço de banho nas vendas
-        const banhoItem = sales
-          .filter(s => s.dogId === dog.id)
-          .flatMap(s => s.items)
-          .find(item => 
-            item.product?.name?.toLowerCase().includes('banho') ||
-            item.product?.category === 'BANHO'
-          )
-        
-        if (banhoItem) {
-          const banhoValue = (banhoItem.unitPrice || 0) * (banhoItem.quantity || 1)
-          revenue += banhoValue
-          breakdown += breakdown ? ` + Banho R$${banhoValue}` : `Banho R$${banhoValue}`
-          report.revenue.servicos += banhoValue
-        }
-      }
-
-      report.revenue.total += revenue
+      const saleType = sale.saleType
+      const finalPrice = sale.finalPrice || 0
+      const paymentStatus = sale.paymentStatus
+      const saleStartDate = sale.startDate ? new Date(sale.startDate) : new Date(sale.saleDate)
+      const saleEndDate = sale.endDate ? new Date(sale.endDate) : null
       
-      report.details.push({
-        dogName: dog.name,
-        dogId: dog.id,
-        isBolsista: dog.isBolsista,
-        type: entry.type,
-        revenue: Math.round(revenue * 100) / 100,
-        breakdown
-      })
+      // Calcular dias de vigência da venda
+      let totalDays = 0
+      let daysInPeriod = 0
+      let valuePerDay = 0
+
+      if (saleType === 'MENSAL') {
+        // Mensal: dividir pelos dias agendados no mês
+        const scheduledDays = sale.dog.scheduledDays || ''
+        const targetMonth = saleStartDate.getMonth()
+        const targetYear = saleStartDate.getFullYear()
+        totalDays = countScheduledDaysInMonth(scheduledDays, `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-01`)
+        
+        // Contar quantos dias agendados caem no período do relatório
+        daysInPeriod = countScheduledDaysInPeriod(scheduledDays, startDate, endDate, saleStartDate, saleEndDate)
+      } else if (saleType === 'HOTEL') {
+        // Hotel: dividir pelos dias de estadia
+        const start = saleStartDate.toISOString()
+        const end = saleEndDate ? saleEndDate.toISOString() : null
+        totalDays = getDaysBetween(start, end)
+        
+        // Contar dias que caem no período
+        daysInPeriod = countDaysInPeriod(saleStartDate, saleEndDate, startDate, endDate)
+      } else if (saleType === 'PACOTE') {
+        // Pacote: buscar o pacote associado
+        const pkg = await prisma.package.findFirst({
+          where: { dogId: sale.dogId },
+          orderBy: { createdAt: 'desc' }
+        })
+        
+        if (pkg) {
+          totalDays = pkg.totalDays
+          // Alocar nos dias do período baseado em uso real ou distribuição
+          daysInPeriod = Math.min(totalDays, countDaysInPeriod(saleStartDate, saleEndDate || new Date(saleStartDate.getTime() + 30 * 24 * 60 * 60 * 1000), startDate, endDate))
+        } else {
+          // Fallback: estimar 30 dias
+          totalDays = 30
+          daysInPeriod = Math.min(30, countDaysInPeriod(saleStartDate, null, startDate, endDate))
+        }
+      } else {
+        // AVULSO e outros: contar como 1 dia
+        totalDays = 1
+        daysInPeriod = isDateInRangeString(sale.saleDate.toISOString(), startDate, endDate) ? 1 : 0
+      }
+
+      if (totalDays > 0 && daysInPeriod > 0) {
+        valuePerDay = finalPrice / totalDays
+        
+        // Distribuir valor nos dias do período
+        const days = generateDaysInPeriod(saleStartDate, saleEndDate, startDate, endDate, sale.dog.scheduledDays, saleType)
+        
+        for (const day of days) {
+          if (!reportsByDate[day]) continue
+          
+          const report = reportsByDate[day]
+          const dailyValue = valuePerDay
+          const status = getStatusKey(paymentStatus || 'AGENDADO')
+          
+          // Classificar por tipo
+          if (saleType === 'MENSAL') {
+            report.revenue.mensalidade[status] += dailyValue
+            report.revenue.mensalidade.total += dailyValue
+          } else if (saleType === 'PACOTE' || saleType === 'AVULSO') {
+            report.revenue.pacotes[status] += dailyValue
+            report.revenue.pacotes.total += dailyValue
+          } else if (saleType === 'HOTEL') {
+            report.revenue.servicos[status] += dailyValue
+            report.revenue.servicos.total += dailyValue
+          } else {
+            report.revenue.servicos[status] += dailyValue
+            report.revenue.servicos.total += dailyValue
+          }
+          
+          // Atualizar total
+          report.revenue.total[status] += dailyValue
+          report.revenue.total.total += dailyValue
+          
+          // Adicionar detalhe
+          report.details.push({
+            dogName: sale.dog.name,
+            dogId: sale.dogId,
+            isBolsista: sale.dog.isBolsista,
+            type: saleType,
+            revenue: Math.round(dailyValue * 100) / 100,
+            status: paymentStatus,
+            breakdown: `${saleType} R$${finalPrice} ÷ ${totalDays} dias = R$${dailyValue.toFixed(2)}/dia (${paymentStatus})`
+          })
+        }
+      }
     }
 
     // Converter para array e calcular médias
     const reports = Object.values(reportsByDate).sort((a, b) => a.date.localeCompare(b.date))
     
-    // Calcular estatísticas
+    // Calcular totais e estatísticas
+    const totals = {
+      mensalidade: { pago: 0, pendente: 0, agendado: 0, total: 0 },
+      pacotes: { pago: 0, pendente: 0, agendado: 0, total: 0 },
+      servicos: { pago: 0, pendente: 0, agendado: 0, total: 0 },
+      geral: { pago: 0, pendente: 0, agendado: 0, total: 0 }
+    }
+
+    for (const report of reports) {
+      totals.mensalidade.pago += report.revenue.mensalidade.pago
+      totals.mensalidade.pendente += report.revenue.mensalidade.pendente
+      totals.mensalidade.agendado += report.revenue.mensalidade.agendado
+      totals.mensalidade.total += report.revenue.mensalidade.total
+      
+      totals.pacotes.pago += report.revenue.pacotes.pago
+      totals.pacotes.pendente += report.revenue.pacotes.pendente
+      totals.pacotes.agendado += report.revenue.pacotes.agendado
+      totals.pacotes.total += report.revenue.pacotes.total
+      
+      totals.servicos.pago += report.revenue.servicos.pago
+      totals.servicos.pendente += report.revenue.servicos.pendente
+      totals.servicos.agendado += report.revenue.servicos.agendado
+      totals.servicos.total += report.revenue.servicos.total
+      
+      totals.geral.pago += report.revenue.total.pago
+      totals.geral.pendente += report.revenue.total.pendente
+      totals.geral.agendado += report.revenue.total.agendado
+      totals.geral.total += report.revenue.total.total
+    }
+
     const totalDays = reports.length
     const avgNonBolsistaDogs = totalDays > 0 
       ? reports.reduce((sum, r) => sum + r.nonBolsistaDogs, 0) / totalDays 
-      : 0
-    
-    const avgDailyRevenue = totalDays > 0
-      ? reports.reduce((sum, r) => sum + r.revenue.total, 0) / totalDays
       : 0
 
     // Separar passado e futuro
@@ -215,11 +305,11 @@ export async function GET(req: NextRequest) {
     const futureReports = reports.filter(r => r.date >= today)
 
     const avgPastRevenue = pastReports.length > 0
-      ? pastReports.reduce((sum, r) => sum + r.revenue.total, 0) / pastReports.length
+      ? pastReports.reduce((sum, r) => sum + r.revenue.total.total, 0) / pastReports.length
       : 0
 
     const avgFutureRevenue = futureReports.length > 0
-      ? futureReports.reduce((sum, r) => sum + r.revenue.total, 0) / futureReports.length
+      ? futureReports.reduce((sum, r) => sum + r.revenue.total.total, 0) / futureReports.length
       : 0
 
     return NextResponse.json({
@@ -227,12 +317,25 @@ export async function GET(req: NextRequest) {
       summary: {
         totalDays,
         avgNonBolsistaDogs: Math.round(avgNonBolsistaDogs * 100) / 100,
-        avgDailyRevenue: Math.round(avgDailyRevenue * 100) / 100,
+        avgDailyRevenue: totalDays > 0 ? Math.round((totals.geral.total / totalDays) * 100) / 100 : 0,
         avgPastRevenue: Math.round(avgPastRevenue * 100) / 100,
         avgFutureRevenue: Math.round(avgFutureRevenue * 100) / 100,
-        totalRevenue: reports.reduce((sum, r) => sum + r.revenue.total, 0)
+        totals: {
+          mensalidade: roundValues(totals.mensalidade),
+          pacotes: roundValues(totals.pacotes),
+          servicos: roundValues(totals.servicos),
+          geral: roundValues(totals.geral)
+        }
       },
-      dailyReports: reports
+      dailyReports: reports.map(r => ({
+        ...r,
+        revenue: {
+          mensalidade: roundValues(r.revenue.mensalidade),
+          pacotes: roundValues(r.revenue.pacotes),
+          servicos: roundValues(r.revenue.servicos),
+          total: roundValues(r.revenue.total)
+        }
+      }))
     })
 
   } catch (error) {
@@ -299,4 +402,156 @@ function getDaysBetween(startDate: string, endDate: string | null): number {
   const end = new Date(endDate)
   const diffTime = Math.abs(end.getTime() - start.getTime())
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+}
+
+function getStatusKey(status: string): 'pago' | 'pendente' | 'agendado' {
+  if (status === 'PAGO') return 'pago'
+  if (status === 'PENDENTE') return 'pendente'
+  return 'agendado' // AGENDADO, PROGRAMADA
+}
+
+function isDateInRangeString(date: string, startDate: string, endDate: string): boolean {
+  const target = new Date(date)
+  target.setHours(0, 0, 0, 0)
+  const start = new Date(startDate)
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(endDate)
+  end.setHours(23, 59, 59, 999)
+  return target >= start && target <= end
+}
+
+function countScheduledDaysInPeriod(
+  scheduledDays: string,
+  periodStart: string,
+  periodEnd: string,
+  saleStartDate: Date,
+  saleEndDate: Date | null
+): number {
+  if (!scheduledDays || scheduledDays.trim() === '') return 0
+  
+  const dayMap: Record<string, number> = {
+    'domingo': 0, 'dom': 0,
+    'segunda': 1, 'seg': 1,
+    'terca': 2, 'ter': 2, 'terça': 2,
+    'quarta': 3, 'qua': 3,
+    'quinta': 4, 'qui': 4,
+    'sexta': 5, 'sex': 5,
+    'sabado': 6, 'sab': 6, 'sábado': 6, 'sáb': 6
+  }
+  
+  const scheduled = scheduledDays.toLowerCase().split(',').map(s => s.trim())
+  const targetDayIndices = scheduled
+    .map(day => dayMap[day])
+    .filter((idx): idx is number => idx !== undefined)
+  
+  const pStart = new Date(periodStart)
+  const pEnd = new Date(periodEnd)
+  const sStart = new Date(saleStartDate)
+  const sEnd = saleEndDate ? new Date(saleEndDate) : new Date(sStart.getFullYear(), sStart.getMonth() + 1, 0)
+  
+  let count = 0
+  for (let d = new Date(pStart); d <= pEnd; d.setDate(d.getDate() + 1)) {
+    const dateStr = d.toISOString().split('T')[0]
+    const dayOfWeek = d.getDay()
+    
+    // Verifica se é um dia agendado
+    if (!targetDayIndices.includes(dayOfWeek)) continue
+    
+    // Verifica se está dentro do período da venda
+    const checkDate = new Date(dateStr)
+    if (checkDate >= sStart && checkDate <= sEnd) {
+      count++
+    }
+  }
+  
+  return count
+}
+
+function countDaysInPeriod(
+  saleStart: Date,
+  saleEnd: Date | null,
+  periodStart: string,
+  periodEnd: string
+): number {
+  const sStart = new Date(saleStart)
+  const sEnd = saleEnd || new Date(sStart.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const pStart = new Date(periodStart)
+  const pEnd = new Date(periodEnd)
+  
+  // Interseção entre períodos
+  const actualStart = sStart > pStart ? sStart : pStart
+  const actualEnd = sEnd < pEnd ? sEnd : pEnd
+  
+  if (actualStart > actualEnd) return 0
+  
+  const diffTime = Math.abs(actualEnd.getTime() - actualStart.getTime())
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+}
+
+function generateDaysInPeriod(
+  saleStart: Date,
+  saleEnd: Date | null,
+  periodStart: string,
+  periodEnd: string,
+  scheduledDays: string | null,
+  saleType: string
+): string[] {
+  const days: string[] = []
+  
+  const sStart = new Date(saleStart)
+  const sEnd = saleEnd || new Date(sStart.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const pStart = new Date(periodStart)
+  const pEnd = new Date(periodEnd)
+  
+  // Para vendas mensais, respeitar dias agendados
+  if (saleType === 'MENSAL' && scheduledDays) {
+    const dayMap: Record<string, number> = {
+      'domingo': 0, 'dom': 0,
+      'segunda': 1, 'seg': 1,
+      'terca': 2, 'ter': 2, 'terça': 2,
+      'quarta': 3, 'qua': 3,
+      'quinta': 4, 'qui': 4,
+      'sexta': 5, 'sex': 5,
+      'sabado': 6, 'sab': 6, 'sábado': 6, 'sáb': 6
+    }
+    
+    const scheduled = scheduledDays.toLowerCase().split(',').map(s => s.trim())
+    const targetDayIndices = scheduled
+      .map(day => dayMap[day])
+      .filter((idx): idx is number => idx !== undefined)
+    
+    for (let d = new Date(pStart); d <= pEnd; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0]
+      const checkDate = new Date(dateStr)
+      
+      // Verifica se é dia agendado
+      if (!targetDayIndices.includes(d.getDay())) continue
+      
+      // Verifica se está dentro do período da venda
+      if (checkDate >= sStart && checkDate <= sEnd) {
+        days.push(dateStr)
+      }
+    }
+  } else {
+    // Hotel e outros: todos os dias do período
+    for (let d = new Date(pStart); d <= pEnd; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0]
+      const checkDate = new Date(dateStr)
+      
+      if (checkDate >= sStart && checkDate <= sEnd) {
+        days.push(dateStr)
+      }
+    }
+  }
+  
+  return days
+}
+
+function roundValues(obj: RevenueByStatus): RevenueByStatus {
+  return {
+    pago: Math.round(obj.pago * 100) / 100,
+    pendente: Math.round(obj.pendente * 100) / 100,
+    agendado: Math.round(obj.agendado * 100) / 100,
+    total: Math.round(obj.total * 100) / 100
+  }
 }

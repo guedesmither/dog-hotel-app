@@ -4,17 +4,31 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { ChevronLeft, ChevronRight, DollarSign, Users, Calendar } from 'lucide-react'
 
+interface RevenueByStatus {
+  pago: number
+  pendente: number
+  agendado: number
+  total: number
+}
+
 interface DailyReport {
   date: string
   totalDogs: number
   nonBolsistaDogs: number
   bolsistaDogs: number
   revenue: {
-    mensalidade: number
-    pacotes: number
-    servicos: number
-    total: number
+    mensalidade: RevenueByStatus
+    pacotes: RevenueByStatus
+    servicos: RevenueByStatus
+    total: RevenueByStatus
   }
+}
+
+interface TotalsByType {
+  mensalidade: RevenueByStatus
+  pacotes: RevenueByStatus
+  servicos: RevenueByStatus
+  geral: RevenueByStatus
 }
 
 interface ReportSummary {
@@ -23,7 +37,7 @@ interface ReportSummary {
   avgDailyRevenue: number
   avgPastRevenue: number
   avgFutureRevenue: number
-  totalRevenue: number
+  totals: TotalsByType
 }
 
 export default function RelatoriosPage() {
@@ -138,8 +152,12 @@ export default function RelatoriosPage() {
               <DollarSign className="w-5 h-5 text-green-600" />
               <span className="text-sm font-medium text-green-700">Faturamento Total</span>
             </div>
-            <p className="text-2xl font-bold text-green-900">{formatCurrency(summary.totalRevenue)}</p>
-            <p className="text-xs text-green-600">no período</p>
+            <p className="text-2xl font-bold text-green-900">{formatCurrency(summary.totals.geral.total)}</p>
+            <div className="text-xs text-green-600 mt-1 space-y-0.5">
+              <p className="flex justify-between"><span>Pago:</span> <span className="font-medium text-green-700">{formatCurrency(summary.totals.geral.pago)}</span></p>
+              <p className="flex justify-between"><span>Pendente:</span> <span className="font-medium text-amber-600">{formatCurrency(summary.totals.geral.pendente)}</span></p>
+              <p className="flex justify-between"><span>Agendado:</span> <span className="font-medium text-blue-600">{formatCurrency(summary.totals.geral.agendado)}</span></p>
+            </div>
           </div>
 
           <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
@@ -218,16 +236,16 @@ export default function RelatoriosPage() {
                           </span>
                         </div>
                         <div className="text-xs font-semibold text-green-600">
-                          {formatCurrency(item.report.revenue.total)}
+                          {formatCurrency(item.report.revenue.total.total)}
                         </div>
                         <div className="flex gap-1 text-[10px] text-gray-500">
-                          {item.report.revenue.mensalidade > 0 && (
+                          {item.report.revenue.mensalidade.total > 0 && (
                             <span className="bg-blue-100 px-1 rounded">M</span>
                           )}
-                          {item.report.revenue.pacotes > 0 && (
+                          {item.report.revenue.pacotes.total > 0 && (
                             <span className="bg-orange-100 px-1 rounded">P</span>
                           )}
-                          {item.report.revenue.servicos > 0 && (
+                          {item.report.revenue.servicos.total > 0 && (
                             <span className="bg-purple-100 px-1 rounded">S</span>
                           )}
                         </div>
