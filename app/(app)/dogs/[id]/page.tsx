@@ -204,21 +204,24 @@ export default function DogProfilePage() {
           </div>
         </div>
 
-        <div className="card">
-          <h3 className="font-semibold text-gray-700 mb-2 text-sm">Tutor</h3>
-          <p className="font-medium text-gray-900">{dog.ownerName}</p>
-          <a href={`https://wa.me/${dog.ownerPhone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-green-600 hover:underline text-sm mt-1">
-            <Phone className="w-3.5 h-3.5" />
-            {dog.ownerPhone}
-          </a>
-          {dog.ownerEmail && (
-            <a href={`mailto:${dog.ownerEmail}`} className="flex items-center gap-1.5 text-blue-600 hover:underline text-sm mt-1">
-              <Mail className="w-3.5 h-3.5" />
-              {dog.ownerEmail}
+        {/* Tutor - oculto para monitores */}
+        {role !== 'MONITOR' && (
+          <div className="card">
+            <h3 className="font-semibold text-gray-700 mb-2 text-sm">Tutor</h3>
+            <p className="font-medium text-gray-900">{dog.ownerName}</p>
+            <a href={`https://wa.me/${dog.ownerPhone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-green-600 hover:underline text-sm mt-1">
+              <Phone className="w-3.5 h-3.5" />
+              {dog.ownerPhone}
             </a>
-          )}
-          {dog.ownerCpf && <p className="text-xs text-gray-400 mt-1.5">CPF: {dog.ownerCpf}</p>}
-        </div>
+            {dog.ownerEmail && (
+              <a href={`mailto:${dog.ownerEmail}`} className="flex items-center gap-1.5 text-blue-600 hover:underline text-sm mt-1">
+                <Mail className="w-3.5 h-3.5" />
+                {dog.ownerEmail}
+              </a>
+            )}
+            {dog.ownerCpf && <p className="text-xs text-gray-400 mt-1.5">CPF: {dog.ownerCpf}</p>}
+          </div>
+        )}
       </div>
 
       {/* Estatísticas de ciclo - ocultas para monitores */}

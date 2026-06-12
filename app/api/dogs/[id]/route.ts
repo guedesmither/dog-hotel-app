@@ -11,8 +11,64 @@ export async function GET(
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
   const sessionUser = session.user as { role: string; tutorDogId?: string }
-  if (sessionUser.role === 'TUTOR' && sessionUser.tutorDogId !== params.id) {
+  const role = sessionUser.role
+  
+  if (role === 'TUTOR' && sessionUser.tutorDogId !== params.id) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+  }
+
+  // MONITOR: apenas dados básicos, sem dados pessoais/financeiros
+  if (role === 'MONITOR') {
+    const dog = await prisma.dog.findUnique({
+      where: { id: params.id },
+      select: {
+        id: true,
+        name: true,
+        breed: true,
+        birthDate: true,
+        color: true,
+        weight: true,
+        photoUrl: true,
+        sex: true,
+        castrated: true,
+        size: true,
+        temperament: true,
+        preferredActivities: true,
+        allowPool: true,
+        allowPhotos: true,
+        serviceType: true,
+        scheduledDays: true,
+        notes: true,
+        feedingInstructions: true,
+        feedingType: true,
+        feedingTimesPerDay: true,
+        feedingGramsPerMeal: true,
+        medications: true,
+        allergies: true,
+        vetName: true,
+        isActive: true,
+        matricula: true,
+        dogStatus: true,
+        isBolsista: true,
+        reports: {
+          orderBy: { date: 'desc' },
+          take: 10,
+          include: {
+            author: { select: { name: true } },
+            activities: true,
+            photos: true,
+          },
+        },
+      },
+    })
+    
+    if (!dog) return NextResponse.json({ error: 'Cão não encontrado' }, { status: 404 })
+    
+    return NextResponse.json({
+      ...dog,
+      _restricted: true,
+      // Dados sensíveis são omitidos
+    })
   }
 
   const dog = await prisma.dog.findUnique({
