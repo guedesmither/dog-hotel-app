@@ -25,6 +25,7 @@ import {
   ChevronRight,
   ReceiptText,
   BarChart3,
+  Calendar,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn, ROLE_LABELS } from '@/lib/utils'
@@ -144,6 +145,12 @@ const navSections: NavSection[] = [
         href: '/relatorio',
         label: 'Relatório',
         icon: <TrendingUp className="w-5 h-5" />,
+        roles: ['ADMIN', 'MANAGER'],
+      },
+      {
+        href: '/relatorios',
+        label: 'Relatórios Diários',
+        icon: <Calendar className="w-5 h-5" />,
         roles: ['ADMIN', 'MANAGER'],
       },
       {
