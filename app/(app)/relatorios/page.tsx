@@ -151,8 +151,9 @@ export default function RelatoriosPage() {
       let acc = 0
       for (const r of md.reports) {
         const d = parseInt(r.date.split('-')[2])
-        acc += r.revenue.total.pago
-        byDay[d][key] = Math.round(r.revenue.total.pago * 100) / 100
+        const total = r.revenue.total.total  // pago + pendente + agendado
+        acc += total
+        byDay[d][key] = Math.round(total * 100) / 100
         byDay[d][key + '_acum'] = Math.round(acc * 100) / 100
       }
     }
@@ -162,12 +163,14 @@ export default function RelatoriosPage() {
 
   // Dados do mês principal para gráficos simples
   const chartData = useMemo(() => {
-    let accumulated = 0
+    let accumPago = 0
+    let accumTotal = 0
     return reports
       .filter(r => r.date <= today || !isCurrentMonth)
       .map(r => {
         const day = parseInt(r.date.split('-')[2])
-        accumulated += r.revenue.total.pago
+        accumPago += r.revenue.total.pago
+        accumTotal += r.revenue.total.total
         return {
           day,
           pago: Math.round(r.revenue.total.pago * 100) / 100,
@@ -176,7 +179,8 @@ export default function RelatoriosPage() {
           mensalidade: Math.round(r.revenue.mensalidade.total * 100) / 100,
           pacotes: Math.round(r.revenue.pacotes.total * 100) / 100,
           servicos: Math.round(r.revenue.servicos.total * 100) / 100,
-          acumulado: Math.round(accumulated * 100) / 100,
+          acumuladoPago: Math.round(accumPago * 100) / 100,
+          acumuladoTotal: Math.round(accumTotal * 100) / 100,
           coes: r.nonBolsistaDogs,
         }
       })
@@ -310,7 +314,7 @@ export default function RelatoriosPage() {
               </div>
 
               <div className="bg-white border border-gray-200 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Acumulado recebido no mês (MTD)</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">Acumulado no mês — total vendido vs recebido</h3>
                 <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                     <defs>
@@ -326,7 +330,8 @@ export default function RelatoriosPage() {
                     {projFimMes && (
                       <ReferenceLine y={projFimMes} stroke="#9333ea" strokeDasharray="4 2" label={{ value: 'Proj.', position: 'right', fontSize: 10, fill: '#9333ea' }} />
                     )}
-                    <Area type="monotone" dataKey="acumulado" name="Acumulado pago" stroke="#22c55e" fill="url(#colorAcum)" strokeWidth={2} dot={false} />
+                    <Area type="monotone" dataKey="acumuladoTotal" name="Total vendido" stroke="#3b82f6" fill="url(#colorAcum)" strokeWidth={2} dot={false} strokeDasharray="0" />
+                    <Area type="monotone" dataKey="acumuladoPago" name="Recebido" stroke="#22c55e" fill="none" strokeWidth={2} dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -454,7 +459,7 @@ export default function RelatoriosPage() {
 
               {/* Gráfico: faturamento diário sobreposto */}
               <div className="bg-white border border-gray-200 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Faturamento pago por dia — comparativo</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">Vendas por dia — comparativo (pago + pendente + agendado)</h3>
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart data={compareChartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -483,7 +488,7 @@ export default function RelatoriosPage() {
 
               {/* Gráfico: acumulado sobreposto */}
               <div className="bg-white border border-gray-200 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Acumulado pago no mês — comparativo</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">Acumulado total vendido no mês — comparativo</h3>
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart data={compareChartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
