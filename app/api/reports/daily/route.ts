@@ -183,96 +183,65 @@ export async function GET(req: NextRequest) {
       const saleType = sale.saleType
       const finalPrice = sale.finalPrice || 0
       const paymentStatus = sale.paymentStatus
+      const status = getStatusKey(paymentStatus || 'AGENDADO')
       const saleStartDate = sale.startDate ? new Date(sale.startDate) : new Date(sale.saleDate)
       const saleEndDate = sale.endDate ? new Date(sale.endDate) : null
-      
-      // Calcular dias de vigência da venda
-      let totalDays = 0
-      let daysInPeriod = 0
-      let valuePerDay = 0
 
-      if (saleType === 'MENSAL') {
-        // Mensal: dividir pelos dias agendados NO MÊS DO PERÍODO (não da saleDate)
-        const scheduledDays = sale.dog.scheduledDays || ''
-        // Usar o mês do período do relatório para calcular totalDays
-        const reportMonth = new Date(startDate)
-        totalDays = countScheduledDaysInMonth(scheduledDays, `${reportMonth.getFullYear()}-${String(reportMonth.getMonth() + 1).padStart(2, '0')}-01`)
-        if (totalDays === 0) totalDays = 1
-        
-        // Contar quantos dias agendados caem no período do relatório
-        daysInPeriod = countScheduledDaysInPeriod(scheduledDays, startDate, endDate, saleStartDate, saleEndDate)
-      } else if (saleType === 'HOTEL') {
-        // Hotel: dividir pelos dias de estadia
-        const start = saleStartDate.toISOString()
-        const end = saleEndDate ? saleEndDate.toISOString() : null
-        totalDays = getDaysBetween(start, end)
-        
-        // Contar dias que caem no período
-        daysInPeriod = countDaysInPeriod(saleStartDate, saleEndDate, startDate, endDate)
-      } else if (saleType === 'PACOTE') {
-        // Pacote: buscar o pacote associado
-        const pkg = await prisma.package.findFirst({
-          where: { dogId: sale.dogId! },
-          orderBy: { createdAt: 'desc' }
-        })
-        
-        if (pkg) {
-          totalDays = pkg.totalDays
-          // Alocar nos dias do período baseado em uso real ou distribuição
-          daysInPeriod = Math.min(totalDays, countDaysInPeriod(saleStartDate, saleEndDate || new Date(saleStartDate.getTime() + 30 * 24 * 60 * 60 * 1000), startDate, endDate))
+      const addRevenue = (day: string, value: number, breakdown: string) => {
+        const report = reportsByDate[day]
+        if (!report) return
+        const v = Math.round(value * 100) / 100
+        if (saleType === 'MENSAL') {
+          report.revenue.mensalidade[status] += v
+          report.revenue.mensalidade.total += v
+        } else if (saleType === 'PACOTE' || saleType === 'AVULSO') {
+          report.revenue.pacotes[status] += v
+          report.revenue.pacotes.total += v
         } else {
-          // Fallback: estimar 30 dias
-          totalDays = 30
-          daysInPeriod = Math.min(30, countDaysInPeriod(saleStartDate, null, startDate, endDate))
+          report.revenue.servicos[status] += v
+          report.revenue.servicos.total += v
         }
-      } else {
-        // AVULSO e outros: contar como 1 dia
-        totalDays = 1
-        daysInPeriod = isDateInRangeString(sale.saleDate.toISOString(), startDate, endDate) ? 1 : 0
+        report.revenue.total[status] += v
+        report.revenue.total.total += v
+        report.details.push({
+          dogName: sale.dog!.name,
+          dogId: sale.dogId ?? '',
+          isBolsista: sale.dog!.isBolsista,
+          type: saleType,
+          revenue: v,
+          status: paymentStatus ?? 'AGENDADO',
+          breakdown
+        })
       }
 
-      if (totalDays > 0 && daysInPeriod > 0) {
-        valuePerDay = finalPrice / totalDays
-        
-        // Distribuir valor nos dias do período
-        const days = generateDaysInPeriod(saleStartDate, saleEndDate, startDate, endDate, sale.dog.scheduledDays, saleType)
-        
+      if (saleType === 'MENSAL') {
+        // Distribuir proporcionalmente pelos dias agendados do mês
+        const scheduledDays = sale.dog.scheduledDays || ''
+        const reportMonth = new Date(startDate)
+        const totalDays = countScheduledDaysInMonth(
+          scheduledDays,
+          `${reportMonth.getFullYear()}-${String(reportMonth.getMonth() + 1).padStart(2, '0')}-01`
+        ) || 1
+        const valuePerDay = finalPrice / totalDays
+        const days = generateDaysInPeriod(saleStartDate, saleEndDate, startDate, endDate, scheduledDays, 'MENSAL')
         for (const day of days) {
-          if (!reportsByDate[day]) continue
-          
-          const report = reportsByDate[day]
-          const dailyValue = valuePerDay
-          const status = getStatusKey(paymentStatus || 'AGENDADO')
-          
-          // Classificar por tipo
-          if (saleType === 'MENSAL') {
-            report.revenue.mensalidade[status] += dailyValue
-            report.revenue.mensalidade.total += dailyValue
-          } else if (saleType === 'PACOTE' || saleType === 'AVULSO') {
-            report.revenue.pacotes[status] += dailyValue
-            report.revenue.pacotes.total += dailyValue
-          } else if (saleType === 'HOTEL') {
-            report.revenue.servicos[status] += dailyValue
-            report.revenue.servicos.total += dailyValue
-          } else {
-            report.revenue.servicos[status] += dailyValue
-            report.revenue.servicos.total += dailyValue
-          }
-          
-          // Atualizar total
-          report.revenue.total[status] += dailyValue
-          report.revenue.total.total += dailyValue
-          
-          // Adicionar detalhe
-          report.details.push({
-            dogName: sale.dog.name,
-            dogId: sale.dogId ?? '',
-            isBolsista: sale.dog.isBolsista,
-            type: saleType,
-            revenue: Math.round(dailyValue * 100) / 100,
-            status: paymentStatus ?? 'AGENDADO',
-            breakdown: `${saleType} R$${finalPrice} ÷ ${totalDays} dias = R$${dailyValue.toFixed(2)}/dia (${paymentStatus})`
-          })
+          addRevenue(day, valuePerDay, `MENSAL R$${finalPrice} ÷ ${totalDays} dias = R$${valuePerDay.toFixed(2)}/dia`)
+        }
+
+      } else if (saleType === 'HOTEL') {
+        // Distribuir pelos dias de estadia dentro do período
+        const totalDays = getDaysBetween(saleStartDate.toISOString(), saleEndDate?.toISOString() ?? null) || 1
+        const valuePerDay = finalPrice / totalDays
+        const days = generateDaysInPeriod(saleStartDate, saleEndDate, startDate, endDate, null, 'HOTEL')
+        for (const day of days) {
+          addRevenue(day, valuePerDay, `HOTEL R$${finalPrice} ÷ ${totalDays} dias = R$${valuePerDay.toFixed(2)}/dia`)
+        }
+
+      } else {
+        // PACOTE, AVULSO, outros: contabilizar UMA VEZ no dia da venda
+        const saleDateStr = sale.saleDate.toISOString().split('T')[0]
+        if (reportsByDate[saleDateStr]) {
+          addRevenue(saleDateStr, finalPrice, `${saleType} R$${finalPrice} (única vez em ${saleDateStr})`)
         }
       }
     }
