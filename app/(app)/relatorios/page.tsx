@@ -86,6 +86,13 @@ export default function RelatoriosPage() {
   // Lista de meses carregados para comparação (até 4)
   const [months, setMonths] = useState<MonthData[]>([])
   const [activeTab, setActiveTab] = useState<'grafico' | 'comparar' | 'calendario'>('grafico')
+  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set(['mensalidade', 'pacotes', 'servicos']))
+
+  const toggleType = (t: string) => setSelectedTypes(prev => {
+    const next = new Set(prev)
+    if (next.has(t)) { if (next.size > 1) next.delete(t) } else next.add(t)
+    return next
+  })
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -151,7 +158,10 @@ export default function RelatoriosPage() {
       let acc = 0
       for (const r of md.reports) {
         const d = parseInt(r.date.split('-')[2])
-        const total = r.revenue.total.total  // pago + pendente + agendado
+        let total = 0
+        if (selectedTypes.has('mensalidade')) total += r.revenue.mensalidade.total
+        if (selectedTypes.has('pacotes')) total += r.revenue.pacotes.total
+        if (selectedTypes.has('servicos')) total += r.revenue.servicos.total
         acc += total
         byDay[d][key] = Math.round(total * 100) / 100
         byDay[d][key + '_acum'] = Math.round(acc * 100) / 100
@@ -159,7 +169,16 @@ export default function RelatoriosPage() {
     }
 
     return Object.values(byDay).filter(d => Object.keys(d).length > 1)
-  }, [months])
+  }, [months, selectedTypes])
+
+  // Helper: soma receita filtrada por tipos selecionados
+  const filteredRevenue = useCallback((r: DailyReport, status: 'pago' | 'pendente' | 'agendado' | 'total') => {
+    let v = 0
+    if (selectedTypes.has('mensalidade')) v += r.revenue.mensalidade[status]
+    if (selectedTypes.has('pacotes')) v += r.revenue.pacotes[status]
+    if (selectedTypes.has('servicos')) v += r.revenue.servicos[status]
+    return Math.round(v * 100) / 100
+  }, [selectedTypes])
 
   // Dados do mês principal para gráficos simples
   const chartData = useMemo(() => {
@@ -169,13 +188,17 @@ export default function RelatoriosPage() {
       .filter(r => r.date <= today || !isCurrentMonth)
       .map(r => {
         const day = parseInt(r.date.split('-')[2])
-        accumPago += r.revenue.total.pago
-        accumTotal += r.revenue.total.total
+        const pago = filteredRevenue(r, 'pago')
+        const pendente = filteredRevenue(r, 'pendente')
+        const agendado = filteredRevenue(r, 'agendado')
+        const total = filteredRevenue(r, 'total')
+        accumPago += pago
+        accumTotal += total
         return {
           day,
-          pago: Math.round(r.revenue.total.pago * 100) / 100,
-          pendente: Math.round(r.revenue.total.pendente * 100) / 100,
-          agendado: Math.round(r.revenue.total.agendado * 100) / 100,
+          pago,
+          pendente,
+          agendado,
           mensalidade: Math.round(r.revenue.mensalidade.total * 100) / 100,
           pacotes: Math.round(r.revenue.pacotes.total * 100) / 100,
           servicos: Math.round(r.revenue.servicos.total * 100) / 100,
@@ -184,11 +207,17 @@ export default function RelatoriosPage() {
           coes: r.nonBolsistaDogs,
         }
       })
-  }, [reports, today, isCurrentMonth])
+  }, [reports, today, isCurrentMonth, filteredRevenue])
 
-  const mtdPago = summary?.totals.geral.pago ?? 0
-  const mtdPendente = summary?.totals.geral.pendente ?? 0
-  const mtdAgendado = summary?.totals.geral.agendado ?? 0
+  const mtdPago = (selectedTypes.has('mensalidade') ? (summary?.totals.mensalidade.pago ?? 0) : 0)
+    + (selectedTypes.has('pacotes') ? (summary?.totals.pacotes.pago ?? 0) : 0)
+    + (selectedTypes.has('servicos') ? (summary?.totals.servicos.pago ?? 0) : 0)
+  const mtdPendente = (selectedTypes.has('mensalidade') ? (summary?.totals.mensalidade.pendente ?? 0) : 0)
+    + (selectedTypes.has('pacotes') ? (summary?.totals.pacotes.pendente ?? 0) : 0)
+    + (selectedTypes.has('servicos') ? (summary?.totals.servicos.pendente ?? 0) : 0)
+  const mtdAgendado = (selectedTypes.has('mensalidade') ? (summary?.totals.mensalidade.agendado ?? 0) : 0)
+    + (selectedTypes.has('pacotes') ? (summary?.totals.pacotes.agendado ?? 0) : 0)
+    + (selectedTypes.has('servicos') ? (summary?.totals.servicos.agendado ?? 0) : 0)
   const diasNoMes = new Date(year, month + 1, 0).getDate()
   const projFimMes = summary && summary.avgPastRevenue > 0 ? summary.avgPastRevenue * diasNoMes : null
 
@@ -236,6 +265,31 @@ export default function RelatoriosPage() {
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
+      </div>
+
+      {/* Filtro por tipo de serviço */}
+      <div className="flex flex-wrap gap-2">
+        {([
+          { key: 'mensalidade', label: 'Creche/Mensal', color: 'blue' },
+          { key: 'pacotes', label: 'Pacotes', color: 'orange' },
+          { key: 'servicos', label: 'Hotel/Serviços', color: 'purple' },
+        ] as const).map(({ key, label, color }) => {
+          const active = selectedTypes.has(key)
+          const styles: Record<string, string> = {
+            blue: active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50',
+            orange: active ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-orange-500 border-orange-300 hover:bg-orange-50',
+            purple: active ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-purple-600 border-purple-300 hover:bg-purple-50',
+          }
+          return (
+            <button
+              key={key}
+              onClick={() => toggleType(key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${styles[color]}`}
+            >
+              {label}
+            </button>
+          )
+        })}
       </div>
 
       {loading ? (
