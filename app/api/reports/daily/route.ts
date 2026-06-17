@@ -68,17 +68,32 @@ export async function GET(req: NextRequest) {
         paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
         dogId: { not: null },
         OR: [
-          // Vendas com datas explícitas que se sobrepõem ao período
+          // MENSAL: apenas as do mês (saleDate no período) — não incluir mensalidades de meses anteriores
           {
+            saleType: 'MENSAL',
+            saleDate: { gte: periodStartDate, lte: periodEndDate }
+          },
+          // HOTEL: vendas com datas de estadia que se sobrepõem ao período
+          {
+            saleType: 'HOTEL',
             startDate: { not: null },
             AND: [
               { startDate: { lte: periodEndDate } },
               { OR: [{ endDate: null }, { endDate: { gte: periodStartDate } }] }
             ]
           },
-          // Vendas sem startDate: usar saleDate no período
+          // PACOTE: vendas com datas que se sobrepõem ao período
           {
-            startDate: null,
+            saleType: 'PACOTE',
+            AND: [
+              { OR: [{ startDate: null }, { startDate: { lte: periodEndDate } }] },
+              { OR: [{ endDate: null }, { endDate: { gte: periodStartDate } }] },
+              { saleDate: { gte: new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth() - 6, 1), lte: periodEndDate } }
+            ]
+          },
+          // AVULSO e demais: saleDate no período
+          {
+            saleType: { notIn: ['MENSAL', 'HOTEL', 'PACOTE'] },
             saleDate: { gte: periodStartDate, lte: periodEndDate }
           }
         ]
@@ -197,7 +212,7 @@ export async function GET(req: NextRequest) {
       } else if (saleType === 'PACOTE') {
         // Pacote: buscar o pacote associado
         const pkg = await prisma.package.findFirst({
-          where: { dogId: sale.dogId },
+          where: { dogId: sale.dogId! },
           orderBy: { createdAt: 'desc' }
         })
         
@@ -251,11 +266,11 @@ export async function GET(req: NextRequest) {
           // Adicionar detalhe
           report.details.push({
             dogName: sale.dog.name,
-            dogId: sale.dogId,
+            dogId: sale.dogId ?? '',
             isBolsista: sale.dog.isBolsista,
             type: saleType,
             revenue: Math.round(dailyValue * 100) / 100,
-            status: paymentStatus,
+            status: paymentStatus ?? 'AGENDADO',
             breakdown: `${saleType} R$${finalPrice} ÷ ${totalDays} dias = R$${dailyValue.toFixed(2)}/dia (${paymentStatus})`
           })
         }
