@@ -4,9 +4,13 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { ChevronLeft, ChevronRight, Users, TrendingUp, BarChart2, PlusCircle, X } from 'lucide-react'
 import {
-  AreaChart, Area, BarChart, Bar, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine
-} from 'recharts'
+  DynamicAreaChart as AreaChart,
+  DynamicBarChart as BarChart,
+  DynamicLineChart as LineChart,
+  DynamicResponsiveContainer as ResponsiveContainer,
+  Area, Bar, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine
+} from './ChartsWrapper'
 
 interface RevenueByStatus {
   pago: number
