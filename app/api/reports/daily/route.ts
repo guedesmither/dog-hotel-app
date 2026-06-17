@@ -60,26 +60,26 @@ export async function GET(req: NextRequest) {
 
   try {
     // Buscar TODAS as vendas no período do relatório (não só dos cães no roster)
+    const periodStartDate = new Date(startDate)
+    const periodEndDate = new Date(endDate)
+
     const allSales = await prisma.sales.findMany({
       where: {
         paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
         dogId: { not: null },
         OR: [
-          // Vendas que começam no período
-          { startDate: { gte: new Date(startDate), lte: new Date(endDate) } },
-          // Vendas que terminam no período
-          { endDate: { gte: new Date(startDate), lte: new Date(endDate) } },
-          // Vendas que englobam o período
+          // Vendas com datas explícitas que se sobrepõem ao período
           {
+            startDate: { not: null },
             AND: [
-              { startDate: { lte: new Date(startDate) } },
-              { endDate: { gte: new Date(endDate) } }
+              { startDate: { lte: periodEndDate } },
+              { OR: [{ endDate: null }, { endDate: { gte: periodStartDate } }] }
             ]
           },
-          // Vendas mensais sem data fim (vigentes)
+          // Vendas sem startDate: usar saleDate no período
           {
-            saleType: 'MENSAL',
-            OR: [{ endDate: null }, { endDate: { gte: new Date(startDate) } }]
+            startDate: null,
+            saleDate: { gte: periodStartDate, lte: periodEndDate }
           }
         ]
       },
@@ -177,11 +177,12 @@ export async function GET(req: NextRequest) {
       let valuePerDay = 0
 
       if (saleType === 'MENSAL') {
-        // Mensal: dividir pelos dias agendados no mês
+        // Mensal: dividir pelos dias agendados NO MÊS DO PERÍODO (não da saleDate)
         const scheduledDays = sale.dog.scheduledDays || ''
-        const targetMonth = saleStartDate.getMonth()
-        const targetYear = saleStartDate.getFullYear()
-        totalDays = countScheduledDaysInMonth(scheduledDays, `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-01`)
+        // Usar o mês do período do relatório para calcular totalDays
+        const reportMonth = new Date(startDate)
+        totalDays = countScheduledDaysInMonth(scheduledDays, `${reportMonth.getFullYear()}-${String(reportMonth.getMonth() + 1).padStart(2, '0')}-01`)
+        if (totalDays === 0) totalDays = 1
         
         // Contar quantos dias agendados caem no período do relatório
         daysInPeriod = countScheduledDaysInPeriod(scheduledDays, startDate, endDate, saleStartDate, saleEndDate)
@@ -474,7 +475,7 @@ function countDaysInPeriod(
   periodEnd: string
 ): number {
   const sStart = new Date(saleStart)
-  const sEnd = saleEnd || new Date(sStart.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const sEnd = saleEnd || new Date(periodEnd)
   const pStart = new Date(periodStart)
   const pEnd = new Date(periodEnd)
   
@@ -499,7 +500,8 @@ function generateDaysInPeriod(
   const days: string[] = []
   
   const sStart = new Date(saleStart)
-  const sEnd = saleEnd || new Date(sStart.getTime() + 30 * 24 * 60 * 60 * 1000)
+  // Para vendas sem endDate, limitar ao fim do período do relatório (não vazar para outros meses)
+  const sEnd = saleEnd || new Date(periodEnd)
   const pStart = new Date(periodStart)
   const pEnd = new Date(periodEnd)
   
