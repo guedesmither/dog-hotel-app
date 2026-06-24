@@ -30,15 +30,12 @@ export async function POST(req: NextRequest) {
     const targetDateObj = new Date(date + 'T12:00:00Z')
     const added: string[] = []
 
-    // 1. Add bolsista dogs
+    // 1. Add bolsista dogs — must appear every day of the week
     const bolsistaDogs = await (prisma.dog as any).findMany({
       where: { isBolsista: true, isActive: true, serviceType: 'CRECHE' },
       select: { id: true, name: true, serviceType: true, scheduledDays: true },
     })
     for (const d of bolsistaDogs) {
-      const hasSchedule = d.scheduledDays && d.scheduledDays.trim() !== ''
-      if (!hasSchedule) continue
-      if (!d.scheduledDays.includes(dayName)) continue
       await prisma.dailyRoster.upsert({
         where: { dogId_date: { dogId: d.id, date } },
         update: {},
@@ -48,15 +45,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Add MENSAL dogs with valid sales covering this date
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
     const mensalSales = await prisma.sales.findMany({
       where: {
         saleType: 'MENSAL',
         paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
         manualBaixa: false,
-        OR: [{ endDate: null }, { endDate: { gte: today } }],
         dogId: { not: null },
       },
       select: { dogId: true, startDate: true, endDate: true, saleDate: true },
@@ -64,13 +57,20 @@ export async function POST(req: NextRequest) {
 
     const eligibleIds = new Set<string>()
     for (const s of mensalSales) {
+      if (!s.dogId) continue
       const start = s.startDate ? new Date(s.startDate) : new Date(s.saleDate)
       start.setHours(0, 0, 0, 0)
-      const end = s.endDate
-        ? new Date(s.endDate)
-        : (() => { const d = new Date(start); d.setMonth(d.getMonth() + 1); return d })()
+      let end: Date
+      if (s.endDate) {
+        end = new Date(s.endDate)
+      } else {
+        // Vigência = dias reais do mês de início
+        end = new Date(start)
+        const daysThisMonth = daysInMonth(start.getFullYear(), start.getMonth())
+        end.setDate(end.getDate() + daysThisMonth - 1)
+      }
       end.setHours(23, 59, 59, 999)
-      if (s.dogId && targetDateObj >= start && targetDateObj <= end) {
+      if (targetDateObj >= start && targetDateObj <= end) {
         eligibleIds.add(s.dogId)
       }
     }
@@ -152,4 +152,8 @@ function getDayName(dateStr: string): string {
   const days = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado']
   const d = new Date(dateStr + 'T12:00:00Z')
   return days[d.getDay()]
+}
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate()
 }

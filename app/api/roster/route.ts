@@ -153,17 +153,12 @@ async function seedDate(date: string) {
   const targetDateObj = new Date(date + 'T12:00:00Z')
 
   // 1. Add bolsista dogs — no MENSAL sale required
-  // scheduledDays set → seeds on those days only
-  // scheduledDays empty → manual only (not auto-seeded)
-  // Only CRECHE service type
+  // Bolsistas ativos na CRECHE devem aparecer em TODOS os dias da semana
   const bolsistaDogs = await (prisma.dog as any).findMany({
     where: { isBolsista: true, isActive: true, serviceType: 'CRECHE' },
     select: { id: true, name: true, serviceType: true, scheduledDays: true },
   })
   for (const d of bolsistaDogs) {
-    const hasSchedule = d.scheduledDays && d.scheduledDays.trim() !== ''
-    if (!hasSchedule) continue // sem dias cadastrados = não semeia automaticamente
-    if (!d.scheduledDays.includes(dayName)) continue
     await prisma.dailyRoster.upsert({
       where: { dogId_date: { dogId: d.id, date } },
       update: {},
@@ -172,15 +167,11 @@ async function seedDate(date: string) {
   }
 
   // 2. Find dogIds with an active MENSAL sale whose period covers this date
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
   const mensalSales = await prisma.sales.findMany({
     where: {
       saleType: 'MENSAL',
       paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
       manualBaixa: false,
-      OR: [{ endDate: null }, { endDate: { gte: today } }],
       dogId: { not: null },
     },
     select: { dogId: true, startDate: true, endDate: true, saleDate: true },
@@ -188,13 +179,20 @@ async function seedDate(date: string) {
 
   const eligibleIds = new Set<string>()
   for (const s of mensalSales) {
+    if (!s.dogId) continue
     const start = s.startDate ? new Date(s.startDate) : new Date(s.saleDate)
     start.setHours(0, 0, 0, 0)
-    const end = s.endDate
-      ? new Date(s.endDate)
-      : (() => { const d = new Date(start); d.setMonth(d.getMonth() + 1); return d })()
+    let end: Date
+    if (s.endDate) {
+      end = new Date(s.endDate)
+    } else {
+      // Vigência = dias reais do mês de início (ex: começa 06/06 → +30 dias = 05/07)
+      end = new Date(start)
+      const daysThisMonth = daysInMonth(start.getFullYear(), start.getMonth())
+      end.setDate(end.getDate() + daysThisMonth - 1)
+    }
     end.setHours(23, 59, 59, 999)
-    if (s.dogId && targetDateObj >= start && targetDateObj <= end) {
+    if (targetDateObj >= start && targetDateObj <= end) {
       eligibleIds.add(s.dogId)
     }
   }
