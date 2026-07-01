@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { seedRange } from '@/lib/roster-seed'
 
 // GET /api/sales - List all sales
 export async function GET(req: NextRequest) {
@@ -270,7 +271,6 @@ export async function POST(req: NextRequest) {
     // Determine saleType based on items - fetch product categories from DB
     let saleType = 'AVULSO'
     if (items && items.length > 0) {
-      // Fetch products to determine category
       const productIds = items.map((item: any) => item.productId).filter(Boolean)
       if (productIds.length > 0) {
         const products = await prisma.product.findMany({
@@ -278,14 +278,16 @@ export async function POST(req: NextRequest) {
           select: { id: true, category: true },
         })
         const productMap = new Map(products.map(p => [p.id, p.category]))
-        
-        // Check first item's product category
-        const firstItemCategory = productMap.get(items[0].productId) || 'AVULSO'
-        if (firstItemCategory === 'HOTEL') {
+        const categories = items
+          .map((item: any) => productMap.get(item.productId))
+          .filter(Boolean) as string[]
+
+        // Prioritize service category by hierarchy: HOTEL > CRECHE > PACOTE > AVULSO
+        if (categories.includes('HOTEL')) {
           saleType = 'HOTEL'
-        } else if (firstItemCategory === 'CRECHE') {
+        } else if (categories.includes('CRECHE')) {
           saleType = 'MENSAL'
-        } else if (firstItemCategory === 'PACOTE') {
+        } else if (categories.includes('PACOTE')) {
           saleType = 'PACOTE'
         }
       }
@@ -337,7 +339,7 @@ export async function POST(req: NextRequest) {
 
     console.log('Venda criada com sucesso:', sale.id)
 
-    // Auto-create Package record for PACOTE sales
+    // Auto-create Package record for PACOTE sales (PACOTE não é auto-lançado na agenda)
     if (saleType === 'PACOTE' && dogId) {
       try {
         const productName: string = (sale as any).items?.[0]?.product?.name || ''
@@ -362,7 +364,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Auto-create Stay (agendamento) for HOTEL sales with dates defined
+    // Auto-create Stay and DailyRoster entries for HOTEL sales with dates defined
     if (saleType === 'HOTEL' && dogId && saleStartDate) {
       try {
         // Close any active stay for this dog
@@ -381,31 +383,44 @@ export async function POST(req: NextRequest) {
           },
         })
         console.log('Stay criado automaticamente para venda HOTEL:', sale.id)
+
+        // Auto-lançar o cão na agenda para cada dia do período de hotel
+        const start = new Date(saleStartDate)
+        const end = saleEndDate ? new Date(saleEndDate) : new Date(saleStartDate)
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const dateStr = d.toISOString().split('T')[0]
+          await prisma.dailyRoster.upsert({
+            where: { dogId_date: { dogId, date: dateStr } },
+            update: { type: 'HOTEL', source: 'AUTO' },
+            create: { dogId, date: dateStr, type: 'HOTEL', source: 'AUTO' },
+          })
+        }
+        console.log('Hotel lançado na agenda para venda:', sale.id)
       } catch (stayErr) {
-        console.error('Erro ao criar stay automático (venda registrada normalmente):', stayErr)
+        console.error('Erro ao criar stay/agenda automático (venda registrada normalmente):', stayErr)
       }
     }
 
-    // Auto-reseed agenda for MENSAL sales to add dog to future dates
+    // Auto-reseed agenda for MENSAL sales to add dog to all valid dates
     if (saleType === 'MENSAL' && dogId) {
       try {
-        // Call reseed API internally (server-to-server)
-        const reseedUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-        const response = await fetch(`${reseedUrl}/api/roster/reseed`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ allFuture: true, dogId }),
-        })
-        if (response.ok) {
-          const result = await response.json()
-          console.log('Agenda atualizada automaticamente para venda MENSAL:', result.message)
-        } else {
-          console.log('Re-seed falhou (não crítico), venda criada normalmente')
+        const start = saleStartDate ? new Date(saleStartDate) : new Date(saleDate || new Date())
+        let end = saleEndDate ? new Date(saleEndDate) : null
+        if (!end) {
+          end = new Date(start)
+          const dm = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate()
+          end.setDate(end.getDate() + dm - 1)
         }
+        const startStr = start.toISOString().split('T')[0]
+        const endStr = end.toISOString().split('T')[0]
+        const result = await seedRange(startStr, endStr)
+        console.log('Agenda atualizada automaticamente para venda MENSAL:', result)
       } catch (reseedErr) {
         console.error('Erro ao re-seedar agenda (não crítico):', reseedErr)
       }
     }
+
+    // AVULSO e PACOTE não são auto-lançados na agenda — mantidos manuais.
 
     return NextResponse.json(sale)
   } catch (error: any) {
