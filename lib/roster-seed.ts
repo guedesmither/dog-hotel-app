@@ -1,0 +1,455 @@
+import { prisma } from './prisma'
+
+const DAYS_PT = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+
+const DAY_NAME_MAP: Record<number, string[]> = {
+  0: ['domingo', 'dom'],
+  1: ['segunda', 'seg'],
+  2: ['terça', 'ter', 'terca'],
+  3: ['quarta', 'qua'],
+  4: ['quinta', 'qui'],
+  5: ['sexta', 'sex'],
+  6: ['sábado', 'sab', 'sabado'],
+}
+
+export function getDayName(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00')
+  return DAYS_PT[d.getDay()]
+}
+
+export function parseSaleDate(dateValue: any): Date | null {
+  if (!dateValue) return null
+  if (typeof dateValue === 'string') {
+    if (dateValue.includes('/')) {
+      const parts = dateValue.split('/')
+      if (parts.length !== 3) return null
+      const day = parseInt(parts[0], 10)
+      const month = parseInt(parts[1], 10) - 1
+      const year = parseInt(parts[2], 10)
+      return new Date(year, month, day)
+    }
+    return new Date(dateValue)
+  }
+  if (dateValue instanceof Date) return dateValue
+  return null
+}
+
+export function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate()
+}
+
+export function isDayScheduled(scheduledDays: string | null | undefined, dayOfWeek: number): boolean {
+  if (!scheduledDays || scheduledDays.trim() === '') return true
+  const scheduledLower = scheduledDays.toLowerCase()
+  const aliases = DAY_NAME_MAP[dayOfWeek] || []
+  return aliases.some((alias) => scheduledLower.includes(alias))
+}
+
+export function countScheduledOccurrences(scheduledDays: string, start: Date, end: Date): number {
+  const scheduledLower = scheduledDays.toLowerCase()
+  let count = 0
+  const cur = new Date(start)
+  cur.setHours(0, 0, 0, 0)
+  const endNorm = new Date(end)
+  endNorm.setHours(23, 59, 59, 999)
+  while (cur <= endNorm) {
+    const aliases = DAY_NAME_MAP[cur.getDay()] || []
+    if (aliases.some((a) => scheduledLower.includes(a))) count++
+    cur.setDate(cur.getDate() + 1)
+  }
+  return count
+}
+
+function getFrequencyFromProduct(sale: any): number {
+  for (const item of sale.items || []) {
+    const name: string = item.product?.name || ''
+    const m = name.match(/(\d+)\s*x/i)
+    if (m) return parseInt(m[1], 10)
+  }
+  return 0
+}
+
+export function calcMensalPeriod(sale: any): { start: Date; end: Date } | null {
+  const start = parseSaleDate(sale.startDate) || parseSaleDate(sale.saleDate)
+  if (!start) return null
+  start.setHours(0, 0, 0, 0)
+
+  let end = parseSaleDate(sale.endDate)
+  if (!end) {
+    end = new Date(start)
+    const dm = daysInMonth(start.getFullYear(), start.getMonth())
+    end.setDate(end.getDate() + dm - 1)
+  }
+  end.setHours(23, 59, 59, 999)
+  return { start, end }
+}
+
+export function calcAvulsoPeriod(sale: any): { start: Date; end: Date } | null {
+  const start = parseSaleDate(sale.startDate) || parseSaleDate(sale.saleDate)
+  if (!start) return null
+  start.setHours(0, 0, 0, 0)
+
+  let end = parseSaleDate(sale.endDate)
+  if (!end) {
+    end = new Date(start)
+    end.setDate(end.getDate() + 30) // AVULSO: 30 dias para usar os créditos
+  }
+  end.setHours(23, 59, 59, 999)
+  return { start, end }
+}
+
+export function calcHotelPeriod(sale: any): { start: Date; end: Date; nights: number } | null {
+  let start = parseSaleDate(sale.startDate)
+  let end = parseSaleDate(sale.endDate)
+  let nights = 0
+
+  if (start && end) {
+    start.setHours(0, 0, 0, 0)
+    end.setHours(23, 59, 59, 999)
+    nights = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    return { start, end, nights }
+  }
+
+  // Fallback: legacy sales without explicit dates
+  const saleDate = parseSaleDate(sale.saleDate)
+  if (!saleDate) return null
+  start = new Date(saleDate)
+  start.setHours(0, 0, 0, 0)
+  let totalDays = 0
+  for (const item of sale.items || []) {
+    const name: string = item.product?.name || ''
+    const daysMatch = name.match(/(\d+)\s*Di[aá]s?/i)
+    if (daysMatch) {
+      totalDays += parseInt(daysMatch[1], 10) * (item.quantity || 1)
+    } else {
+      totalDays += item.quantity || 1
+    }
+  }
+  end = new Date(start)
+  end.setDate(end.getDate() + totalDays + 14)
+  end.setHours(23, 59, 59, 999)
+  return { start, end, nights: totalDays }
+}
+
+function countPurchasedAvulsoDays(sale: any): number {
+  return (sale.items || [])
+    .filter(
+      (item: any) =>
+        item.product?.category === 'AVULSO' ||
+        /dia|diária|diaria|avulso/i.test(item.product?.name || '')
+    )
+    .reduce((sum: number, item: any) => sum + (item.quantity || 1), 0)
+}
+
+async function calcMensalAllowed(
+  sale: any,
+  dog: any,
+  date: string
+): Promise<{ allowed: number; used: number }> {
+  const period = calcMensalPeriod(sale)
+  if (!period) return { allowed: Infinity, used: 0 }
+
+  let allowed: number
+  if (dog.scheduledDays && dog.scheduledDays.trim() !== '') {
+    allowed = countScheduledOccurrences(dog.scheduledDays, period.start, period.end)
+  } else {
+    const freq = getFrequencyFromProduct(sale)
+    if (freq > 0) {
+      const weeks = Math.ceil((period.end.getTime() - period.start.getTime()) / (7 * 24 * 60 * 60 * 1000))
+      allowed = freq * weeks
+    } else {
+      allowed = Infinity
+    }
+  }
+
+  const used = await prisma.dailyRoster.count({
+    where: {
+      dogId: dog.id,
+      type: 'CRECHE',
+      date: { gte: period.start.toISOString().split('T')[0], lte: period.end.toISOString().split('T')[0] },
+    },
+  })
+
+  return { allowed, used }
+}
+
+async function upsertRosterEntry(
+  dogId: string,
+  date: string,
+  type: string,
+  source: string,
+  added: string[]
+) {
+  await prisma.dailyRoster.upsert({
+    where: { dogId_date: { dogId, date } },
+    update: { type, source },
+    create: { dogId, date, type, source },
+  })
+  added.push(`[${type}] ${dogId}`)
+}
+
+async function seedBolsistas(date: string, targetDateObj: Date, added: string[]) {
+  const bolsistaDogs = await prisma.dog.findMany({
+    where: { isBolsista: true, isActive: true, serviceType: 'CRECHE' },
+    select: { id: true, name: true, scheduledDays: true },
+  })
+
+  for (const dog of bolsistaDogs) {
+    if (!dog.scheduledDays || dog.scheduledDays.trim() === '') continue
+    if (!isDayScheduled(dog.scheduledDays, targetDateObj.getDay())) continue
+    await upsertRosterEntry(dog.id, date, 'CRECHE', 'AUTO', added)
+  }
+}
+
+async function seedMensalCreche(date: string, targetDateObj: Date, added: string[]) {
+  const mensalSales = await prisma.sales.findMany({
+    where: {
+      saleType: 'MENSAL',
+      paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+      manualBaixa: false,
+      dogId: { not: null },
+    },
+    include: {
+      dog: true,
+      items: { include: { product: true } },
+    },
+  })
+
+  for (const sale of mensalSales) {
+    if (!sale.dogId || !sale.dog) continue
+    const dog = sale.dog
+    if (!dog.isActive || dog.serviceType !== 'CRECHE') continue
+
+    const period = calcMensalPeriod(sale)
+    if (!period) continue
+
+    if (targetDateObj < period.start || targetDateObj > period.end) continue
+    if (!isDayScheduled(dog.scheduledDays, targetDateObj.getDay())) continue
+
+    const cap = await calcMensalAllowed(sale, dog, date)
+    if (cap.allowed !== Infinity && cap.used >= cap.allowed) continue
+
+    await upsertRosterEntry(dog.id, date, 'CRECHE', 'AUTO', added)
+  }
+}
+
+async function seedAvulso(date: string, targetDateObj: Date, added: string[]) {
+  const avulsoSales = await prisma.sales.findMany({
+    where: {
+      saleType: 'AVULSO',
+      paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+      manualBaixa: false,
+      dogId: { not: null },
+    },
+    include: {
+      dog: true,
+      items: { include: { product: true } },
+    },
+  })
+
+  for (const sale of avulsoSales) {
+    if (!sale.dogId || !sale.dog) continue
+    const dog = sale.dog
+    if (!dog.isActive) continue
+
+    const period = calcAvulsoPeriod(sale)
+    if (!period) continue
+
+    if (targetDateObj < period.start || targetDateObj > period.end) continue
+
+    const purchasedDays = countPurchasedAvulsoDays(sale)
+    if (purchasedDays === 0) {
+      // Sale without explicit day items: allow one day within period
+      const used = await prisma.dailyRoster.count({
+        where: {
+          dogId: dog.id,
+          type: 'AVULSO',
+          date: { gte: period.start.toISOString().split('T')[0], lte: period.end.toISOString().split('T')[0] },
+        },
+      })
+      if (used === 0) await upsertRosterEntry(dog.id, date, 'AVULSO', 'AUTO', added)
+      continue
+    }
+
+    const used = await prisma.dailyRoster.count({
+      where: {
+        dogId: dog.id,
+        type: 'AVULSO',
+        date: { gte: period.start.toISOString().split('T')[0], lte: period.end.toISOString().split('T')[0] },
+      },
+    })
+
+    if (used < purchasedDays) {
+      await upsertRosterEntry(dog.id, date, 'AVULSO', 'AUTO', added)
+      break
+    }
+  }
+}
+
+async function seedHotel(date: string, targetDateObj: Date, added: string[]) {
+  // Auto-seed from scheduled hotel stays
+  const scheduledStays = await prisma.stay.findMany({
+    where: {
+      isScheduled: true,
+      scheduledCheckIn: { not: null },
+      scheduledCheckOut: { not: null },
+    },
+    include: { dog: true },
+  })
+
+  for (const stay of scheduledStays) {
+    if (!stay.dog) continue
+    const dog = stay.dog
+    if (!dog.isActive) continue
+
+    const start = new Date(stay.scheduledCheckIn!)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(stay.scheduledCheckOut!)
+    end.setHours(23, 59, 59, 999)
+
+    if (targetDateObj < start || targetDateObj > end) continue
+
+    await upsertRosterEntry(dog.id, date, 'HOTEL', 'AUTO', added)
+  }
+
+  // Also seed from active hotel sales with explicit dates as fallback
+  const hotelSales = await prisma.sales.findMany({
+    where: {
+      saleType: 'HOTEL',
+      paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+      manualBaixa: false,
+      dogId: { not: null },
+      startDate: { not: null },
+      endDate: { not: null },
+    },
+    include: { dog: true },
+  })
+
+  for (const sale of hotelSales) {
+    if (!sale.dogId || !sale.dog) continue
+    const dog = sale.dog
+    if (!dog.isActive) continue
+
+    const period = calcHotelPeriod(sale)
+    if (!period) continue
+
+    if (targetDateObj < period.start || targetDateObj > period.end) continue
+
+    const alreadyFromStay = scheduledStays.some((s) => {
+      if (s.dogId !== dog.id) return false
+      const stayStart = new Date(s.scheduledCheckIn!)
+      stayStart.setHours(0, 0, 0, 0)
+      const stayEnd = new Date(s.scheduledCheckOut!)
+      stayEnd.setHours(23, 59, 59, 999)
+      return targetDateObj >= stayStart && targetDateObj <= stayEnd
+    })
+    if (alreadyFromStay) continue
+
+    await upsertRosterEntry(dog.id, date, 'HOTEL', 'AUTO', added)
+  }
+}
+
+export async function seedDate(date: string): Promise<{ added: string[] }> {
+  const added: string[] = []
+  const targetDateObj = new Date(date + 'T12:00:00Z')
+
+  await seedBolsistas(date, targetDateObj, added)
+  await seedMensalCreche(date, targetDateObj, added)
+  await seedHotel(date, targetDateObj, added)
+  // AVULSO e PACOTE não são auto-lançados na agenda.
+  // Devem ser adicionados manualmente pelo usuário, com controle de créditos.
+
+  // Mark this date as seeded so it's never re-seeded after manual clears
+  await prisma.dailyRosterSeed.upsert({
+    where: { date },
+    update: {},
+    create: { date },
+  })
+
+  return { added }
+}
+
+export async function seedRange(startDate: string, endDate: string): Promise<{ dates: string[]; totalAdded: number }> {
+  const dates: string[] = []
+  let totalAdded = 0
+
+  const start = new Date(startDate + 'T12:00:00')
+  const end = new Date(endDate + 'T12:00:00')
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dateStr = d.toISOString().split('T')[0]
+    dates.push(dateStr)
+    const result = await seedDate(dateStr)
+    totalAdded += result.added.length
+  }
+
+  return { dates, totalAdded }
+}
+
+export async function refreshDay(date: string): Promise<{ added: string[]; removed: number }> {
+  const added: string[] = []
+
+  // Remove only AUTO entries for this day (keep MANUAL entries)
+  const removed = await prisma.dailyRoster.deleteMany({
+    where: { date, source: 'AUTO' },
+  })
+
+  // Clear seed so seedDate runs fresh
+  await prisma.dailyRosterSeed.deleteMany({ where: { date } })
+
+  // Re-run base seeding
+  await seedDate(date)
+
+  // Replicate previous week's CRECHE dogs that still have valid monthly
+  const previousDate = new Date(date + 'T12:00:00Z')
+  previousDate.setDate(previousDate.getDate() - 7)
+  const previousDateStr = previousDate.toISOString().split('T')[0]
+
+  const previousCreche = await prisma.dailyRoster.findMany({
+    where: { date: previousDateStr, type: 'CRECHE' },
+    include: { dog: true },
+  })
+
+  const targetDateObj = new Date(date + 'T12:00:00Z')
+
+  for (const entry of previousCreche) {
+    if (!entry.dog || !entry.dog.isActive || entry.dog.serviceType !== 'CRECHE') continue
+
+    const activeSales = await prisma.sales.findMany({
+      where: {
+        dogId: entry.dogId,
+        saleType: 'MENSAL',
+        paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+        manualBaixa: false,
+      },
+      include: { items: { include: { product: true } } },
+    })
+
+    for (const sale of activeSales) {
+      const period = calcMensalPeriod(sale)
+      if (!period) continue
+      if (targetDateObj < period.start || targetDateObj > period.end) continue
+      if (!isDayScheduled(entry.dog.scheduledDays, targetDateObj.getDay())) continue
+
+      const cap = await calcMensalAllowed(sale, entry.dog, date)
+      if (cap.allowed !== Infinity && cap.used >= cap.allowed) continue
+
+      await upsertRosterEntry(entry.dogId, date, 'CRECHE', 'AUTO', added)
+      break
+    }
+  }
+
+  return { added, removed: removed.count }
+}
+
+export async function resetSeedTracking(date: string) {
+  await prisma.dailyRosterSeed.deleteMany({ where: { date } })
+}
+
+export async function markSeeded(date: string) {
+  await prisma.dailyRosterSeed.upsert({
+    where: { date },
+    update: {},
+    create: { date },
+  })
+}

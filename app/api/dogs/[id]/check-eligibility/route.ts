@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { parseSaleDate, calcAvulsoPeriod } from '@/lib/roster-seed'
 
 const DAY_NAME_MAP: Record<number, string[]> = {
   0: ['domingo', 'dom'],
@@ -144,39 +145,58 @@ export async function GET(
         break
       }
     } else if (type === 'AVULSO') {
-      // Avulso: usable on any date within 90 days of purchase, while not yet consumed.
-      const avulsoSales = dog.sales.filter((s: any) => 
-        s.saleType === 'AVULSO' || 
-        (s.items.some((i: any) => i.product?.category === 'AVULSO' || i.product?.name.includes('Diária')))
+      // Avulso: contabilizar créditos vendidos dentro do período de 30 dias.
+      const avulsoSales = dog.sales.filter((s: any) =>
+        s.saleType === 'AVULSO' ||
+        (s.items.some((i: any) => i.product?.category === 'AVULSO' || /dia|diária|diaria|avulso/i.test(i.product?.name || '')))
       )
 
       for (const sale of avulsoSales) {
-        const saleDate = new Date(sale.saleDate)
-        saleDate.setHours(0, 0, 0, 0)
-        const expiryDate = new Date(saleDate)
-        expiryDate.setDate(expiryDate.getDate() + 90)
+        const period = calcAvulsoPeriod(sale)
+        if (!period) continue
+        if (targetDate < period.start || targetDate > period.end) continue
 
-        if (targetDate < saleDate || targetDate > expiryDate) continue
+        const purchasedDays = (sale.items || [])
+          .filter(
+            (item: any) =>
+              item.product?.category === 'AVULSO' ||
+              /dia|diária|diaria|avulso/i.test(item.product?.name || '')
+          )
+          .reduce((sum: number, item: any) => sum + (item.quantity || 1), 0)
 
-        const used = await prisma.dailyRoster.findFirst({
+        if (purchasedDays === 0) {
+          // Venda avulsa sem itens de dia: permite um dia dentro do período
+          const used = await prisma.dailyRoster.count({
+            where: {
+              dogId: dog.id,
+              type: 'AVULSO',
+              date: { gte: period.start.toISOString().split('T')[0], lte: period.end.toISOString().split('T')[0] },
+            },
+          })
+          if (used === 0) {
+            eligible = true
+            eligibleSales.push(sale)
+            reason = 'Diária avulsa disponível'
+            break
+          }
+          continue
+        }
+
+        const used = await prisma.dailyRoster.count({
           where: {
             dogId: dog.id,
             type: 'AVULSO',
-            present: true,
-            date: {
-              gte: saleDate.toISOString().split('T')[0],
-              lte: expiryDate.toISOString().split('T')[0],
-            },
+            date: { gte: period.start.toISOString().split('T')[0], lte: period.end.toISOString().split('T')[0] },
           },
         })
 
-        if (!used) {
+        if (used < purchasedDays) {
           eligible = true
           eligibleSales.push(sale)
-          reason = 'Diária avulsa disponível'
+          reason = `Diária avulsa disponível: ${purchasedDays - used} dia(s) restante(s)`
           break
         } else {
-          reason = 'Diária avulsa já foi utilizada'
+          reason = `Dias esgotados: ${used}/${purchasedDays} dia(s) já agendado(s)`
         }
       }
     } else if (type === 'HOTEL') {
@@ -273,15 +293,3 @@ export async function GET(
   }
 }
 
-function parseBrazilianDate(dateStr: string): Date | null {
-  try {
-    const parts = dateStr.split('/')
-    if (parts.length !== 3) return null
-    const day = parseInt(parts[0], 10)
-    const month = parseInt(parts[1], 10) - 1
-    const year = parseInt(parts[2], 10)
-    return new Date(year, month, day)
-  } catch {
-    return null
-  }
-}

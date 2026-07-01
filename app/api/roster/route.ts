@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { seedDate, refreshDay } from '@/lib/roster-seed'
 
 const DAYS_PT = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
@@ -146,94 +147,6 @@ function isDateInSaleRange(sale: any, targetDate: Date): boolean {
 function getDayName(dateStr: string) {
   const d = new Date(dateStr + 'T12:00:00')
   return DAYS_PT[d.getDay()]
-}
-
-async function seedDate(date: string) {
-  const dayName = getDayName(date)
-  const targetDateObj = new Date(date + 'T12:00:00Z')
-
-  // 1. Add bolsista dogs — no MENSAL sale required
-  // Bolsistas ativos na CRECHE devem aparecer em TODOS os dias da semana
-  const bolsistaDogs = await (prisma.dog as any).findMany({
-    where: { isBolsista: true, isActive: true, serviceType: 'CRECHE' },
-    select: { id: true, name: true, serviceType: true, scheduledDays: true },
-  })
-  for (const d of bolsistaDogs) {
-    await prisma.dailyRoster.upsert({
-      where: { dogId_date: { dogId: d.id, date } },
-      update: {},
-      create: { dogId: d.id, date, source: 'AUTO', type: 'CRECHE' },
-    })
-  }
-
-  // 2. Find dogIds with an active MENSAL sale whose period covers this date
-  const mensalSales = await prisma.sales.findMany({
-    where: {
-      saleType: 'MENSAL',
-      paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
-      manualBaixa: false,
-      dogId: { not: null },
-    },
-    select: { dogId: true, startDate: true, endDate: true, saleDate: true },
-  })
-
-  const eligibleIds = new Set<string>()
-  for (const s of mensalSales) {
-    if (!s.dogId) continue
-    const start = s.startDate ? new Date(s.startDate) : new Date(s.saleDate)
-    start.setHours(0, 0, 0, 0)
-    let end: Date
-    if (s.endDate) {
-      end = new Date(s.endDate)
-    } else {
-      // Vigência = dias reais do mês de início (ex: começa 06/06 → +30 dias = 05/07)
-      end = new Date(start)
-      const daysThisMonth = daysInMonth(start.getFullYear(), start.getMonth())
-      end.setDate(end.getDate() + daysThisMonth - 1)
-    }
-    end.setHours(23, 59, 59, 999)
-    if (targetDateObj >= start && targetDateObj <= end) {
-      eligibleIds.add(s.dogId)
-    }
-  }
-
-  if (eligibleIds.size > 0) {
-    // Only add dogs that (1) have an active MENSAL sale covering this date
-    // AND (2) are scheduled to attend on this day of the week
-    // AND (3) are CRECHE service type (not HOTEL or other)
-    const crecheDogs = await prisma.dog.findMany({
-      where: {
-        id: { in: Array.from(eligibleIds) },
-        isActive: true,
-        serviceType: 'CRECHE',
-        AND: [
-          { scheduledDays: { not: null } },
-          { scheduledDays: { not: '' } },
-          { scheduledDays: { contains: dayName } },
-        ],
-      },
-      select: { id: true, name: true, serviceType: true },
-    })
-
-    for (const d of crecheDogs) {
-      await prisma.dailyRoster.upsert({
-        where: { dogId_date: { dogId: d.id, date } },
-        update: {},
-        create: { dogId: d.id, date, source: 'AUTO', type: 'CRECHE' },
-      })
-    }
-  }
-
-  // NOTE: Dogs with packages (PACOTE) are NOT auto-seeded.
-  // They must be manually added to the roster by the user.
-  // This is the intended behavior: if not manually scheduled, no automatic entry is created.
-
-  // Mark this date as seeded so it's never re-seeded even if all entries are deleted
-  await prisma.dailyRosterSeed.upsert({
-    where: { date },
-    update: {},
-    create: { date },
-  })
 }
 
 // GET /api/roster?date=YYYY-MM-DD        → single day (auto-seeded)
@@ -870,13 +783,14 @@ export async function DELETE(req: NextRequest) {
 
   if (reset === 'day' && date) {
     if (role !== 'ADMIN' && role !== 'MANAGER') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
-    // Delete only AUTO entries for this day (keep MANUAL ones)
-    await prisma.dailyRoster.deleteMany({ where: { date, source: 'AUTO' } })
-    // Clear seed so the day gets re-seeded on next load
-    await prisma.dailyRosterSeed.deleteMany({ where: { date } })
-    // Re-seed immediately
-    await seedDate(date)
-    return NextResponse.json({ success: true, message: `Dia ${date} re-semeado` })
+    // Refresh the day: re-seed + replicate previous week's CRECHE dogs still valid
+    const result = await refreshDay(date)
+    return NextResponse.json({
+      success: true,
+      message: `Dia ${date} re-semeado`,
+      removed: result.removed,
+      added: result.added,
+    })
   }
 
   if (dogId && date) {
