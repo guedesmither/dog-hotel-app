@@ -69,6 +69,18 @@ function getFrequencyFromProduct(sale: any): number {
   return 0
 }
 
+export function isCrecheSale(sale: any): boolean {
+  if (sale.saleType === 'MENSAL') return true
+  return (sale.items || []).some((item: any) => {
+    const category = item.product?.category
+    const name = (item.product?.name || '').toLowerCase()
+    return (
+      category === 'CRECHE' ||
+      ((name.includes('creche') || name.includes('mensal')) && !name.includes('pacote'))
+    )
+  })
+}
+
 export function calcMensalPeriod(sale: any): { start: Date; end: Date } | null {
   const start = parseSaleDate(sale.startDate) || parseSaleDate(sale.saleDate)
   if (!start) return null
@@ -204,7 +216,10 @@ async function seedBolsistas(date: string, targetDateObj: Date, added: string[])
 async function seedMensalCreche(date: string, targetDateObj: Date, added: string[]) {
   const mensalSales = await prisma.sales.findMany({
     where: {
-      saleType: 'MENSAL',
+      OR: [
+        { saleType: 'MENSAL' },
+        { items: { some: { product: { category: 'CRECHE' } } } },
+      ],
       paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
       manualBaixa: false,
       dogId: { not: null },
@@ -217,6 +232,7 @@ async function seedMensalCreche(date: string, targetDateObj: Date, added: string
 
   for (const sale of mensalSales) {
     if (!sale.dogId || !sale.dog) continue
+    if (!isCrecheSale(sale)) continue
     const dog = sale.dog
     if (!dog.isActive || dog.serviceType !== 'CRECHE') continue
 
@@ -418,7 +434,10 @@ export async function refreshDay(date: string): Promise<{ added: string[]; remov
     const activeSales = await prisma.sales.findMany({
       where: {
         dogId: entry.dogId,
-        saleType: 'MENSAL',
+        OR: [
+          { saleType: 'MENSAL' },
+          { items: { some: { product: { category: 'CRECHE' } } } },
+        ],
         paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
         manualBaixa: false,
       },
@@ -426,6 +445,7 @@ export async function refreshDay(date: string): Promise<{ added: string[]; remov
     })
 
     for (const sale of activeSales) {
+      if (!isCrecheSale(sale)) continue
       const period = calcMensalPeriod(sale)
       if (!period) continue
       if (targetDateObj < period.start || targetDateObj > period.end) continue

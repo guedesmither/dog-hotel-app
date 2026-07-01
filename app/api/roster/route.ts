@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { seedDate, refreshDay } from '@/lib/roster-seed'
+import { seedDate, refreshDay, isCrecheSale } from '@/lib/roster-seed'
 
 const DAYS_PT = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
@@ -355,11 +355,8 @@ export async function POST(req: NextRequest) {
     // ── ADMIN / MANAGER: check sale validity + scheduledDays ──────────────
     if (isAdminOrManager) {
       if (entryType === 'CRECHE') {
-        // Must have a valid MENSAL sale covering the target date
-        const mensalSales = dog.sales.filter((s: any) =>
-          s.saleType === 'MENSAL' ||
-          s.items.some((i: any) => i.product?.category === 'CRECHE' || i.product?.name.toLowerCase().includes('mensal'))
-        )
+        // Must have a valid Creche/Mensal sale covering the target date
+        const mensalSales = dog.sales.filter((s: any) => isCrecheSale(s))
 
         if (mensalSales.length === 0) {
           eligible = false
@@ -462,12 +459,9 @@ export async function POST(req: NextRequest) {
 
     // Check eligibility based on type — PACOTE sales also qualify for AVULSO slots
     if (entryType === 'CRECHE') {
-      const monthlySales = dog.sales.filter((s: any) => 
-        s.saleType === 'MENSAL' || 
-        (s.items.some((i: any) => i.product?.category === 'CRECHE' || i.product?.name.includes('MENSAL')))
-      )
+      const monthlySales = dog.sales.filter((s: any) => isCrecheSale(s))
 
-      console.log(`[DEBUG] CRECHE check: found ${monthlySales.length} monthly sales`)
+      console.log(`[DEBUG] CRECHE check: found ${monthlySales.length} creche sales`)
       for (const sale of monthlySales) {
         // Parse dates using helper that handles DD/MM/YYYY format
         console.log(`[DEBUG] Sale ${sale.id}: startDate=${sale.startDate}, saleDate=${sale.saleDate}, endDate=${sale.endDate}`)

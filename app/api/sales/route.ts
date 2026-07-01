@@ -275,7 +275,7 @@ export async function POST(req: NextRequest) {
       if (productIds.length > 0) {
         const products = await prisma.product.findMany({
           where: { id: { in: productIds } },
-          select: { id: true, category: true },
+          select: { id: true, category: true, name: true },
         })
         const productMap = new Map(products.map(p => [p.id, p.category]))
         const categories = items
@@ -289,6 +289,17 @@ export async function POST(req: NextRequest) {
           saleType = 'MENSAL'
         } else if (categories.includes('PACOTE')) {
           saleType = 'PACOTE'
+        }
+
+        // Fallback: detect Creche/Mensal by product name if category is missing/wrong
+        if (saleType === 'AVULSO') {
+          const hasCrecheByName = items.some((item: any) => {
+            const product = products.find((p: any) => p.id === item.productId)
+            if (!product) return false
+            const name = (product.name || '').toLowerCase()
+            return (name.includes('creche') || name.includes('mensal')) && !name.includes('pacote')
+          })
+          if (hasCrecheByName) saleType = 'MENSAL'
         }
       }
     }

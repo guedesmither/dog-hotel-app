@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { parseSaleDate, calcAvulsoPeriod } from '@/lib/roster-seed'
+import { parseSaleDate, calcAvulsoPeriod, isCrecheSale } from '@/lib/roster-seed'
 
 const DAY_NAME_MAP: Record<number, string[]> = {
   0: ['domingo', 'dom'],
@@ -84,10 +84,7 @@ export async function GET(
 
     // Check eligibility based on type
     if (type === 'CRECHE') {
-      const monthlySales = dog.sales.filter((s: any) => 
-        s.saleType === 'MENSAL' || 
-        (s.items.some((i: any) => i.product?.category === 'CRECHE' || i.product?.name.includes('MENSAL')))
-      )
+      const monthlySales = dog.sales.filter((s: any) => isCrecheSale(s))
 
       for (const sale of monthlySales) {
         const saleDate = sale.startDate ? new Date(sale.startDate) : new Date(sale.saleDate)
