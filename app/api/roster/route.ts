@@ -365,7 +365,14 @@ export async function POST(req: NextRequest) {
           const validSale = mensalSales.find((s: any) => isDateInSaleRange(s, targetDate))
           if (!validSale) {
             eligible = false
-            reason = 'Data fora da vigência de todas as mensalidades deste cão'
+            const salesInfo = mensalSales.map((s: any) => ({
+              id: s.id.slice(-6),
+              type: s.saleType,
+              startDate: s.startDate ? new Date(s.startDate).toISOString().split('T')[0] : null,
+              endDate: s.endDate ? new Date(s.endDate).toISOString().split('T')[0] : null,
+              saleDate: s.saleDate ? new Date(s.saleDate).toISOString().split('T')[0] : null,
+            }))
+            reason = `Data fora da vigência. Alvo: ${targetDate.toISOString().split('T')[0]}. Vendas: ${JSON.stringify(salesInfo)}`
           } else {
             // Check monthly cap: days purchased vs days already in roster for this period
             const cap = await calcAllowedDays(validSale, dog.scheduledDays, prisma, dog.id)
