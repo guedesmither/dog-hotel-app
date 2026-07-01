@@ -254,6 +254,10 @@ export async function POST(req: NextRequest) {
       saleEndDate,
     } = body
 
+    if (saleStartDate && saleEndDate && new Date(saleStartDate) > new Date(saleEndDate)) {
+      return NextResponse.json({ error: 'Data de fim não pode ser anterior à data de início' }, { status: 400 })
+    }
+
     console.log('Dados da venda:', {
       saleDate,
       finalPrice,

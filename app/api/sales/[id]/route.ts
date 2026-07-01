@@ -24,6 +24,10 @@ export async function PUT(
     console.log('Sale ID:', params.id)
     console.log('Body:', body)
 
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      return NextResponse.json({ error: 'Data de fim não pode ser anterior à data de início' }, { status: 400 })
+    }
+
     const effectiveAmountReceived = paymentStatus === 'PENDENTE' || paymentStatus === 'PROGRAMADA'
       ? null
       : (amountReceived !== undefined ? amountReceived : undefined)
