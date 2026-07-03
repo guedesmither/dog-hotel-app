@@ -222,10 +222,11 @@ async function upsertRosterEntry(
 }
 
 async function seedBolsistas(date: string, targetDateObj: Date, added: string[]) {
-  const bolsistaDogs = await prisma.dog.findMany({
-    where: { isBolsista: true, isActive: true, serviceType: 'CRECHE' },
-    select: { id: true, name: true, scheduledDays: true },
+  const allBolsistaDogs = await prisma.dog.findMany({
+    where: { isBolsista: true, isActive: true },
+    select: { id: true, name: true, scheduledDays: true, serviceType: true },
   })
+  const bolsistaDogs = allBolsistaDogs.filter((d) => (d.serviceType || '').toUpperCase() === 'CRECHE')
 
   for (const dog of bolsistaDogs) {
     if (!dog.scheduledDays || dog.scheduledDays.trim() === '') continue
@@ -255,7 +256,7 @@ async function seedMensalCreche(date: string, targetDateObj: Date, added: string
     if (!sale.dogId || !sale.dog) continue
     if (!isCrecheSale(sale)) continue
     const dog = sale.dog
-    if (!dog.isActive || dog.serviceType !== 'CRECHE') continue
+    if (!dog.isActive || (dog.serviceType || '').toUpperCase() !== 'CRECHE') continue
 
     const period = calcMensalPeriod(sale)
     if (!period) continue
@@ -471,7 +472,7 @@ export async function refreshDay(date: string): Promise<{ added: string[]; remov
     const dog = entry.dog
 
     if (entry.type === 'CRECHE') {
-      if (dog.serviceType !== 'CRECHE') {
+      if ((dog.serviceType || '').toUpperCase() !== 'CRECHE') {
         console.log(`[refreshDay ${date}] SKIP ${dog.name}: serviceType=${dog.serviceType} !== CRECHE`)
         continue
       }

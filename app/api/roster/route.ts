@@ -68,7 +68,7 @@ async function diagnoseRefreshDay(date: string) {
     }
 
     if (entry.type === 'CRECHE') {
-      if (dog.serviceType !== 'CRECHE') {
+      if ((dog.serviceType || '').toUpperCase() !== 'CRECHE') {
         diagnostics.push({
           dogId: entry.dogId,
           name: dog.name,
