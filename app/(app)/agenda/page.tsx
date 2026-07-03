@@ -208,15 +208,55 @@ export default function AgendaPage() {
 
   async function loadSuggestedDogs(date: string) {
     try {
-      const yearMonth = date.slice(0, 7)
-      const res = await fetch(`/api/sales?yearMonth=${yearMonth}`)
+      // Fetch all active sales (not cancelled, not manually completed)
+      // Use broad date range to catch sales whose validity covers the target date
+      const res = await fetch(`/api/sales?startDate=2000-01-01&endDate=2099-12-31`)
       if (!res.ok) return
-      const sales: Array<{ dogId: string | null; saleType: string; paymentStatus: string }> = await res.json()
-      // Build map dogId → unique saleTypes for active (non-cancelled) sales
+      const sales: Array<{ dogId: string | null; saleType: string; paymentStatus: string; manualBaixa: boolean; startDate: string | null; endDate: string | null; saleDate: string | null }> = await res.json()
+
+      const target = new Date(date + 'T12:00:00')
+        target.setHours(0, 0, 0, 0)
+
       const map = new Map<string, string[]>()
       for (const s of sales) {
         if (!s.dogId) continue
         if (s.paymentStatus === 'CANCELADO') continue
+        if (s.manualBaixa) continue
+
+        // Check if sale validity covers the target date
+        const start = s.startDate ? new Date(s.startDate) : s.saleDate ? new Date(s.saleDate) : null
+        if (!start) continue
+        start.setHours(0, 0, 0, 0)
+
+        if (target < start) continue
+
+        if (s.endDate) {
+          const end = new Date(s.endDate)
+          end.setHours(23, 59, 59, 999)
+          if (target > end) continue
+        } else {
+          // No explicit endDate:
+          // MENSAL: valid indefinitely from start
+          if (s.saleType === 'MENSAL') {
+            // ok, no end check
+          } else if (s.saleType === 'HOTEL') {
+            const end = new Date(start)
+            end.setDate(end.getDate() + 30)
+            end.setHours(23, 59, 59, 999)
+            if (target > end) continue
+          } else if (s.saleType === 'AVULSO') {
+            const end = new Date(start)
+            end.setDate(end.getDate() + 30)
+            end.setHours(23, 59, 59, 999)
+            if (target > end) continue
+          } else if (s.saleType === 'PACOTE') {
+            const end = new Date(start)
+            end.setMonth(end.getMonth() + 6)
+            end.setHours(23, 59, 59, 999)
+            if (target > end) continue
+          }
+        }
+
         const existing = map.get(s.dogId) ?? []
         if (!existing.includes(s.saleType)) existing.push(s.saleType)
         map.set(s.dogId, existing)
@@ -1056,7 +1096,10 @@ export default function AgendaPage() {
                                         <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-xs">
                                           {dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="w-full h-full object-cover" /> : '🐶'}
                                         </div>
-                                        <span className="font-medium text-gray-700 truncate">{dog.name}</span>
+                                        <div className="flex-1 min-w-0">
+                                          <span className="font-medium text-gray-700 truncate">{dog.name}</span>
+                                          <span className="text-[10px] text-gray-400 ml-1 truncate">{dog.ownerName}</span>
+                                        </div>
                                         {suggestedDogSales.has(dog.id) && <span className="ml-auto text-[9px] text-amber-500 shrink-0">⭐</span>}
                                       </button>
                                     </>

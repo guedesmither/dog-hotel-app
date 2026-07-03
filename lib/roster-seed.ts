@@ -413,49 +413,143 @@ export async function refreshDay(date: string): Promise<{ added: string[]; remov
   // Clear seed so seedDate runs fresh
   await prisma.dailyRosterSeed.deleteMany({ where: { date } })
 
-  // Re-run base seeding
+  // Re-run base seeding (bolsistas, creche, hotel)
   await seedDate(date)
 
-  // Replicate previous week's CRECHE dogs that still have valid monthly
+  // Replicate previous week's entries that still have valid sales
   const previousDate = new Date(date + 'T12:00:00Z')
   previousDate.setDate(previousDate.getDate() - 7)
   const previousDateStr = previousDate.toISOString().split('T')[0]
 
-  const previousCreche = await prisma.dailyRoster.findMany({
-    where: { date: previousDateStr, type: 'CRECHE' },
+  const targetDateObj = new Date(date + 'T12:00:00Z')
+
+  // Fetch all entries from the same weekday in the previous week
+  const previousEntries = await prisma.dailyRoster.findMany({
+    where: { date: previousDateStr },
     include: { dog: true },
   })
 
-  const targetDateObj = new Date(date + 'T12:00:00Z')
+  // Group by type to process each modality
+  for (const entry of previousEntries) {
+    if (!entry.dog || !entry.dog.isActive) continue
 
-  for (const entry of previousCreche) {
-    if (!entry.dog || !entry.dog.isActive || entry.dog.serviceType !== 'CRECHE') continue
-
-    const activeSales = await prisma.sales.findMany({
-      where: {
-        dogId: entry.dogId,
-        OR: [
-          { saleType: 'MENSAL' },
-          { items: { some: { product: { category: 'CRECHE' } } } },
-        ],
-        paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
-        manualBaixa: false,
-      },
-      include: { items: { include: { product: true } } },
+    // Skip if already in roster for target date (seedDate may have added it)
+    const existing = await prisma.dailyRoster.findFirst({
+      where: { dogId: entry.dogId, date },
     })
+    if (existing) continue
 
-    for (const sale of activeSales) {
-      if (!isCrecheSale(sale)) continue
-      const period = calcMensalPeriod(sale)
-      if (!period) continue
-      if (targetDateObj < period.start || targetDateObj > period.end) continue
-      if (!isDayScheduled(entry.dog.scheduledDays, targetDateObj.getDay())) continue
+    const dog = entry.dog
 
-      const cap = await calcMensalAllowed(sale, entry.dog, date)
-      if (cap.allowed !== Infinity && cap.used >= cap.allowed) continue
+    if (entry.type === 'CRECHE') {
+      if (dog.serviceType !== 'CRECHE') continue
+      if (!isDayScheduled(dog.scheduledDays, targetDateObj.getDay())) continue
 
-      await upsertRosterEntry(entry.dogId, date, 'CRECHE', 'AUTO', added)
-      break
+      const activeSales = await prisma.sales.findMany({
+        where: {
+          dogId: entry.dogId,
+          OR: [
+            { saleType: 'MENSAL' },
+            { items: { some: { product: { category: 'CRECHE' } } } },
+          ],
+          paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+          manualBaixa: false,
+        },
+        include: { items: { include: { product: true } } },
+      })
+
+      for (const sale of activeSales) {
+        if (!isCrecheSale(sale)) continue
+        const period = calcMensalPeriod(sale)
+        if (!period) continue
+        if (targetDateObj < period.start || targetDateObj > period.end) continue
+
+        const cap = await calcMensalAllowed(sale, dog, date)
+        if (cap.allowed !== Infinity && cap.used >= cap.allowed) continue
+
+        await upsertRosterEntry(entry.dogId, date, 'CRECHE', 'AUTO', added)
+        break
+      }
+    } else if (entry.type === 'HOTEL') {
+      // Check for valid hotel sale or scheduled stay
+      const activeSales = await prisma.sales.findMany({
+        where: {
+          dogId: entry.dogId,
+          saleType: 'HOTEL',
+          paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+          manualBaixa: false,
+        },
+        include: { items: { include: { product: true } } },
+      })
+
+      let hasValidHotel = false
+      for (const sale of activeSales) {
+        const period = calcHotelPeriod(sale)
+        if (!period) continue
+        if (targetDateObj >= period.start && targetDateObj <= period.end) {
+          hasValidHotel = true
+          break
+        }
+      }
+
+      // Also check scheduled stays
+      if (!hasValidHotel) {
+        const stays = await prisma.stay.findMany({
+          where: {
+            dogId: entry.dogId,
+            isScheduled: true,
+            scheduledCheckIn: { not: null },
+            scheduledCheckOut: { not: null },
+          },
+        })
+        for (const stay of stays) {
+          const start = new Date(stay.scheduledCheckIn!)
+          start.setHours(0, 0, 0, 0)
+          const end = new Date(stay.scheduledCheckOut!)
+          end.setHours(23, 59, 59, 999)
+          if (targetDateObj >= start && targetDateObj <= end) {
+            hasValidHotel = true
+            break
+          }
+        }
+      }
+
+      if (hasValidHotel) {
+        await upsertRosterEntry(entry.dogId, date, 'HOTEL', 'AUTO', added)
+      }
+    } else if (entry.type === 'AVULSO' || entry.type === 'PACOTE') {
+      // Check for valid avulso/pacote sale with remaining days
+      const activeSales = await prisma.sales.findMany({
+        where: {
+          dogId: entry.dogId,
+          saleType: { in: ['AVULSO', 'PACOTE'] },
+          paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+          manualBaixa: false,
+        },
+        include: { items: { include: { product: true } } },
+      })
+
+      for (const sale of activeSales) {
+        const period = sale.saleType === 'AVULSO' ? calcAvulsoPeriod(sale) : calcMensalPeriod(sale)
+        if (!period) continue
+        if (targetDateObj < period.start || targetDateObj > period.end) continue
+
+        const purchasedDays = countPurchasedAvulsoDays(sale)
+        if (purchasedDays === 0) continue
+
+        const used = await prisma.dailyRoster.count({
+          where: {
+            dogId: entry.dogId,
+            type: entry.type,
+            date: { gte: period.start.toISOString().split('T')[0], lte: period.end.toISOString().split('T')[0] },
+          },
+        })
+
+        if (used < purchasedDays) {
+          await upsertRosterEntry(entry.dogId, date, entry.type, 'AUTO', added)
+          break
+        }
+      }
     }
   }
 
