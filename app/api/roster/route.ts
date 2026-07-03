@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { seedDate, refreshDay, isCrecheSale } from '@/lib/roster-seed'
+import { seedDate, refreshDay, isCrecheSale, calcMensalPeriod, calcMensalAllowed, calcAvulsoPeriod, calcHotelPeriod, isDayScheduled } from '@/lib/roster-seed'
 
 const DAYS_PT = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
@@ -26,15 +26,178 @@ function getFrequencyFromProduct(sale: any): number {
   return 0
 }
 
+async function diagnoseRefreshDay(date: string) {
+  const previousDate = new Date(date + 'T12:00:00Z')
+  previousDate.setDate(previousDate.getDate() - 7)
+  const previousDateStr = previousDate.toISOString().split('T')[0]
+  const targetDateObj = new Date(date + 'T12:00:00Z')
+
+  const previousEntries = await prisma.dailyRoster.findMany({
+    where: { date: previousDateStr },
+    include: { dog: true },
+    orderBy: { dog: { name: 'asc' } },
+  })
+
+  const diagnostics: any[] = []
+
+  for (const entry of previousEntries) {
+    const dog = entry.dog
+    if (!dog || !dog.isActive) {
+      diagnostics.push({
+        dogId: entry.dogId,
+        name: dog?.name || '?',
+        type: entry.type,
+        result: 'SKIP',
+        reason: !dog ? 'cão não encontrado' : 'cão inativo',
+      })
+      continue
+    }
+
+    const existing = await prisma.dailyRoster.findFirst({
+      where: { dogId: entry.dogId, date },
+    })
+    if (existing) {
+      diagnostics.push({
+        dogId: entry.dogId,
+        name: dog.name,
+        type: entry.type,
+        result: 'SKIP',
+        reason: 'já existe no dia alvo',
+      })
+      continue
+    }
+
+    if (entry.type === 'CRECHE') {
+      if (dog.serviceType !== 'CRECHE') {
+        diagnostics.push({
+          dogId: entry.dogId,
+          name: dog.name,
+          type: entry.type,
+          result: 'SKIP',
+          reason: `serviceType é ${dog.serviceType || 'vazio'}, não CRECHE`,
+        })
+        continue
+      }
+      if (!isDayScheduled(dog.scheduledDays, targetDateObj.getDay())) {
+        diagnostics.push({
+          dogId: entry.dogId,
+          name: dog.name,
+          type: entry.type,
+          result: 'SKIP',
+          reason: `não é dia programado. scheduledDays="${dog.scheduledDays || ''}" dia=${DAYS_PT[targetDateObj.getDay()]}`,
+        })
+        continue
+      }
+
+      const activeSales = await prisma.sales.findMany({
+        where: {
+          dogId: entry.dogId,
+          OR: [{ saleType: 'MENSAL' }, { items: { some: { product: { category: 'CRECHE' } } } }],
+          paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+          manualBaixa: false,
+        },
+        include: { items: { include: { product: true } } },
+      })
+
+      if (activeSales.length === 0) {
+        diagnostics.push({
+          dogId: entry.dogId,
+          name: dog.name,
+          type: entry.type,
+          result: 'SKIP',
+          reason: 'nenhuma venda CRECHE/MENSAL ativa (paga/pendente/agendada não baixada)',
+        })
+        continue
+      }
+
+      const saleDetails: any[] = []
+      let added = false
+      for (const sale of activeSales) {
+        if (!isCrecheSale(sale)) {
+          saleDetails.push({ saleId: sale.id.slice(-6), reason: 'não é venda creche' })
+          continue
+        }
+        const period = calcMensalPeriod(sale)
+        if (!period) {
+          saleDetails.push({ saleId: sale.id.slice(-6), reason: 'sem período válido' })
+          continue
+        }
+        if (targetDateObj < period.start || targetDateObj > period.end) {
+          saleDetails.push({
+            saleId: sale.id.slice(-6),
+            reason: `fora do período: ${period.start.toISOString().split('T')[0]} a ${period.end.toISOString().split('T')[0]}`,
+            startDate: sale.startDate,
+            endDate: sale.endDate,
+            saleDate: sale.saleDate,
+          })
+          continue
+        }
+
+        const cap = await calcMensalAllowed(sale, dog, date)
+        if (cap.allowed !== Infinity && cap.used >= cap.allowed) {
+          saleDetails.push({
+            saleId: sale.id.slice(-6),
+            reason: `limite atingido: ${cap.used}/${cap.allowed} dias usados`,
+          })
+          continue
+        }
+
+        diagnostics.push({
+          dogId: entry.dogId,
+          name: dog.name,
+          type: entry.type,
+          result: 'ADD',
+          reason: `venda ${sale.id.slice(-6)} válida (${cap.used}/${cap.allowed} dias usados)`,
+          saleDetails,
+        })
+        added = true
+        break
+      }
+
+      if (!added) {
+        diagnostics.push({
+          dogId: entry.dogId,
+          name: dog.name,
+          type: entry.type,
+          result: 'SKIP',
+          reason: 'nenhuma venda creche válida para o dia',
+          saleDetails,
+        })
+      }
+    } else if (entry.type === 'HOTEL') {
+      diagnostics.push({
+        dogId: entry.dogId,
+        name: dog.name,
+        type: entry.type,
+        result: 'INFO',
+        reason: 'replicação de HOTEL não verificada neste diagnóstico',
+      })
+    } else {
+      diagnostics.push({
+        dogId: entry.dogId,
+        name: dog.name,
+        type: entry.type,
+        result: 'INFO',
+        reason: 'replicação de AVULSO/PACOTE não verificada neste diagnóstico',
+      })
+    }
+  }
+
+  return { date, previousDate: previousDateStr, totalPrevious: previousEntries.length, diagnostics }
+}
+
 // Calculate the cap of allowed days for a MENSAL sale in its validity period
 async function calcAllowedDays(sale: any, scheduledDays: string | null, prismaClient: any, dogId: string, targetDateStr?: string): Promise<{ allowed: number; used: number; periodStart: string; periodEnd: string }> {
-  const saleStart = parseSaleDate(sale.startDate) || parseSaleDate(sale.saleDate)
-  if (!saleStart) return { allowed: Infinity, used: 0, periodStart: '', periodEnd: '' }
-  saleStart.setHours(0, 0, 0, 0)
+  const saleStartRaw = parseSaleDate(sale.startDate) || parseSaleDate(sale.saleDate)
+  if (!saleStartRaw) return { allowed: Infinity, used: 0, periodStart: '', periodEnd: '' }
+  saleStartRaw.setHours(0, 0, 0, 0)
+
+  const hasExplicitEnd = !!sale.endDate
+  const ref = targetDateStr ? new Date(targetDateStr + 'T12:00:00') : new Date()
+  let saleStart = hasExplicitEnd ? saleStartRaw : new Date(ref.getFullYear(), ref.getMonth(), 1)
   let saleEnd = parseSaleDate(sale.endDate)
   if (!saleEnd) {
     // No explicit endDate: use end of the target month (or current month)
-    const ref = targetDateStr ? new Date(targetDateStr + 'T12:00:00') : new Date()
     saleEnd = new Date(ref.getFullYear(), ref.getMonth() + 1, 0)
   }
   saleEnd.setHours(23, 59, 59, 999)
@@ -493,6 +656,7 @@ export async function POST(req: NextRequest) {
         }
         saleDate.setHours(0, 0, 0, 0)
 
+        const hasExplicitEnd = !!sale.endDate
         let expiryDate = parseSaleDate(sale.endDate)
         if (!expiryDate) {
           // No explicit endDate: MENSAL valid indefinitely, use end of target month for counting
@@ -505,6 +669,11 @@ export async function POST(req: NextRequest) {
           console.log(`[DEBUG] Sale ${sale.id}: targetDate outside range`)
           continue
         }
+
+        // For counting allowed/used days, use the target month window when there's no explicit endDate
+        const countStart = hasExplicitEnd ? saleDate : new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
+        const countStartStr = countStart.toISOString().split('T')[0]
+        const expiryDateStr = expiryDate.toISOString().split('T')[0]
 
         if (!dog.scheduledDays) {
           // No scheduled days restriction
@@ -521,16 +690,14 @@ export async function POST(req: NextRequest) {
         // Allow scheduling on ANY day within the subscription period
         // as long as monthly quota (totalScheduled) is not exceeded
         // Scheduled days are for organization only, not strict restriction
-        const totalScheduled = countScheduledOccurrences(dog.scheduledDays, saleDate, expiryDate)
+        const totalScheduled = countScheduledOccurrences(dog.scheduledDays, countStart, expiryDate)
 
         // Days already used (in roster) within the subscription period
-        const saleDateStr = saleDate.toISOString().split('T')[0]
-        const expiryDateStr = expiryDate.toISOString().split('T')[0]
         const usedDays = await prisma.dailyRoster.count({
           where: {
             dogId,
             type: 'CRECHE',
-            date: { gte: saleDateStr, lte: expiryDateStr },
+            date: { gte: countStartStr, lte: expiryDateStr },
           },
         })
 
@@ -791,6 +958,12 @@ export async function DELETE(req: NextRequest) {
     await prisma.dailyRoster.deleteMany({ where: { date: { gt: today } } })
     await prisma.dailyRosterSeed.deleteMany({ where: { date: { gt: today } } })
     return NextResponse.json({ success: true, message: 'Roster futuro limpo' })
+  }
+
+  if (reset === 'diagnostic' && date) {
+    if (role !== 'ADMIN' && role !== 'MANAGER') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+    const result = await diagnoseRefreshDay(date)
+    return NextResponse.json({ success: true, ...result })
   }
 
   if (reset === 'day' && date) {

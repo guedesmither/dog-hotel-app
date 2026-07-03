@@ -152,7 +152,7 @@ function countPurchasedAvulsoDays(sale: any): number {
     .reduce((sum: number, item: any) => sum + (item.quantity || 1), 0)
 }
 
-async function calcMensalAllowed(
+export async function calcMensalAllowed(
   sale: any,
   dog: any,
   date: string
@@ -163,7 +163,14 @@ async function calcMensalAllowed(
   // If sale has no explicit endDate, calculate window for the target month only
   const hasExplicitEnd = !!sale.endDate
   const targetDate = new Date(date + 'T12:00:00')
-  const windowStart = period.start
+  const windowStart = hasExplicitEnd
+    ? period.start
+    : (() => {
+        const d = new Date(targetDate)
+        d.setDate(1)
+        d.setHours(0, 0, 0, 0)
+        return d
+      })()
   const windowEnd = hasExplicitEnd
     ? period.end
     : (() => {
