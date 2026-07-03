@@ -89,6 +89,17 @@ async function diagnoseRefreshDay(date: string) {
         continue
       }
 
+      if (dog.isBolsista) {
+        diagnostics.push({
+          dogId: entry.dogId,
+          name: dog.name,
+          type: entry.type,
+          result: 'ADD',
+          reason: 'bolsista',
+        })
+        continue
+      }
+
       const activeSales = await prisma.sales.findMany({
         where: {
           dogId: entry.dogId,

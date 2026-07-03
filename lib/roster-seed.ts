@@ -481,6 +481,12 @@ export async function refreshDay(date: string): Promise<{ added: string[]; remov
         continue
       }
 
+      if (dog.isBolsista) {
+        await upsertRosterEntry(entry.dogId, date, 'CRECHE', 'AUTO', added)
+        console.log(`[refreshDay ${date}] ADD CRECHE ${dog.name}: bolsista`)
+        continue
+      }
+
       const activeSales = await prisma.sales.findMany({
         where: {
           dogId: entry.dogId,
