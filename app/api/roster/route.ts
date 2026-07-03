@@ -27,15 +27,15 @@ function getFrequencyFromProduct(sale: any): number {
 }
 
 // Calculate the cap of allowed days for a MENSAL sale in its validity period
-async function calcAllowedDays(sale: any, scheduledDays: string | null, prismaClient: any, dogId: string): Promise<{ allowed: number; used: number; periodStart: string; periodEnd: string }> {
+async function calcAllowedDays(sale: any, scheduledDays: string | null, prismaClient: any, dogId: string, targetDateStr?: string): Promise<{ allowed: number; used: number; periodStart: string; periodEnd: string }> {
   const saleStart = parseSaleDate(sale.startDate) || parseSaleDate(sale.saleDate)
   if (!saleStart) return { allowed: Infinity, used: 0, periodStart: '', periodEnd: '' }
   saleStart.setHours(0, 0, 0, 0)
   let saleEnd = parseSaleDate(sale.endDate)
   if (!saleEnd) {
-    saleEnd = new Date(saleStart)
-    const dm = daysInMonth(saleStart.getFullYear(), saleStart.getMonth())
-    saleEnd.setDate(saleEnd.getDate() + dm - 1)
+    // No explicit endDate: use end of the target month (or current month)
+    const ref = targetDateStr ? new Date(targetDateStr + 'T12:00:00') : new Date()
+    saleEnd = new Date(ref.getFullYear(), ref.getMonth() + 1, 0)
   }
   saleEnd.setHours(23, 59, 59, 999)
 
@@ -118,6 +118,16 @@ function isDateInSaleRange(sale: any, targetDate: Date): boolean {
 
   if (!startDate) return false
 
+  // For MENSAL without explicit endDate: valid from startDate indefinitely
+  // Validity is controlled by manualBaixa, not by a calculated expiry
+  if (!endDate && (sale.saleType === 'MENSAL' || sale.saleType === 'CRECHE')) {
+    const start = new Date(startDate)
+    start.setHours(0, 0, 0, 0)
+    const t = new Date(targetDate)
+    t.setHours(0, 0, 0, 0)
+    return t >= start
+  }
+
   // Calculate effective end date
   let effectiveEndDate: Date
   if (endDate) {
@@ -129,11 +139,10 @@ function isDateInSaleRange(sale: any, targetDate: Date): boolean {
     } else if (sale.saleType === 'HOTEL') {
       effectiveEndDate.setDate(effectiveEndDate.getDate() + 30)
     } else if (sale.saleType === 'AVULSO') {
-      effectiveEndDate.setDate(effectiveEndDate.getDate() + 30) // AVULSO sem endDate = 30 dias para usar os créditos
+      effectiveEndDate.setDate(effectiveEndDate.getDate() + 30)
     } else {
-      // MENSAL: vigência = dias reais do mês de início (ex: começa 06/05 → +31 dias = 05/06)
-      const daysThisMonth = daysInMonth(startDate.getFullYear(), startDate.getMonth())
-      effectiveEndDate.setDate(effectiveEndDate.getDate() + daysThisMonth - 1)
+      // fallback for other types
+      effectiveEndDate.setDate(effectiveEndDate.getDate() + 30)
     }
   }
 
@@ -384,7 +393,7 @@ export async function POST(req: NextRequest) {
             reason = `Alvo: ${targetDate.toISOString().split('T')[0]}. Todas as vendas: ${JSON.stringify(allSalesInfo)}`
           } else {
             // Check monthly cap: days purchased vs days already in roster for this period
-            const cap = await calcAllowedDays(validSale, dog.scheduledDays, prisma, dog.id)
+            const cap = await calcAllowedDays(validSale, dog.scheduledDays, prisma, dog.id, date)
             if (cap.allowed !== Infinity && cap.used >= cap.allowed) {
               eligible = false
               reason = `Limite mensal atingido: ${cap.used}/${cap.allowed} dias já agendados no período (${cap.periodStart} a ${cap.periodEnd})`

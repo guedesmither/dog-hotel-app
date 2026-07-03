@@ -88,9 +88,9 @@ export function calcMensalPeriod(sale: any): { start: Date; end: Date } | null {
 
   let end = parseSaleDate(sale.endDate)
   if (!end) {
-    end = new Date(start)
-    const dm = daysInMonth(start.getFullYear(), start.getMonth())
-    end.setDate(end.getDate() + dm - 1)
+    // No explicit endDate: treat as open-ended subscription (valid indefinitely)
+    // Use a far-future date so the period check always passes
+    end = new Date('2099-12-31')
   }
   end.setHours(23, 59, 59, 999)
   return { start, end }
@@ -161,13 +161,28 @@ async function calcMensalAllowed(
   const period = calcMensalPeriod(sale)
   if (!period) return { allowed: Infinity, used: 0 }
 
+  // If sale has no explicit endDate, calculate window for current month only
+  const hasExplicitEnd = !!sale.endDate
+  const targetDate = new Date(date + 'T12:00:00')
+  const windowStart = period.start
+  const windowEnd = hasExplicitEnd
+    ? period.end
+    : (() => {
+        const d = new Date(targetDate)
+        d.setDate(1)
+        d.setMonth(d.getMonth() + 1)
+        d.setDate(0)
+        d.setHours(23, 59, 59, 999)
+        return d
+      })()
+
   let allowed: number
   if (dog.scheduledDays && dog.scheduledDays.trim() !== '') {
-    allowed = countScheduledOccurrences(dog.scheduledDays, period.start, period.end)
+    allowed = countScheduledOccurrences(dog.scheduledDays, windowStart, windowEnd)
   } else {
     const freq = getFrequencyFromProduct(sale)
     if (freq > 0) {
-      const weeks = Math.ceil((period.end.getTime() - period.start.getTime()) / (7 * 24 * 60 * 60 * 1000))
+      const weeks = Math.ceil((windowEnd.getTime() - windowStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
       allowed = freq * weeks
     } else {
       allowed = Infinity
@@ -178,7 +193,7 @@ async function calcMensalAllowed(
     where: {
       dogId: dog.id,
       type: 'CRECHE',
-      date: { gte: period.start.toISOString().split('T')[0], lte: period.end.toISOString().split('T')[0] },
+      date: { gte: windowStart.toISOString().split('T')[0], lte: windowEnd.toISOString().split('T')[0] },
     },
   })
 
