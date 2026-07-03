@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, X, Plus, GripVertical, Check, UserX, List, CalendarDays, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Plus, GripVertical, Check, UserX, List, CalendarDays, RotateCcw, CalendarCheck } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -1087,22 +1087,28 @@ export default function AgendaPage() {
                                           setPendingAddDog({ dogId: dog.id, date })
                                           loadDogPackages(dog.id)
                                         }}
-                                        className={`w-full flex items-center gap-1.5 text-left px-2 py-1 rounded-lg text-xs transition-colors ${
+                                        className={`w-full flex items-center gap-2 text-left px-2 py-1.5 rounded-lg text-xs transition-colors ${
                                           suggestedDogSales.has(dog.id)
                                             ? 'bg-amber-50 hover:bg-amber-100 border border-amber-200'
                                             : 'hover:bg-gray-50'
                                         }`}
                                       >
-                                        <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-xs">
+                                        <div className="w-6 h-6 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-xs">
                                           {dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="w-full h-full object-cover" /> : '🐶'}
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                          <span className="font-medium text-gray-700 truncate">{dog.name}</span>
-                                          <span className="text-[10px] text-gray-400 ml-1 truncate">{dog.ownerName}</span>
+                                        <div className="flex-1 min-w-0 leading-tight">
+                                          <div className="font-semibold text-gray-800 truncate text-[13px]">{dog.name}</div>
+                                          <div className="text-[10px] text-gray-500 truncate">
+                                            {dog.ownerName?.split(' ')[0] || 'Tutor não informado'}
+                                          </div>
                                         </div>
                                         <div className="flex items-center gap-1 shrink-0">
                                           {alreadyInDate && <span className="text-[9px] text-blue-500" title="Já agendado neste dia">✓</span>}
-                                          {suggestedDogSales.has(dog.id) && <span className="text-[9px] text-amber-500">⭐</span>}
+                                          {suggestedDogSales.has(dog.id) && (
+                                            <span title="Com venda ativa para este dia">
+                                              <CalendarCheck className="w-3.5 h-3.5 text-amber-500" />
+                                            </span>
+                                          )}
                                         </div>
                                       </button>
                                     </>

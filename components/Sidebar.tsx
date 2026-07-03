@@ -102,18 +102,6 @@ const navSections: NavSection[] = [
         roles: ['ADMIN', 'MANAGER'],
       },
       {
-        href: '/agendamentos',
-        label: 'Agendamentos',
-        icon: <CalendarPlus className="w-5 h-5" />,
-        roles: ['ADMIN', 'MANAGER'],
-      },
-      {
-        href: '/stays',
-        label: 'Estadias',
-        icon: <CalendarDays className="w-5 h-5" />,
-        roles: ['ADMIN', 'MANAGER'],
-      },
-      {
         href: '/historico',
         label: 'Histórico',
         icon: <History className="w-5 h-5" />,
