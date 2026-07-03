@@ -3,6 +3,31 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+// DELETE /api/sales/[id]/complete - Undo manual baixa (reopen service)
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+
+    const sale = await prisma.sales.findUnique({ where: { id: params.id } })
+    if (!sale) return NextResponse.json({ error: 'Venda não encontrada' }, { status: 404 })
+    if (!sale.manualBaixa) return NextResponse.json({ error: 'Esta venda não está baixada' }, { status: 400 })
+
+    const updatedSale = await prisma.sales.update({
+      where: { id: params.id },
+      data: { manualBaixa: false, manualBaixaDate: null },
+    })
+
+    return NextResponse.json(updatedSale)
+  } catch (error: any) {
+    console.error('Erro ao desfazer baixa:', error)
+    return NextResponse.json({ error: 'Erro ao desfazer baixa', details: error.message }, { status: 500 })
+  }
+}
+
 // POST /api/sales/[id]/complete - Mark sale as manually completed (baixa)
 export async function POST(
   req: NextRequest,

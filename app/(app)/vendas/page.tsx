@@ -429,6 +429,23 @@ function VendasContent() {
     }
   }
 
+  async function undoCompleteSale(id: string) {
+    if (!confirm('Desfazer baixa e reabrir este serviço?')) return
+
+    try {
+      const res = await fetch(`/api/sales/${id}/complete`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Baixa desfeita — serviço reaberto!')
+        loadSales()
+      } else {
+        const errorData = await res.json()
+        toast.error(`Erro ao desfazer baixa: ${errorData.error || 'Erro desconhecido'}`)
+      }
+    } catch (error) {
+      toast.error('Erro ao desfazer baixa')
+    }
+  }
+
   const openEditModal = (sale: Sale) => {
     setEditingSale(sale)
     setEditAmountReceived((sale.amountReceived ?? '').toString())
@@ -828,7 +845,15 @@ function VendasContent() {
                         </td>
                         <td className="px-3 py-2 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            {!sale.manualBaixa && (
+                            {sale.manualBaixa ? (
+                              <button
+                                onClick={() => undoCompleteSale(sale.id)}
+                                className="text-amber-500 hover:text-amber-700 text-xs font-medium"
+                                title="Desfazer baixa manual"
+                              >
+                                Reabrir
+                              </button>
+                            ) : (
                               <button
                                 onClick={() => completeSale(sale.id)}
                                 className="text-green-500 hover:text-green-700 text-xs font-medium"
