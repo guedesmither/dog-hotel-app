@@ -27,15 +27,15 @@ function getFrequencyFromProduct(sale: any): number {
 }
 
 // Calculate the cap of allowed days for a MENSAL sale in its validity period
-async function calcAllowedDays(sale: any, scheduledDays: string | null, prismaClient: any, dogId: string): Promise<{ allowed: number; used: number; periodStart: string; periodEnd: string }> {
+async function calcAllowedDays(sale: any, scheduledDays: string | null, prismaClient: any, dogId: string, targetDateStr?: string): Promise<{ allowed: number; used: number; periodStart: string; periodEnd: string }> {
   const saleStart = parseSaleDate(sale.startDate) || parseSaleDate(sale.saleDate)
   if (!saleStart) return { allowed: Infinity, used: 0, periodStart: '', periodEnd: '' }
   saleStart.setHours(0, 0, 0, 0)
   let saleEnd = parseSaleDate(sale.endDate)
   if (!saleEnd) {
-    saleEnd = new Date(saleStart)
-    const dm = daysInMonth(saleStart.getFullYear(), saleStart.getMonth())
-    saleEnd.setDate(saleEnd.getDate() + dm - 1)
+    // No explicit endDate: use end of the target month (or current month)
+    const ref = targetDateStr ? new Date(targetDateStr + 'T12:00:00') : new Date()
+    saleEnd = new Date(ref.getFullYear(), ref.getMonth() + 1, 0)
   }
   saleEnd.setHours(23, 59, 59, 999)
 
@@ -123,17 +123,21 @@ function isDateInSaleRange(sale: any, targetDate: Date): boolean {
   if (endDate) {
     effectiveEndDate = endDate
   } else {
-    effectiveEndDate = new Date(startDate)
-    if (sale.saleType === 'PACOTE') {
+    if (sale.saleType === 'MENSAL' || sale.saleType === 'CRECHE') {
+      // MENSAL without explicit endDate: valid indefinitely from startDate
+      effectiveEndDate = new Date('2099-12-31')
+    } else if (sale.saleType === 'PACOTE') {
+      effectiveEndDate = new Date(startDate)
       effectiveEndDate.setMonth(effectiveEndDate.getMonth() + 6)
     } else if (sale.saleType === 'HOTEL') {
+      effectiveEndDate = new Date(startDate)
       effectiveEndDate.setDate(effectiveEndDate.getDate() + 30)
     } else if (sale.saleType === 'AVULSO') {
-      effectiveEndDate.setDate(effectiveEndDate.getDate() + 30) // AVULSO sem endDate = 30 dias para usar os créditos
+      effectiveEndDate = new Date(startDate)
+      effectiveEndDate.setDate(effectiveEndDate.getDate() + 30)
     } else {
-      // MENSAL: vigência = dias reais do mês de início (ex: começa 06/05 → +31 dias = 05/06)
-      const daysThisMonth = daysInMonth(startDate.getFullYear(), startDate.getMonth())
-      effectiveEndDate.setDate(effectiveEndDate.getDate() + daysThisMonth - 1)
+      effectiveEndDate = new Date(startDate)
+      effectiveEndDate.setDate(effectiveEndDate.getDate() + 30)
     }
   }
 
@@ -384,7 +388,7 @@ export async function POST(req: NextRequest) {
             reason = `Alvo: ${targetDate.toISOString().split('T')[0]}. Todas as vendas: ${JSON.stringify(allSalesInfo)}`
           } else {
             // Check monthly cap: days purchased vs days already in roster for this period
-            const cap = await calcAllowedDays(validSale, dog.scheduledDays, prisma, dog.id)
+            const cap = await calcAllowedDays(validSale, dog.scheduledDays, prisma, dog.id, date)
             if (cap.allowed !== Infinity && cap.used >= cap.allowed) {
               eligible = false
               reason = `Limite mensal atingido: ${cap.used}/${cap.allowed} dias já agendados no período (${cap.periodStart} a ${cap.periodEnd})`
@@ -491,10 +495,8 @@ export async function POST(req: NextRequest) {
 
         let expiryDate = parseSaleDate(sale.endDate)
         if (!expiryDate) {
-          // Vigência = dias reais do mês de início (ex: começa 06/05 → +31 dias = 05/06)
-          expiryDate = new Date(saleDate)
-          const daysThisMonth = daysInMonth(saleDate.getFullYear(), saleDate.getMonth())
-          expiryDate.setDate(expiryDate.getDate() + daysThisMonth - 1)
+          // No explicit endDate: MENSAL valid indefinitely, use end of target month for counting
+          expiryDate = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0)
         }
         expiryDate.setHours(23, 59, 59, 999)
         console.log(`[DEBUG] Sale ${sale.id}: saleDate=${saleDate.toISOString()}, expiryDate=${expiryDate.toISOString()}, targetDate=${targetDate.toISOString()}`)
