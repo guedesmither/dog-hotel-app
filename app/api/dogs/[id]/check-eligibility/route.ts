@@ -89,16 +89,17 @@ export async function GET(
       for (const sale of monthlySales) {
         const saleDate = sale.startDate ? new Date(sale.startDate) : new Date(sale.saleDate)
         saleDate.setHours(0, 0, 0, 0)
-
-        if (targetDate < saleDate) continue
-
-        // If no explicit endDate, MENSAL is valid indefinitely from startDate
-        // Expiry is controlled by manualBaixa, not a calculated date
         const expiryDate = sale.endDate
-          ? (() => { const d = new Date(sale.endDate); d.setHours(23, 59, 59, 999); return d })()
-          : null
+          ? new Date(sale.endDate)
+          : (() => {
+              const d = new Date(saleDate)
+              const daysThisMonth = new Date(saleDate.getFullYear(), saleDate.getMonth() + 1, 0).getDate()
+              d.setDate(d.getDate() + daysThisMonth - 1)
+              return d
+            })()
+        expiryDate.setHours(23, 59, 59, 999)
 
-        if (expiryDate && targetDate > expiryDate) continue
+        if (targetDate < saleDate || targetDate > expiryDate) continue
 
         if (!dog.scheduledDays) {
           eligible = true
@@ -120,17 +121,9 @@ export async function GET(
         }
 
         // Not a scheduled day — check makeup credits
-        // If no expiry (open-ended subscription), use end of current month as window
-        const effectiveExpiry = expiryDate ?? (() => {
-          const d = new Date(targetDate)
-          d.setMonth(d.getMonth() + 1)
-          d.setDate(0)
-          d.setHours(23, 59, 59, 999)
-          return d
-        })()
-        const totalScheduled = countScheduledOccurrences(dog.scheduledDays, saleDate, effectiveExpiry)
+        const totalScheduled = countScheduledOccurrences(dog.scheduledDays, saleDate, expiryDate)
         const saleDateStr = saleDate.toISOString().split('T')[0]
-        const expiryDateStr = effectiveExpiry.toISOString().split('T')[0]
+        const expiryDateStr = expiryDate.toISOString().split('T')[0]
         const usedDays = await prisma.dailyRoster.count({
           where: {
             dogId: dog.id,
