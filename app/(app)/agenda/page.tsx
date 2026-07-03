@@ -452,9 +452,9 @@ export default function AgendaPage() {
     return data?.entries.filter(e => e.date === date) ?? []
   }
 
-  function dogsNotInDate(date: string): RosterDog[] {
-    const inDate = new Set(entriesForDate(date).map(e => e.dogId))
-    return (data?.allDogs ?? []).filter(d => !inDate.has(d.id))
+  function dogsForDate(date: string): { dog: RosterDog; alreadyInDate: boolean }[] {
+    const inDateIds = new Set(entriesForDate(date).map(e => e.dogId))
+    return (data?.allDogs ?? []).map(d => ({ dog: d, alreadyInDate: inDateIds.has(d.id) }))
   }
 
   const isCurrentWeek = toDateStr(getMonday(new Date())) === weekStartStr
@@ -1062,13 +1062,13 @@ export default function AgendaPage() {
                           />
                           <div className="max-h-40 overflow-y-auto space-y-0.5">
                             {(() => {
-                              const all = dogsNotInDate(date)
+                              const all = dogsForDate(date)
                               const q = addSearch.toLowerCase()
                               const filtered = q
-                                ? all.filter(d => d.name.toLowerCase().includes(q) || d.ownerName.toLowerCase().includes(q))
+                                ? all.filter(({ dog }) => dog.name.toLowerCase().includes(q) || dog.ownerName.toLowerCase().includes(q))
                                 : all
-                              const suggested = filtered.filter(d => suggestedDogSales.has(d.id))
-                              const others = filtered.filter(d => !suggestedDogSales.has(d.id))
+                              const suggested = filtered.filter(({ dog }) => suggestedDogSales.has(dog.id))
+                              const others = filtered.filter(({ dog }) => !suggestedDogSales.has(dog.id))
                               const sorted = [...suggested, ...others]
                               if (sorted.length === 0) return <p className="text-xs text-gray-400 text-center py-1">Nenhum encontrado</p>
                               return (
@@ -1076,7 +1076,7 @@ export default function AgendaPage() {
                                   {suggested.length > 0 && !q && (
                                     <p className="text-[10px] text-amber-600 font-semibold px-1 pt-0.5">⭐ Com venda ativa este mês</p>
                                   )}
-                                  {sorted.map((dog, idx) => (
+                                  {sorted.map(({ dog, alreadyInDate }, idx) => (
                                     <>
                                       {!q && idx === suggested.length && suggested.length > 0 && (
                                         <p key="sep" className="text-[10px] text-gray-400 px-1 pt-1">Outros cães</p>
@@ -1100,7 +1100,10 @@ export default function AgendaPage() {
                                           <span className="font-medium text-gray-700 truncate">{dog.name}</span>
                                           <span className="text-[10px] text-gray-400 ml-1 truncate">{dog.ownerName}</span>
                                         </div>
-                                        {suggestedDogSales.has(dog.id) && <span className="ml-auto text-[9px] text-amber-500 shrink-0">⭐</span>}
+                                        <div className="flex items-center gap-1 shrink-0">
+                                          {alreadyInDate && <span className="text-[9px] text-blue-500" title="Já agendado neste dia">✓</span>}
+                                          {suggestedDogSales.has(dog.id) && <span className="text-[9px] text-amber-500">⭐</span>}
+                                        </div>
                                       </button>
                                     </>
                                   ))}
