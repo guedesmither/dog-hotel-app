@@ -443,21 +443,35 @@ export async function refreshDay(date: string): Promise<{ added: string[]; remov
     include: { dog: true },
   })
 
+  console.log(`[refreshDay ${date}] previousDate=${previousDateStr} entries=${previousEntries.length} removed=${removed.count}`)
+
   // Group by type to process each modality
   for (const entry of previousEntries) {
-    if (!entry.dog || !entry.dog.isActive) continue
+    if (!entry.dog || !entry.dog.isActive) {
+      console.log(`[refreshDay ${date}] SKIP ${entry.dogId}: inactive/no dog`)
+      continue
+    }
 
     // Skip if already in roster for target date (seedDate may have added it)
     const existing = await prisma.dailyRoster.findFirst({
       where: { dogId: entry.dogId, date },
     })
-    if (existing) continue
+    if (existing) {
+      console.log(`[refreshDay ${date}] SKIP ${entry.dogId} ${entry.dog.name}: already exists on ${date}`)
+      continue
+    }
 
     const dog = entry.dog
 
     if (entry.type === 'CRECHE') {
-      if (dog.serviceType !== 'CRECHE') continue
-      if (!isDayScheduled(dog.scheduledDays, targetDateObj.getDay())) continue
+      if (dog.serviceType !== 'CRECHE') {
+        console.log(`[refreshDay ${date}] SKIP ${dog.name}: serviceType=${dog.serviceType} !== CRECHE`)
+        continue
+      }
+      if (!isDayScheduled(dog.scheduledDays, targetDateObj.getDay())) {
+        console.log(`[refreshDay ${date}] SKIP ${dog.name}: not scheduled for ${targetDateObj.getDay()} scheduledDays=${dog.scheduledDays}`)
+        continue
+      }
 
       const activeSales = await prisma.sales.findMany({
         where: {
@@ -472,17 +486,38 @@ export async function refreshDay(date: string): Promise<{ added: string[]; remov
         include: { items: { include: { product: true } } },
       })
 
+      console.log(`[refreshDay ${date}] CRECHE ${dog.name}: activeSales=${activeSales.length}`)
+
+      let addedCreche = false
       for (const sale of activeSales) {
-        if (!isCrecheSale(sale)) continue
+        if (!isCrecheSale(sale)) {
+          console.log(`[refreshDay ${date}] CRECHE ${dog.name}: sale ${sale.id} not creche sale`)
+          continue
+        }
         const period = calcMensalPeriod(sale)
-        if (!period) continue
-        if (targetDateObj < period.start || targetDateObj > period.end) continue
+        if (!period) {
+          console.log(`[refreshDay ${date}] CRECHE ${dog.name}: sale ${sale.id} no period`)
+          continue
+        }
+        if (targetDateObj < period.start || targetDateObj > period.end) {
+          console.log(`[refreshDay ${date}] CRECHE ${dog.name}: sale ${sale.id} target ${date} outside ${period.start.toISOString()} - ${period.end.toISOString()}`)
+          continue
+        }
 
         const cap = await calcMensalAllowed(sale, dog, date)
-        if (cap.allowed !== Infinity && cap.used >= cap.allowed) continue
+        console.log(`[refreshDay ${date}] CRECHE ${dog.name}: sale ${sale.id} cap used=${cap.used} allowed=${cap.allowed}`)
+        if (cap.allowed !== Infinity && cap.used >= cap.allowed) {
+          console.log(`[refreshDay ${date}] CRECHE ${dog.name}: cap reached`)
+          continue
+        }
 
         await upsertRosterEntry(entry.dogId, date, 'CRECHE', 'AUTO', added)
+        addedCreche = true
+        console.log(`[refreshDay ${date}] ADD CRECHE ${dog.name}`)
         break
+      }
+      if (!addedCreche) {
+        console.log(`[refreshDay ${date}] CRECHE ${dog.name}: no valid sale found`)
       }
     } else if (entry.type === 'HOTEL') {
       // Check for valid hotel sale or scheduled stay
@@ -530,6 +565,9 @@ export async function refreshDay(date: string): Promise<{ added: string[]; remov
 
       if (hasValidHotel) {
         await upsertRosterEntry(entry.dogId, date, 'HOTEL', 'AUTO', added)
+        console.log(`[refreshDay ${date}] ADD HOTEL ${dog.name}`)
+      } else {
+        console.log(`[refreshDay ${date}] SKIP HOTEL ${dog.name}: no valid hotel/stay`)
       }
     } else if (entry.type === 'AVULSO' || entry.type === 'PACOTE') {
       // Check for valid avulso/pacote sale with remaining days
@@ -543,6 +581,7 @@ export async function refreshDay(date: string): Promise<{ added: string[]; remov
         include: { items: { include: { product: true } } },
       })
 
+      let addedAvulso = false
       for (const sale of activeSales) {
         const period = sale.saleType === 'AVULSO' ? calcAvulsoPeriod(sale) : calcMensalPeriod(sale)
         if (!period) continue
@@ -561,12 +600,18 @@ export async function refreshDay(date: string): Promise<{ added: string[]; remov
 
         if (used < purchasedDays) {
           await upsertRosterEntry(entry.dogId, date, entry.type, 'AUTO', added)
+          addedAvulso = true
+          console.log(`[refreshDay ${date}] ADD ${entry.type} ${dog.name}`)
           break
         }
+      }
+      if (!addedAvulso) {
+        console.log(`[refreshDay ${date}] SKIP ${entry.type} ${dog.name}: no valid sale`)
       }
     }
   }
 
+  console.log(`[refreshDay ${date}] result: added=${added.length} removed=${removed.count}`)
   return { added, removed: removed.count }
 }
 
