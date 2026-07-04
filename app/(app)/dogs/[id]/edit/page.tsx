@@ -1,11 +1,13 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { ArrowLeft, Save, Camera, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Save, Camera, CheckCircle2, X, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop'
+import 'react-image-crop/dist/ReactCrop.css'
 
 export default function EditDogPage() {
   const params = useParams()
@@ -41,6 +43,10 @@ export default function EditDogPage() {
   const [uploadingDogPhoto, setUploadingDogPhoto] = useState(false)
   const cardPhotoRef = useRef<HTMLInputElement>(null)
   const dogPhotoRef = useRef<HTMLInputElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
+  const [cropSrc, setCropSrc] = useState<string | null>(null)
+  const [crop, setCrop] = useState<Crop>()
+  const [showCropModal, setShowCropModal] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -164,21 +170,90 @@ export default function EditDogPage() {
         <div className="card">
           <h2 className="font-semibold text-gray-800 mb-4">📷 Foto do Cão</h2>
           <input ref={dogPhotoRef} type="file" accept="image/*" className="hidden"
-            onChange={async (e) => {
+            onChange={(e) => {
               const file = e.target.files?.[0]
               if (!file) return
               if (file.size > 8 * 1024 * 1024) { toast.error('Máx 8MB'); return }
-              setUploadingDogPhoto(true)
-              try {
-                const fd = new FormData(); fd.append('photo', file)
-                const res = await fetch(`/api/dogs/${params.id}/photo`, { method: 'POST', body: fd })
-                const data = await res.json()
-                setPhotoUrl(data.photoUrl)
-                toast.success('Foto atualizada!')
-              } catch { toast.error('Erro ao enviar foto') }
-              finally { setUploadingDogPhoto(false) }
+              const reader = new FileReader()
+              reader.onload = () => { setCropSrc(reader.result as string); setShowCropModal(true) }
+              reader.readAsDataURL(file)
+              e.target.value = ''
             }}
           />
+          {showCropModal && cropSrc && (
+            <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
+              <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b">
+                  <span className="font-semibold text-gray-800">Recortar foto</span>
+                  <button type="button" onClick={() => { setShowCropModal(false); setCropSrc(null) }} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+                </div>
+                <div className="p-3 bg-gray-50 flex items-center justify-center">
+                  <ReactCrop
+                    crop={crop}
+                    onChange={(c) => setCrop(c)}
+                    aspect={1}
+                    circularCrop={false}
+                    minWidth={50}
+                    minHeight={50}
+                  >
+                    <img
+                      ref={imgRef}
+                      src={cropSrc}
+                      alt="Recorte"
+                      style={{ maxHeight: '55vh', maxWidth: '100%' }}
+                      onLoad={(e) => {
+                        const { naturalWidth: w, naturalHeight: h } = e.currentTarget
+                        const c = centerCrop(makeAspectCrop({ unit: '%', width: 80 }, 1, w, h), w, h)
+                        setCrop(c)
+                      }}
+                    />
+                  </ReactCrop>
+                </div>
+                <div className="flex gap-2 p-3">
+                  <button type="button" onClick={() => { setShowCropModal(false); setCropSrc(null) }}
+                    className="btn-secondary flex-1 flex items-center justify-center gap-2">
+                    <X className="w-4 h-4" /> Cancelar
+                  </button>
+                  <button type="button" disabled={uploadingDogPhoto}
+                    onClick={async () => {
+                      if (!imgRef.current || !crop) return
+                      const canvas = document.createElement('canvas')
+                      const img = imgRef.current
+                      const scaleX = img.naturalWidth / img.width
+                      const scaleY = img.naturalHeight / img.height
+                      const size = 512
+                      canvas.width = size
+                      canvas.height = size
+                      const ctx = canvas.getContext('2d')!
+                      ctx.drawImage(
+                        img,
+                        (crop.x ?? 0) * scaleX,
+                        (crop.y ?? 0) * scaleY,
+                        (crop.width ?? img.width) * scaleX,
+                        (crop.height ?? img.height) * scaleY,
+                        0, 0, size, size
+                      )
+                      const blob = await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), 'image/jpeg', 0.9))
+                      setUploadingDogPhoto(true)
+                      setShowCropModal(false)
+                      setCropSrc(null)
+                      try {
+                        const fd = new FormData()
+                        fd.append('photo', blob, 'photo.jpg')
+                        const r = await fetch(`/api/dogs/${params.id}/photo`, { method: 'POST', body: fd })
+                        const data = await r.json()
+                        setPhotoUrl(data.photoUrl)
+                        toast.success('Foto atualizada!')
+                      } catch { toast.error('Erro ao enviar foto') }
+                      finally { setUploadingDogPhoto(false) }
+                    }}
+                    className="btn-primary flex-1 flex items-center justify-center gap-2">
+                    <Check className="w-4 h-4" /> {uploadingDogPhoto ? 'Enviando...' : 'Confirmar'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-5">
             <button type="button" onClick={() => dogPhotoRef.current?.click()}
               disabled={uploadingDogPhoto}
