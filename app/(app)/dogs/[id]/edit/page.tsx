@@ -163,7 +163,7 @@ export default function EditDogPage() {
         {/* Dog photo */}
         <div className="card">
           <h2 className="font-semibold text-gray-800 mb-4">📷 Foto do Cão</h2>
-          <input ref={dogPhotoRef} type="file" accept="image/*" capture="environment" className="hidden"
+          <input ref={dogPhotoRef} type="file" accept="image/*" className="hidden"
             onChange={async (e) => {
               const file = e.target.files?.[0]
               if (!file) return
