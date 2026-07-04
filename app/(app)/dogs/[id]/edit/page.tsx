@@ -216,24 +216,33 @@ export default function EditDogPage() {
                   </button>
                   <button type="button" disabled={uploadingDogPhoto}
                     onClick={async () => {
-                      if (!imgRef.current || !crop) return
+                      if (!imgRef.current || !crop || !crop.width || !crop.height) return
                       const canvas = document.createElement('canvas')
                       const img = imgRef.current
-                      const scaleX = img.naturalWidth / img.width
-                      const scaleY = img.naturalHeight / img.height
+                      const naturalW = img.naturalWidth
+                      const naturalH = img.naturalHeight
+                      const displayW = img.width
+                      const displayH = img.height
                       const size = 512
                       canvas.width = size
                       canvas.height = size
                       const ctx = canvas.getContext('2d')!
-                      ctx.drawImage(
-                        img,
-                        (crop.x ?? 0) * scaleX,
-                        (crop.y ?? 0) * scaleY,
-                        (crop.width ?? img.width) * scaleX,
-                        (crop.height ?? img.height) * scaleY,
-                        0, 0, size, size
-                      )
-                      const blob = await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), 'image/jpeg', 0.9))
+                      let srcX: number, srcY: number, srcW: number, srcH: number
+                      if (crop.unit === '%') {
+                        srcX = (crop.x / 100) * naturalW
+                        srcY = (crop.y / 100) * naturalH
+                        srcW = (crop.width / 100) * naturalW
+                        srcH = (crop.height / 100) * naturalH
+                      } else {
+                        const scaleX = naturalW / displayW
+                        const scaleY = naturalH / displayH
+                        srcX = crop.x * scaleX
+                        srcY = crop.y * scaleY
+                        srcW = crop.width * scaleX
+                        srcH = crop.height * scaleY
+                      }
+                      ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, size, size)
+                      const blob = await new Promise<Blob>((res, rej) => canvas.toBlob((b) => b ? res(b) : rej(new Error('toBlob falhou')), 'image/jpeg', 0.9))
                       setUploadingDogPhoto(true)
                       setShowCropModal(false)
                       setCropSrc(null)
@@ -241,10 +250,11 @@ export default function EditDogPage() {
                         const fd = new FormData()
                         fd.append('photo', blob, 'photo.jpg')
                         const r = await fetch(`/api/dogs/${params.id}/photo`, { method: 'POST', body: fd })
+                        if (!r.ok) throw new Error(await r.text())
                         const data = await r.json()
                         setPhotoUrl(data.photoUrl)
                         toast.success('Foto atualizada!')
-                      } catch { toast.error('Erro ao enviar foto') }
+                      } catch (err) { toast.error('Erro ao enviar foto') }
                       finally { setUploadingDogPhoto(false) }
                     }}
                     className="btn-primary flex-1 flex items-center justify-center gap-2">
