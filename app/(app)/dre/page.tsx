@@ -158,7 +158,7 @@ export default function DrePage() {
   const [entries, setEntries] = useState<FinancialEntry[]>([])
   const [salesByMonth, setSalesByMonth] = useState<SalesMonth[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedPeriod, setSelectedPeriod] = useState('ALL')
+  const [selectedPeriods, setSelectedPeriods] = useState<string[]>([])  // vazio = ALL
   const [openDrill, setOpenDrill] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
@@ -178,19 +178,29 @@ export default function DrePage() {
 
   const toggleDrill = (key: string) => setOpenDrill(prev => prev === key ? null : key)
 
+  const togglePeriod = (p: string) => {
+    setOpenDrill(null)
+    setSelectedPeriods(prev =>
+      prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
+    )
+  }
+  const selectAll = () => { setSelectedPeriods([]); setOpenDrill(null) }
+  const isAll = selectedPeriods.length === 0
+
   const finPeriods = Array.from(new Set(entries.map(e => e.period))).sort()
   const salesPeriods = salesByMonth.map(s => s.month).sort()
   const allPeriods = Array.from(new Set([...finPeriods, ...salesPeriods])).sort()
+  const selectablePeriods = allPeriods.filter(p => p !== 'PRE_INAUGURACAO')
 
-  const filteredEntries = selectedPeriod === 'ALL' ? entries : entries.filter(e => e.period === selectedPeriod)
+  const activePeriods = isAll ? selectablePeriods : selectedPeriods
 
-  let totalReceita = 0
-  if (selectedPeriod === 'ALL') {
-    totalReceita = salesByMonth.reduce((s, m) => s + m.net, 0)
-  } else {
-    const sm = salesByMonth.find(m => m.month === selectedPeriod)
-    totalReceita = sm ? sm.net : 0
-  }
+  const filteredEntries = isAll
+    ? entries.filter(e => e.period !== 'PRE_INAUGURACAO')
+    : entries.filter(e => selectedPeriods.includes(e.period))
+
+  const totalReceita = salesByMonth
+    .filter(m => activePeriods.includes(m.month))
+    .reduce((s, m) => s + m.net, 0)
 
   const byCategoryEntries: Record<string, FinancialEntry[]> = {}
   for (const e of filteredEntries) {
@@ -214,9 +224,17 @@ export default function DrePage() {
   const resultadoOperacional = totalReceita - totalOpex
   const resultadoLiquido = totalReceita - totalOpex - totalCapex
 
-  const salesPeriodData = selectedPeriod === 'ALL'
-    ? { net: totalReceita, received: salesByMonth.reduce((s, m) => s + m.received, 0), count: salesByMonth.reduce((s, m) => s + m.count, 0) }
-    : salesByMonth.find(m => m.month === selectedPeriod) || { net: 0, received: 0, count: 0 }
+  const salesPeriodData = {
+    net: totalReceita,
+    received: salesByMonth.filter(m => activePeriods.includes(m.month)).reduce((s, m) => s + m.received, 0),
+    count: salesByMonth.filter(m => activePeriods.includes(m.month)).reduce((s, m) => s + m.count, 0),
+  }
+
+  const periodRangeLabel = isAll
+    ? 'Acumulado (todos os meses)'
+    : selectedPeriods.length === 1
+      ? periodLabel(selectedPeriods[0])
+      : `${periodLabel(selectedPeriods[0])} → ${periodLabel(selectedPeriods[selectedPeriods.length - 1])} (${selectedPeriods.length} meses)`
 
   return (
     <div className="max-w-4xl mx-auto space-y-5">
@@ -235,23 +253,38 @@ export default function DrePage() {
       </div>
 
       {/* Period selector */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap gap-2 items-center">
-        <span className="text-xs font-semibold text-gray-500 uppercase mr-1">Período:</span>
-        <button
-          onClick={() => setSelectedPeriod('ALL')}
-          className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${selectedPeriod === 'ALL' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-        >
-          Acumulado Total
-        </button>
-        {allPeriods.filter(p => p !== 'PRE_INAUGURACAO').map(p => (
+      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs font-semibold text-gray-500 uppercase mr-1">Período:</span>
           <button
-            key={p}
-            onClick={() => setSelectedPeriod(p)}
-            className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${selectedPeriod === p ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            onClick={selectAll}
+            className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${isAll ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
           >
-            {periodLabel(p)}
+            Todos
           </button>
-        ))}
+          {selectablePeriods.map(p => {
+            const active = selectedPeriods.includes(p)
+            return (
+              <button
+                key={p}
+                onClick={() => togglePeriod(p)}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-colors border ${
+                  active
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-transparent'
+                }`}
+              >
+                {periodLabel(p)}
+              </button>
+            )
+          })}
+        </div>
+        {!isAll && selectedPeriods.length > 0 && (
+          <div className="flex items-center gap-2 pt-1">
+            <span className="text-xs text-emerald-700 font-medium">✓ {selectedPeriods.length} mês{selectedPeriods.length > 1 ? 'es' : ''} selecionado{selectedPeriods.length > 1 ? 's' : ''}: {selectedPeriods.map(periodLabel).join(', ')}</span>
+            <button onClick={selectAll} className="text-xs text-gray-400 hover:text-red-500 underline">limpar</button>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -283,7 +316,7 @@ export default function DrePage() {
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
               <h2 className="font-bold text-gray-800">
-                DRE — {selectedPeriod === 'ALL' ? 'Acumulado Total' : periodLabel(selectedPeriod)}
+                DRE — {periodRangeLabel}
               </h2>
               <span className="text-xs text-gray-400 flex items-center gap-1"><ChevronRight className="w-3 h-3" /> clique nas linhas para detalhar</span>
             </div>
