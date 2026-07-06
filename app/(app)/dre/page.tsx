@@ -218,6 +218,25 @@ export default function DrePage() {
   const entradaCaixaEntries = filteredEntries.filter(e => e.type === 'E' && e.category === 'ENTRADA CAIXA')
   const totalEntradaCaixa = entradaCaixaEntries.reduce((s, e) => s + e.amount, 0)
 
+  // Módulo sócios — sempre acumulado total (independente do filtro de período)
+  const allSeba = entries.filter(e => e.account === 'SEBÁ')
+  const allVe = entries.filter(e => e.account === 'VÊ')
+  const allNice = entries.filter(e => e.account === 'NICE')
+  const sebaGastos = allSeba.filter(e => e.type === 'S').reduce((s, e) => s + e.amount, 0)
+  const veGastos = allVe.filter(e => e.type === 'S').reduce((s, e) => s + e.amount, 0)
+  const niceAportes = allNice.filter(e => e.type === 'E' && e.category === 'APORTE NICE').reduce((s, e) => s + e.amount, 0)
+  const sebaInvestido = sebaGastos + niceAportes
+  const veInvestido = veGastos
+  // Prolabore: ver por fornecedor para separar Sebá x Vê
+  const allProlabore = entries.filter(e => e.type === 'S' && e.category === 'PROLABORE')
+  const sebaRecuperado = allProlabore
+    .filter(e => !e.supplier || e.supplier.toUpperCase().includes('SEBÁ') || e.supplier.toUpperCase().includes('SEBA') || e.supplier.toUpperCase().includes('SEBASTIA') || e.supplier.toUpperCase().includes('RETIRADA'))
+    .reduce((s, e) => s + e.amount, 0)
+  const veRecuperado = allProlabore
+    .filter(e => e.supplier && (e.supplier.toUpperCase().includes('VÊ') || e.supplier.toUpperCase().includes('VE') || e.supplier.toUpperCase().includes('VERONI')))
+    .reduce((s, e) => s + e.amount, 0)
+  const prolaboreIndefinido = allProlabore.reduce((s,e)=>s+e.amount,0) - sebaRecuperado - veRecuperado
+
   const totalProlabore = byCategory['PROLABORE'] || 0
   const prolaboreEntries = byCategoryEntries['PROLABORE'] || []
   const totalOpex = OPEX_CATEGORIES.reduce((s, c) => s + (byCategory[c] || 0), 0)
@@ -484,6 +503,94 @@ export default function DrePage() {
                     onToggle={toggleDrill}
                   />
                 </>
+              )}
+            </div>
+          </div>
+
+          {/* MÓDULO SÓCIOS */}
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <h2 className="font-bold text-gray-800 text-sm">Retorno dos Sócios</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Acumulado total — quanto cada sócio investiu vs. já recuperou</p>
+            </div>
+            <div className="divide-y divide-gray-100">
+
+              {/* SEBÁ */}
+              {(() => {
+                const pct = sebaInvestido > 0 ? (sebaRecuperado / sebaInvestido) * 100 : 0
+                const saldo = sebaRecuperado - sebaInvestido
+                return (
+                  <div className="p-6 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-gray-800">Sebastião (Sebá)</span>
+                      <span className={`text-sm font-bold ${saldo >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        saldo: {saldo >= 0 ? '+' : ''}{fmtMoney(saldo)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div className="bg-red-50 rounded-lg p-3">
+                        <div className="text-xs text-red-500 font-semibold uppercase mb-1">Investido</div>
+                        <div className="text-base font-bold text-red-700">{fmtMoney(sebaInvestido)}</div>
+                        <div className="text-[10px] text-red-400 mt-1">conta SEBÁ {fmtMoney(sebaGastos)} + NICE {fmtMoney(niceAportes)}</div>
+                      </div>
+                      <div className="bg-emerald-50 rounded-lg p-3">
+                        <div className="text-xs text-emerald-500 font-semibold uppercase mb-1">Recuperado</div>
+                        <div className="text-base font-bold text-emerald-700">{fmtMoney(sebaRecuperado)}</div>
+                        <div className="text-[10px] text-emerald-400 mt-1">via pró-labore / retiradas</div>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 font-semibold uppercase mb-1">% retorno</div>
+                        <div className="text-base font-bold text-gray-700">{pct.toFixed(1)}%</div>
+                        <div className="text-[10px] text-gray-400 mt-1">do total investido</div>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                      <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{width: `${Math.min(pct,100)}%`}} />
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* VÊ */}
+              {(() => {
+                const pct = veInvestido > 0 ? (veRecuperado / veInvestido) * 100 : 0
+                const saldo = veRecuperado - veInvestido
+                return (
+                  <div className="p-6 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-gray-800">Verônica (Vê)</span>
+                      <span className={`text-sm font-bold ${saldo >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        saldo: {saldo >= 0 ? '+' : ''}{fmtMoney(saldo)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div className="bg-red-50 rounded-lg p-3">
+                        <div className="text-xs text-red-500 font-semibold uppercase mb-1">Investido</div>
+                        <div className="text-base font-bold text-red-700">{fmtMoney(veInvestido)}</div>
+                        <div className="text-[10px] text-red-400 mt-1">conta VÊ</div>
+                      </div>
+                      <div className="bg-emerald-50 rounded-lg p-3">
+                        <div className="text-xs text-emerald-500 font-semibold uppercase mb-1">Recuperado</div>
+                        <div className="text-base font-bold text-emerald-700">{fmtMoney(veRecuperado)}</div>
+                        <div className="text-[10px] text-emerald-400 mt-1">via pró-labore / retiradas</div>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 font-semibold uppercase mb-1">% retorno</div>
+                        <div className="text-base font-bold text-gray-700">{pct.toFixed(1)}%</div>
+                        <div className="text-[10px] text-gray-400 mt-1">do total investido</div>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                      <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{width: `${Math.min(pct,100)}%`}} />
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {prolaboreIndefinido > 0 && (
+                <div className="px-6 py-2 text-xs text-gray-400 italic">
+                  {fmtMoney(prolaboreIndefinido)} em retiradas sem sócio identificado no fornecedor
+                </div>
               )}
             </div>
           </div>
