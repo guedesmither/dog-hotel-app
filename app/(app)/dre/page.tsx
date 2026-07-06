@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { BarChart3, TrendingDown, TrendingUp, Minus, ShoppingBag } from 'lucide-react'
+import { BarChart3, TrendingDown, Minus, ShoppingBag, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
 
 interface FinancialEntry {
   id: string
@@ -9,6 +9,8 @@ interface FinancialEntry {
   date: string
   amount: number
   account: string
+  supplier?: string
+  description?: string
   category: string
   period: string
 }
@@ -68,6 +70,10 @@ function fmtMoney(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+function fmtDate(d: string) {
+  return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+}
+
 function periodLabel(p: string) {
   if (p === 'PRE_INAUGURACAO') return 'Pré-Inauguração'
   const [y, m] = p.split('-')
@@ -75,11 +81,85 @@ function periodLabel(p: string) {
   return `${months[parseInt(m) - 1]}/${y}`
 }
 
+function DrillDown({ entries, colorClass }: { entries: FinancialEntry[], colorClass: string }) {
+  if (!entries.length) return <div className="px-10 py-3 text-xs text-gray-400 italic">Nenhum lançamento encontrado.</div>
+  return (
+    <div className="border-t border-dashed border-gray-200 bg-gray-50">
+      <div className={`px-10 py-1.5 grid grid-cols-[80px_1fr_120px_80px_100px] gap-2 text-[10px] font-bold uppercase text-gray-400 border-b border-gray-200`}>
+        <span>Data</span><span>Descrição / Fornecedor</span><span>Categoria</span><span>Conta</span><span className="text-right">Valor</span>
+      </div>
+      {entries.map(e => (
+        <div key={e.id} className="px-10 py-1.5 grid grid-cols-[80px_1fr_120px_80px_100px] gap-2 text-xs border-b border-gray-100 hover:bg-white transition-colors items-center">
+          <span className="text-gray-400 font-mono">{fmtDate(e.date)}</span>
+          <span className="text-gray-700 truncate">{e.description || e.supplier || '—'}{e.supplier && e.description ? <span className="text-gray-400 ml-1">· {e.supplier}</span> : ''}</span>
+          <span className="text-gray-500 text-[10px]">{e.category}</span>
+          <span className="text-gray-400 font-mono text-[10px]">{e.account}</span>
+          <span className={`text-right font-semibold font-mono ${colorClass}`}>{fmtMoney(e.amount)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function DreRow({
+  label,
+  value,
+  valueLabel,
+  indent = false,
+  bold = false,
+  colorClass = 'text-gray-700',
+  bgClass = '',
+  drillEntries,
+  drillKey,
+  openDrill,
+  onToggle,
+}: {
+  label: React.ReactNode
+  value: number
+  valueLabel?: string
+  indent?: boolean
+  bold?: boolean
+  colorClass?: string
+  bgClass?: string
+  drillEntries?: FinancialEntry[]
+  drillKey?: string
+  openDrill?: string | null
+  onToggle?: (key: string) => void
+}) {
+  const hasDrill = !!drillEntries && !!drillKey && !!onToggle
+  const isOpen = openDrill === drillKey
+
+  return (
+    <>
+      <div
+        className={`flex justify-between items-center ${indent ? 'px-8' : 'px-6'} py-2 ${bgClass} ${hasDrill ? 'cursor-pointer hover:brightness-95 transition-all select-none' : ''}`}
+        onClick={() => hasDrill && onToggle!(drillKey!)}
+      >
+        <div className="flex items-center gap-1.5">
+          {hasDrill && (
+            isOpen
+              ? <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              : <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+          )}
+          <span className={`text-sm ${bold ? 'font-bold uppercase tracking-wide' : ''} ${colorClass}`}>{label}</span>
+        </div>
+        <span className={`text-sm ${bold ? 'font-bold text-base' : 'font-medium'} ${colorClass}`}>
+          {valueLabel ?? fmtMoney(value)}
+        </span>
+      </div>
+      {hasDrill && isOpen && (
+        <DrillDown entries={drillEntries!} colorClass={colorClass} />
+      )}
+    </>
+  )
+}
+
 export default function DrePage() {
   const [entries, setEntries] = useState<FinancialEntry[]>([])
   const [salesByMonth, setSalesByMonth] = useState<SalesMonth[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState('ALL')
+  const [openDrill, setOpenDrill] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -96,15 +176,14 @@ export default function DrePage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // All periods from both sources
+  const toggleDrill = (key: string) => setOpenDrill(prev => prev === key ? null : key)
+
   const finPeriods = Array.from(new Set(entries.map(e => e.period))).sort()
   const salesPeriods = salesByMonth.map(s => s.month).sort()
   const allPeriods = Array.from(new Set([...finPeriods, ...salesPeriods])).sort()
 
-  // Filter entries by period
   const filteredEntries = selectedPeriod === 'ALL' ? entries : entries.filter(e => e.period === selectedPeriod)
 
-  // Receita operacional: vem das vendas do módulo de vendas (pago + pendente + programado = competência)
   let totalReceita = 0
   if (selectedPeriod === 'ALL') {
     totalReceita = salesByMonth.reduce((s, m) => s + m.net, 0)
@@ -113,24 +192,28 @@ export default function DrePage() {
     totalReceita = sm ? sm.net : 0
   }
 
-  // Despesas por categoria
-  const byCategory: Record<string, number> = {}
+  const byCategoryEntries: Record<string, FinancialEntry[]> = {}
   for (const e of filteredEntries) {
     if (e.type === 'S') {
-      byCategory[e.category] = (byCategory[e.category] || 0) + e.amount
+      if (!byCategoryEntries[e.category]) byCategoryEntries[e.category] = []
+      byCategoryEntries[e.category].push(e)
     }
   }
+  const byCategory: Record<string, number> = {}
+  for (const [cat, list] of Object.entries(byCategoryEntries)) {
+    byCategory[cat] = list.reduce((s, e) => s + e.amount, 0)
+  }
 
-  // Aportes de capital (NICE) — não entram no resultado operacional
-  const totalAporteNice = filteredEntries.filter(e => e.type === 'E' && e.category === 'APORTE NICE').reduce((s, e) => s + e.amount, 0)
-  const totalAdiantamento = filteredEntries.filter(e => e.type === 'S' && e.category === 'ADIANTAMENTO SÓCIO').reduce((s, e) => s + e.amount, 0)
+  const aporteNiceEntries = filteredEntries.filter(e => e.type === 'E' && e.category === 'APORTE NICE')
+  const totalAporteNice = aporteNiceEntries.reduce((s, e) => s + e.amount, 0)
+  const entradaCaixaEntries = filteredEntries.filter(e => e.type === 'E' && e.category === 'ENTRADA CAIXA')
+  const totalEntradaCaixa = entradaCaixaEntries.reduce((s, e) => s + e.amount, 0)
 
   const totalOpex = OPEX_CATEGORIES.reduce((s, c) => s + (byCategory[c] || 0), 0)
   const totalCapex = CAPEX_CATEGORIES.reduce((s, c) => s + (byCategory[c] || 0), 0)
   const resultadoOperacional = totalReceita - totalOpex
   const resultadoLiquido = totalReceita - totalOpex - totalCapex
 
-  // Vendas do período
   const salesPeriodData = selectedPeriod === 'ALL'
     ? { net: totalReceita, received: salesByMonth.reduce((s, m) => s + m.received, 0), count: salesByMonth.reduce((s, m) => s + m.count, 0) }
     : salesByMonth.find(m => m.month === selectedPeriod) || { net: 0, received: 0, count: 0 }
@@ -198,14 +281,15 @@ export default function DrePage() {
 
           {/* DRE Table */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
               <h2 className="font-bold text-gray-800">
                 DRE — {selectedPeriod === 'ALL' ? 'Acumulado Total' : periodLabel(selectedPeriod)}
               </h2>
+              <span className="text-xs text-gray-400 flex items-center gap-1"><ChevronRight className="w-3 h-3" /> clique nas linhas para detalhar</span>
             </div>
             <div className="divide-y divide-gray-100">
 
-              {/* RECEITA OPERACIONAL — vem de Sales */}
+              {/* RECEITA OPERACIONAL */}
               <div className="px-6 py-3 bg-emerald-50">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-emerald-800 text-sm uppercase tracking-wide">(+) Receita Operacional Bruta</span>
@@ -213,13 +297,30 @@ export default function DrePage() {
                 </div>
               </div>
               <div className="px-8 py-2 flex justify-between items-center">
-                <span className="text-sm text-gray-500 italic flex items-center gap-1.5"><ShoppingBag className="w-3.5 h-3.5" />Vendas (módulo de vendas) — competência</span>
+                <span className="text-sm text-gray-500 italic flex items-center gap-1.5">
+                  <ShoppingBag className="w-3.5 h-3.5" />Vendas (módulo de vendas) — competência
+                  <a href="/vendas" className="ml-1 text-emerald-600 hover:underline flex items-center gap-0.5 text-xs"><ExternalLink className="w-3 h-3" />ver vendas</a>
+                </span>
                 <span className="text-sm font-medium text-emerald-700">{fmtMoney(totalReceita)}</span>
               </div>
               <div className="px-8 py-2 flex justify-between items-center">
                 <span className="text-sm text-gray-400 italic">↳ Recebido em caixa</span>
                 <span className="text-sm text-gray-500">{fmtMoney(salesPeriodData.received)}</span>
               </div>
+
+              {/* Entrada Caixa — drill */}
+              {totalEntradaCaixa > 0 && (
+                <DreRow
+                  label={<span className="italic text-gray-400">↳ Entradas de caixa registradas (Pix clientes)</span>}
+                  value={totalEntradaCaixa}
+                  indent
+                  colorClass="text-gray-500"
+                  drillEntries={entradaCaixaEntries}
+                  drillKey="ENTRADA_CAIXA"
+                  openDrill={openDrill}
+                  onToggle={toggleDrill}
+                />
+              )}
 
               {/* DESPESAS OPERACIONAIS */}
               <div className="px-6 py-3 bg-orange-50">
@@ -232,10 +333,18 @@ export default function DrePage() {
                 const val = byCategory[cat] || 0
                 if (!val) return null
                 return (
-                  <div key={cat} className="px-8 py-2 flex justify-between items-center">
-                    <span className="text-sm text-gray-600">{CATEGORY_LABELS[cat] || cat}</span>
-                    <span className="text-sm font-medium text-orange-700">({fmtMoney(val)})</span>
-                  </div>
+                  <DreRow
+                    key={cat}
+                    label={CATEGORY_LABELS[cat] || cat}
+                    value={val}
+                    valueLabel={`(${fmtMoney(val)})`}
+                    indent
+                    colorClass="text-orange-700"
+                    drillEntries={byCategoryEntries[cat] || []}
+                    drillKey={`opex_${cat}`}
+                    openDrill={openDrill}
+                    onToggle={toggleDrill}
+                  />
                 )
               })}
 
@@ -262,10 +371,18 @@ export default function DrePage() {
                 const val = byCategory[cat] || 0
                 if (!val) return null
                 return (
-                  <div key={cat} className="px-8 py-2 flex justify-between items-center">
-                    <span className="text-sm text-gray-600">{CATEGORY_LABELS[cat] || cat}</span>
-                    <span className="text-sm font-medium text-slate-600">({fmtMoney(val)})</span>
-                  </div>
+                  <DreRow
+                    key={cat}
+                    label={CATEGORY_LABELS[cat] || cat}
+                    value={val}
+                    valueLabel={`(${fmtMoney(val)})`}
+                    indent
+                    colorClass="text-slate-600"
+                    drillEntries={byCategoryEntries[cat] || []}
+                    drillKey={`capex_${cat}`}
+                    openDrill={openDrill}
+                    onToggle={toggleDrill}
+                  />
                 )
               })}
 
@@ -281,24 +398,24 @@ export default function DrePage() {
                 </div>
               </div>
 
-              {/* APORTES DE CAPITAL — informativo, não entra no resultado */}
-              {(totalAporteNice > 0 || totalAdiantamento > 0) && (
+              {/* APORTES DE CAPITAL — informativo */}
+              {totalAporteNice > 0 && (
                 <>
                   <div className="px-6 py-2 bg-violet-50 border-t border-violet-200">
-                    <span className="text-xs font-bold text-violet-700 uppercase">Aportes de Capital e Adiantamentos (informativo)</span>
+                    <span className="text-xs font-bold text-violet-700 uppercase">Aportes de Capital (informativo — não entra no resultado)</span>
                   </div>
-                  {totalAporteNice > 0 && (
-                    <div className="px-8 py-2 flex justify-between items-center">
-                      <span className="text-sm text-violet-700">Aporte de Capital (NICE)</span>
-                      <span className="text-sm font-medium text-violet-700">+{fmtMoney(totalAporteNice)}</span>
-                    </div>
-                  )}
-                  {totalAdiantamento > 0 && (
-                    <div className="px-8 py-2 flex justify-between items-center">
-                      <span className="text-sm text-violet-700">Adiantamento de Sócio</span>
-                      <span className="text-sm font-medium text-violet-700">({fmtMoney(totalAdiantamento)})</span>
-                    </div>
-                  )}
+                  <DreRow
+                    label="Aporte de Capital (NICE)"
+                    value={totalAporteNice}
+                    valueLabel={`+${fmtMoney(totalAporteNice)}`}
+                    indent
+                    colorClass="text-violet-700"
+                    bgClass="bg-violet-50/40"
+                    drillEntries={aporteNiceEntries}
+                    drillKey="APORTE_NICE"
+                    openDrill={openDrill}
+                    onToggle={toggleDrill}
+                  />
                 </>
               )}
             </div>
@@ -311,16 +428,29 @@ export default function DrePage() {
             </div>
             <div className="divide-y divide-gray-100">
               {['AUÊ', 'SEBÁ', 'VÊ', 'NICE'].map(acc => {
-                const saidas = filteredEntries.filter(e => e.type === 'S' && e.account === acc).reduce((s, e) => s + e.amount, 0)
+                const accEntries = filteredEntries.filter(e => e.type === 'S' && e.account === acc)
+                const saidas = accEntries.reduce((s, e) => s + e.amount, 0)
                 const entradas = filteredEntries.filter(e => e.type === 'E' && e.account === acc && e.category === 'APORTE NICE').reduce((s, e) => s + e.amount, 0)
                 if (!saidas && !entradas) return null
+                const isOpen = openDrill === `acc_${acc}`
                 return (
-                  <div key={acc} className="px-6 py-3 flex justify-between items-center">
-                    <span className="font-bold text-gray-700 text-sm">{acc}</span>
-                    <div className="flex gap-6 text-sm">
-                      {entradas > 0 && <span className="text-violet-600 font-medium">aporte +{fmtMoney(entradas)}</span>}
-                      {saidas > 0 && <span className="text-red-600 font-medium">−{fmtMoney(saidas)}</span>}
+                  <div key={acc}>
+                    <div
+                      className="px-6 py-3 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => saidas > 0 && toggleDrill(`acc_${acc}`)}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        {saidas > 0 && (isOpen ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />)}
+                        <span className="font-bold text-gray-700 text-sm">{acc}</span>
+                      </div>
+                      <div className="flex gap-6 text-sm">
+                        {entradas > 0 && <span className="text-violet-600 font-medium">aporte +{fmtMoney(entradas)}</span>}
+                        {saidas > 0 && <span className="text-red-600 font-medium">−{fmtMoney(saidas)}</span>}
+                      </div>
                     </div>
+                    {isOpen && saidas > 0 && (
+                      <DrillDown entries={accEntries} colorClass="text-red-600" />
+                    )}
                   </div>
                 )
               })}
