@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { BarChart3, TrendingDown, TrendingUp, Minus } from 'lucide-react'
+import { BarChart3, TrendingDown, TrendingUp, Minus, ShoppingBag } from 'lucide-react'
 
 interface FinancialEntry {
   id: string
@@ -13,48 +13,35 @@ interface FinancialEntry {
   period: string
 }
 
-// DRE structure — Brazilian standard
-const DRE_STRUCTURE = [
-  {
-    group: 'RECEITA BRUTA',
-    type: 'E',
-    categories: ['APORTE SÓCIOS'],
-    label: '(+) Receita Operacional Bruta',
-    isTotal: false,
-  },
-  {
-    group: 'DESPESAS OPERACIONAIS',
-    type: 'S',
-    categories: [
-      'FOLHA SALARIAL',
-      'PROLABORE',
-      'ALUGUEL',
-      'ÁGUA',
-      'ENERGIA ELÉTRICA',
-      'INTERNET',
-      'CONTABILIDADE',
-      'COMUNICAÇÃO E MARKETING',
-      'MATERIAL LIMPEZA',
-      'IMPOSTO IPTU',
-      'ASSOCIAÇÃO',
-      'TAXA JUNTA COMERCIAL',
-      'TAXA BOMBEIROS',
-      'SISTEMA CARTÃO',
-      'OUTROS',
-    ],
-    label: '(−) Despesas Operacionais',
-    isTotal: false,
-  },
-  {
-    group: 'INVESTIMENTO / ESTRUTURA',
-    type: 'S',
-    categories: ['OBRA', 'INFRAESTRUTURA'],
-    label: '(−) Investimentos em Estrutura',
-    isTotal: false,
-  },
+interface SalesMonth {
+  month: string
+  gross: number
+  net: number
+  received: number
+  count: number
+}
+
+const OPEX_CATEGORIES = [
+  'FOLHA SALARIAL',
+  'PROLABORE',
+  'ALUGUEL',
+  'ÁGUA',
+  'ENERGIA ELÉTRICA',
+  'INTERNET',
+  'CONTABILIDADE',
+  'COMUNICAÇÃO E MARKETING',
+  'MATERIAL LIMPEZA',
+  'IMPOSTO IPTU',
+  'ASSOCIAÇÃO',
+  'TAXA JUNTA COMERCIAL',
+  'TAXA BOMBEIROS',
+  'SISTEMA CARTÃO',
+  'OUTROS',
 ]
 
-const GROUP_DETAIL_LABELS: Record<string, string> = {
+const CAPEX_CATEGORIES = ['OBRA', 'INFRAESTRUTURA']
+
+const CATEGORY_LABELS: Record<string, string> = {
   'FOLHA SALARIAL': 'Folha Salarial',
   'PROLABORE': 'Pró-labore',
   'ALUGUEL': 'Aluguel',
@@ -72,7 +59,9 @@ const GROUP_DETAIL_LABELS: Record<string, string> = {
   'OUTROS': 'Outros',
   'OBRA': 'Obra / Construção',
   'INFRAESTRUTURA': 'Infraestrutura / Equipamentos',
-  'APORTE SÓCIOS': 'Aporte dos Sócios',
+  'APORTE NICE': 'Aporte de Capital (NICE)',
+  'ADIANTAMENTO SÓCIO': 'Adiantamento de Sócio',
+  'ENTRADA CAIXA': 'Entrada de Caixa',
 }
 
 function fmtMoney(v: number) {
@@ -88,44 +77,63 @@ function periodLabel(p: string) {
 
 export default function DrePage() {
   const [entries, setEntries] = useState<FinancialEntry[]>([])
+  const [salesByMonth, setSalesByMonth] = useState<SalesMonth[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState('ALL')
 
-  const fetchEntries = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/financeiro')
-    const data = await res.json()
-    setEntries(Array.isArray(data) ? data : [])
+    const [finRes, salesRes] = await Promise.all([
+      fetch('/api/financeiro'),
+      fetch('/api/sales/analytics'),
+    ])
+    const finData = await finRes.json()
+    const salesData = await salesRes.json()
+    setEntries(Array.isArray(finData) ? finData : [])
+    setSalesByMonth(Array.isArray(salesData?.byMonth) ? salesData.byMonth : [])
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchEntries() }, [fetchEntries])
+  useEffect(() => { fetchData() }, [fetchData])
 
-  const periods = Array.from(new Set(entries.map(e => e.period))).sort()
+  // All periods from both sources
+  const finPeriods = Array.from(new Set(entries.map(e => e.period))).sort()
+  const salesPeriods = salesByMonth.map(s => s.month).sort()
+  const allPeriods = Array.from(new Set([...finPeriods, ...salesPeriods])).sort()
 
-  const filtered = selectedPeriod === 'ALL' ? entries : entries.filter(e => e.period === selectedPeriod)
+  // Filter entries by period
+  const filteredEntries = selectedPeriod === 'ALL' ? entries : entries.filter(e => e.period === selectedPeriod)
 
-  // Compute totals per category
+  // Receita operacional: vem das vendas do módulo de vendas (pago + pendente + programado = competência)
+  let totalReceita = 0
+  if (selectedPeriod === 'ALL') {
+    totalReceita = salesByMonth.reduce((s, m) => s + m.net, 0)
+  } else {
+    const sm = salesByMonth.find(m => m.month === selectedPeriod)
+    totalReceita = sm ? sm.net : 0
+  }
+
+  // Despesas por categoria
   const byCategory: Record<string, number> = {}
-  for (const e of filtered) {
-    byCategory[e.category] = (byCategory[e.category] || 0) + e.amount
+  for (const e of filteredEntries) {
+    if (e.type === 'S') {
+      byCategory[e.category] = (byCategory[e.category] || 0) + e.amount
+    }
   }
 
-  // Group totals
-  const groupTotals: Record<string, number> = {}
-  for (const grp of DRE_STRUCTURE) {
-    groupTotals[grp.group] = grp.categories.reduce((s, c) => s + (byCategory[c] || 0), 0)
-  }
+  // Aportes de capital (NICE) — não entram no resultado operacional
+  const totalAporteNice = filteredEntries.filter(e => e.type === 'E' && e.category === 'APORTE NICE').reduce((s, e) => s + e.amount, 0)
+  const totalAdiantamento = filteredEntries.filter(e => e.type === 'S' && e.category === 'ADIANTAMENTO SÓCIO').reduce((s, e) => s + e.amount, 0)
 
-  const totalReceita = groupTotals['RECEITA BRUTA'] || 0
-  const totalOpex = groupTotals['DESPESAS OPERACIONAIS'] || 0
-  const totalCapex = groupTotals['INVESTIMENTO / ESTRUTURA'] || 0
+  const totalOpex = OPEX_CATEGORIES.reduce((s, c) => s + (byCategory[c] || 0), 0)
+  const totalCapex = CAPEX_CATEGORIES.reduce((s, c) => s + (byCategory[c] || 0), 0)
   const resultadoOperacional = totalReceita - totalOpex
   const resultadoLiquido = totalReceita - totalOpex - totalCapex
 
-  // Uncategorized
-  const allKnownCats = DRE_STRUCTURE.flatMap(g => g.categories)
-  const uncategorized = Object.entries(byCategory).filter(([c]) => !allKnownCats.includes(c))
+  // Vendas do período
+  const salesPeriodData = selectedPeriod === 'ALL'
+    ? { net: totalReceita, received: salesByMonth.reduce((s, m) => s + m.received, 0), count: salesByMonth.reduce((s, m) => s + m.count, 0) }
+    : salesByMonth.find(m => m.month === selectedPeriod) || { net: 0, received: 0, count: 0 }
 
   return (
     <div className="max-w-4xl mx-auto space-y-5">
@@ -152,7 +160,7 @@ export default function DrePage() {
         >
           Acumulado Total
         </button>
-        {periods.map(p => (
+        {allPeriods.filter(p => p !== 'PRE_INAUGURACAO').map(p => (
           <button
             key={p}
             onClick={() => setSelectedPeriod(p)}
@@ -170,8 +178,9 @@ export default function DrePage() {
           {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
-              <div className="text-xs font-bold text-emerald-600 uppercase mb-1 flex items-center justify-center gap-1"><TrendingUp className="w-3.5 h-3.5" />Aportes</div>
+              <div className="text-xs font-bold text-emerald-600 uppercase mb-1 flex items-center justify-center gap-1"><ShoppingBag className="w-3.5 h-3.5" />Receita</div>
               <div className="text-lg font-bold text-emerald-700">{fmtMoney(totalReceita)}</div>
+              <div className="text-xs text-emerald-500 mt-0.5">{salesPeriodData.count} venda{salesPeriodData.count !== 1 ? 's' : ''}</div>
             </div>
             <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center">
               <div className="text-xs font-bold text-orange-600 uppercase mb-1 flex items-center justify-center gap-1"><TrendingDown className="w-3.5 h-3.5" />Desp. Oper.</div>
@@ -196,33 +205,35 @@ export default function DrePage() {
             </div>
             <div className="divide-y divide-gray-100">
 
-              {/* RECEITA */}
+              {/* RECEITA OPERACIONAL — vem de Sales */}
               <div className="px-6 py-3 bg-emerald-50">
                 <div className="flex justify-between items-center">
-                  <span className="font-bold text-emerald-800 text-sm uppercase tracking-wide">Aportes / Entradas</span>
+                  <span className="font-bold text-emerald-800 text-sm uppercase tracking-wide">(+) Receita Operacional Bruta</span>
                   <span className="font-bold text-emerald-800 text-base">{fmtMoney(totalReceita)}</span>
                 </div>
               </div>
-              {DRE_STRUCTURE[0].categories.map(cat => (
-                <div key={cat} className="px-8 py-2 flex justify-between items-center">
-                  <span className="text-sm text-gray-600">{GROUP_DETAIL_LABELS[cat] || cat}</span>
-                  <span className="text-sm font-medium text-emerald-700">{fmtMoney(byCategory[cat] || 0)}</span>
-                </div>
-              ))}
+              <div className="px-8 py-2 flex justify-between items-center">
+                <span className="text-sm text-gray-500 italic flex items-center gap-1.5"><ShoppingBag className="w-3.5 h-3.5" />Vendas (módulo de vendas) — competência</span>
+                <span className="text-sm font-medium text-emerald-700">{fmtMoney(totalReceita)}</span>
+              </div>
+              <div className="px-8 py-2 flex justify-between items-center">
+                <span className="text-sm text-gray-400 italic">↳ Recebido em caixa</span>
+                <span className="text-sm text-gray-500">{fmtMoney(salesPeriodData.received)}</span>
+              </div>
 
               {/* DESPESAS OPERACIONAIS */}
-              <div className="px-6 py-3 bg-orange-50 mt-2">
+              <div className="px-6 py-3 bg-orange-50">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-orange-800 text-sm uppercase tracking-wide">(−) Despesas Operacionais</span>
                   <span className="font-bold text-orange-800 text-base">({fmtMoney(totalOpex)})</span>
                 </div>
               </div>
-              {DRE_STRUCTURE[1].categories.map(cat => {
+              {OPEX_CATEGORIES.map(cat => {
                 const val = byCategory[cat] || 0
                 if (!val) return null
                 return (
                   <div key={cat} className="px-8 py-2 flex justify-between items-center">
-                    <span className="text-sm text-gray-600">{GROUP_DETAIL_LABELS[cat] || cat}</span>
+                    <span className="text-sm text-gray-600">{CATEGORY_LABELS[cat] || cat}</span>
                     <span className="text-sm font-medium text-orange-700">({fmtMoney(val)})</span>
                   </div>
                 )
@@ -247,12 +258,12 @@ export default function DrePage() {
                   <span className="font-bold text-slate-700 text-base">({fmtMoney(totalCapex)})</span>
                 </div>
               </div>
-              {DRE_STRUCTURE[2].categories.map(cat => {
+              {CAPEX_CATEGORIES.map(cat => {
                 const val = byCategory[cat] || 0
                 if (!val) return null
                 return (
                   <div key={cat} className="px-8 py-2 flex justify-between items-center">
-                    <span className="text-sm text-gray-600">{GROUP_DETAIL_LABELS[cat] || cat}</span>
+                    <span className="text-sm text-gray-600">{CATEGORY_LABELS[cat] || cat}</span>
                     <span className="text-sm font-medium text-slate-600">({fmtMoney(val)})</span>
                   </div>
                 )
@@ -270,18 +281,24 @@ export default function DrePage() {
                 </div>
               </div>
 
-              {/* Uncategorized */}
-              {uncategorized.length > 0 && (
+              {/* APORTES DE CAPITAL — informativo, não entra no resultado */}
+              {(totalAporteNice > 0 || totalAdiantamento > 0) && (
                 <>
-                  <div className="px-6 py-2 bg-yellow-50 border-t border-yellow-200">
-                    <span className="text-xs font-bold text-yellow-700 uppercase">Categorias não mapeadas na DRE</span>
+                  <div className="px-6 py-2 bg-violet-50 border-t border-violet-200">
+                    <span className="text-xs font-bold text-violet-700 uppercase">Aportes de Capital e Adiantamentos (informativo)</span>
                   </div>
-                  {uncategorized.map(([cat, val]) => (
-                    <div key={cat} className="px-8 py-2 flex justify-between items-center">
-                      <span className="text-sm text-yellow-700">{cat}</span>
-                      <span className="text-sm font-medium text-yellow-700">{fmtMoney(val)}</span>
+                  {totalAporteNice > 0 && (
+                    <div className="px-8 py-2 flex justify-between items-center">
+                      <span className="text-sm text-violet-700">Aporte de Capital (NICE)</span>
+                      <span className="text-sm font-medium text-violet-700">+{fmtMoney(totalAporteNice)}</span>
                     </div>
-                  ))}
+                  )}
+                  {totalAdiantamento > 0 && (
+                    <div className="px-8 py-2 flex justify-between items-center">
+                      <span className="text-sm text-violet-700">Adiantamento de Sócio</span>
+                      <span className="text-sm font-medium text-violet-700">({fmtMoney(totalAdiantamento)})</span>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -290,18 +307,18 @@ export default function DrePage() {
           {/* Per-account breakdown */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-              <h2 className="font-bold text-gray-800 text-sm">Saídas por Conta</h2>
+              <h2 className="font-bold text-gray-800 text-sm">Despesas por Conta</h2>
             </div>
             <div className="divide-y divide-gray-100">
               {['AUÊ', 'SEBÁ', 'VÊ', 'NICE'].map(acc => {
-                const saidas = filtered.filter(e => e.type === 'S' && e.account === acc).reduce((s, e) => s + e.amount, 0)
-                const entradas = filtered.filter(e => e.type === 'E' && e.account === acc).reduce((s, e) => s + e.amount, 0)
+                const saidas = filteredEntries.filter(e => e.type === 'S' && e.account === acc).reduce((s, e) => s + e.amount, 0)
+                const entradas = filteredEntries.filter(e => e.type === 'E' && e.account === acc && e.category === 'APORTE NICE').reduce((s, e) => s + e.amount, 0)
                 if (!saidas && !entradas) return null
                 return (
                   <div key={acc} className="px-6 py-3 flex justify-between items-center">
                     <span className="font-bold text-gray-700 text-sm">{acc}</span>
                     <div className="flex gap-6 text-sm">
-                      {entradas > 0 && <span className="text-emerald-600 font-medium">+{fmtMoney(entradas)}</span>}
+                      {entradas > 0 && <span className="text-violet-600 font-medium">aporte +{fmtMoney(entradas)}</span>}
                       {saidas > 0 && <span className="text-red-600 font-medium">−{fmtMoney(saidas)}</span>}
                     </div>
                   </div>
