@@ -225,7 +225,9 @@ export default function DrePage() {
   const sebaGastos = allSeba.filter(e => e.type === 'S').reduce((s, e) => s + e.amount, 0)
   const veGastos = allVe.filter(e => e.type === 'S').reduce((s, e) => s + e.amount, 0)
   const niceAportes = allNice.filter(e => e.type === 'E' && e.category === 'APORTE NICE').reduce((s, e) => s + e.amount, 0)
-  const sebaInvestido = sebaGastos + niceAportes
+  // NICE aportou NA conta do Sebá — esse dinheiro cobriu parte dos gastos
+  // O que Sebá gastou DE FATO do bolso = gastos conta SEBÁ - aportes NICE
+  const sebaInvestido = Math.max(0, sebaGastos - niceAportes)
   const veInvestido = veGastos
   // Prolabore: ver por fornecedor para separar Sebá x Vê
   const allProlabore = entries.filter(e => e.type === 'S' && e.category === 'PROLABORE')
@@ -531,7 +533,7 @@ export default function DrePage() {
                       <div className="bg-red-50 rounded-lg p-3">
                         <div className="text-xs text-red-500 font-semibold uppercase mb-1">Investido</div>
                         <div className="text-base font-bold text-red-700">{fmtMoney(sebaInvestido)}</div>
-                        <div className="text-[10px] text-red-400 mt-1">conta SEBÁ {fmtMoney(sebaGastos)} + NICE {fmtMoney(niceAportes)}</div>
+                        <div className="text-[10px] text-red-400 mt-1">conta SEBÁ {fmtMoney(sebaGastos)} − NICE {fmtMoney(niceAportes)}</div>
                       </div>
                       <div className="bg-emerald-50 rounded-lg p-3">
                         <div className="text-xs text-emerald-500 font-semibold uppercase mb-1">Recuperado</div>
