@@ -25,7 +25,6 @@ interface SalesMonth {
 
 const OPEX_CATEGORIES = [
   'FOLHA SALARIAL',
-  'PROLABORE',
   'ALUGUEL',
   'ÁGUA',
   'ENERGIA ELÉTRICA',
@@ -219,10 +218,13 @@ export default function DrePage() {
   const entradaCaixaEntries = filteredEntries.filter(e => e.type === 'E' && e.category === 'ENTRADA CAIXA')
   const totalEntradaCaixa = entradaCaixaEntries.reduce((s, e) => s + e.amount, 0)
 
+  const totalProlabore = byCategory['PROLABORE'] || 0
+  const prolaboreEntries = byCategoryEntries['PROLABORE'] || []
   const totalOpex = OPEX_CATEGORIES.reduce((s, c) => s + (byCategory[c] || 0), 0)
   const totalCapex = CAPEX_CATEGORIES.reduce((s, c) => s + (byCategory[c] || 0), 0)
   const resultadoOperacional = totalReceita - totalOpex
-  const resultadoLiquido = totalReceita - totalOpex - totalCapex
+  const resultadoAposRetiradasSocios = resultadoOperacional - totalProlabore
+  const resultadoLiquido = resultadoAposRetiradasSocios - totalCapex
 
   const salesPeriodData = {
     net: totalReceita,
@@ -385,13 +387,44 @@ export default function DrePage() {
               <div className={`px-6 py-3 border-t-2 border-gray-300 ${resultadoOperacional >= 0 ? 'bg-blue-50' : 'bg-red-50'}`}>
                 <div className="flex justify-between items-center">
                   <span className={`font-bold text-sm uppercase tracking-wide ${resultadoOperacional >= 0 ? 'text-blue-800' : 'text-red-800'}`}>
-                    (=) Resultado Operacional (EBITDA)
+                    (=) Resultado Operacional (antes das retiradas)
                   </span>
                   <span className={`font-bold text-base ${resultadoOperacional >= 0 ? 'text-blue-800' : 'text-red-800'}`}>
                     {fmtMoney(resultadoOperacional)}
                   </span>
                 </div>
               </div>
+
+              {/* PRÓ-LABORE — informativo, separado */}
+              {totalProlabore > 0 && (
+                <>
+                  <div className="px-6 py-2 bg-amber-50 border-t border-amber-100">
+                    <span className="text-xs font-bold text-amber-700 uppercase">Retiradas dos Sócios (pró-labore informal)</span>
+                  </div>
+                  <DreRow
+                    label="Pró-labore / Retiradas"
+                    value={totalProlabore}
+                    valueLabel={`(${fmtMoney(totalProlabore)})`}
+                    indent
+                    colorClass="text-amber-700"
+                    bgClass="bg-amber-50/40"
+                    drillEntries={prolaboreEntries}
+                    drillKey="PROLABORE"
+                    openDrill={openDrill}
+                    onToggle={toggleDrill}
+                  />
+                  <div className={`px-6 py-2.5 border-t border-dashed border-amber-200 ${resultadoAposRetiradasSocios >= 0 ? 'bg-amber-50' : 'bg-red-50'}`}>
+                    <div className="flex justify-between items-center">
+                      <span className={`text-sm font-bold uppercase tracking-wide ${resultadoAposRetiradasSocios >= 0 ? 'text-amber-800' : 'text-red-700'}`}>
+                        (=) Resultado após retiradas
+                      </span>
+                      <span className={`font-bold text-sm ${resultadoAposRetiradasSocios >= 0 ? 'text-amber-800' : 'text-red-700'}`}>
+                        {fmtMoney(resultadoAposRetiradasSocios)}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* INVESTIMENTOS */}
               <div className="px-6 py-3 bg-slate-50">
@@ -424,6 +457,7 @@ export default function DrePage() {
                 <div className="flex justify-between items-center">
                   <span className={`font-extrabold text-base uppercase tracking-wide ${resultadoLiquido >= 0 ? 'text-emerald-800' : 'text-red-800'}`}>
                     (=) Resultado Líquido do Período
+                    <span className="ml-2 text-xs font-normal normal-case opacity-60">(após retiradas e investimentos)</span>
                   </span>
                   <span className={`font-extrabold text-xl ${resultadoLiquido >= 0 ? 'text-emerald-800' : 'text-red-800'}`}>
                     {fmtMoney(resultadoLiquido)}
