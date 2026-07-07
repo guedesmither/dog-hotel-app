@@ -34,11 +34,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Campos obrigatórios: type, date, amount, account, category' }, { status: 400 })
   }
 
-  const INAUGURATION_DATE = new Date('2026-02-07')
-  const entryDate = new Date(date)
+  const INAUGURATION_DATE = new Date('2026-02-07T12:00:00Z')
+  const dateOnly = date.toString().split('T')[0]
+  const entryDate = new Date(dateOnly + 'T12:00:00Z')
   const period = entryDate < INAUGURATION_DATE
     ? 'PRE_INAUGURACAO'
-    : `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}`
+    : `${entryDate.getUTCFullYear()}-${String(entryDate.getUTCMonth() + 1).padStart(2, '0')}`
 
   const entry = await prisma.financialEntry.create({
     data: {

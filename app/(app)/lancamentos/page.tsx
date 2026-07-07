@@ -55,8 +55,8 @@ const EMPTY_FORM = {
 }
 
 function fmtDate(iso: string) {
-  const d = new Date(iso)
-  return d.toLocaleDateString('pt-BR')
+  const d = iso.split('T')[0].split('-')
+  return `${d[2]}/${d[1]}/${d[0]}`
 }
 
 function fmtMoney(v: number) {
@@ -423,15 +423,13 @@ export default function LancamentosPage() {
                 <textarea className="w-full border rounded-lg px-3 py-2 text-sm resize-none" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
               </div>
 
-              {form.date && (
-                <p className="text-xs text-gray-400">
-                  Período: <strong>{periodLabel(
-                    new Date(form.date) < new Date('2026-02-07')
-                      ? 'PRE_INAUGURACAO'
-                      : `${new Date(form.date).getFullYear()}-${String(new Date(form.date).getMonth() + 1).padStart(2, '0')}`
-                  )}</strong>
-                </p>
-              )}
+              {form.date && (() => {
+                const fd = new Date(form.date + 'T12:00:00Z')
+                const per = fd < new Date('2026-02-07T12:00:00Z')
+                  ? 'PRE_INAUGURACAO'
+                  : `${fd.getUTCFullYear()}-${String(fd.getUTCMonth() + 1).padStart(2, '0')}`
+                return <p className="text-xs text-gray-400">Período: <strong>{periodLabel(per)}</strong></p>
+              })()}
             </div>
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end">
               <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-600 hover:bg-gray-50">
