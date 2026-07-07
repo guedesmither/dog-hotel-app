@@ -6,9 +6,39 @@ import {
   AlertTriangle, CheckCircle, Clock, ArrowUpRight, ArrowDownRight,
   Minus, Users, Wallet, Building2
 } from 'lucide-react'
+import {
+  PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine
+} from 'recharts'
 
 const OPEX_CATS = ['FOLHA SALARIAL','ALUGUEL','ÁGUA','ENERGIA ELÉTRICA','INTERNET','CONTABILIDADE','COMUNICAÇÃO E MARKETING','MATERIAL LIMPEZA','IMPOSTO IPTU','ASSOCIAÇÃO','TAXA JUNTA COMERCIAL','TAXA BOMBEIROS','SISTEMA CARTÃO','OUTROS']
 const CAPEX_CATS = ['OBRA','INFRAESTRUTURA']
+
+const CAT_LABELS: Record<string, string> = {
+  'FOLHA SALARIAL': 'Folha',
+  'ALUGUEL': 'Aluguel',
+  'ÁGUA': 'Água',
+  'ENERGIA ELÉTRICA': 'Energia',
+  'INTERNET': 'Internet',
+  'CONTABILIDADE': 'Contabil.',
+  'COMUNICAÇÃO E MARKETING': 'Marketing',
+  'MATERIAL LIMPEZA': 'Limpeza',
+  'IMPOSTO IPTU': 'IPTU',
+  'ASSOCIAÇÃO': 'Associação',
+  'TAXA JUNTA COMERCIAL': 'Junta Com.',
+  'TAXA BOMBEIROS': 'Bombeiros',
+  'SISTEMA CARTÃO': 'Cartão',
+  'OUTROS': 'Outros',
+  'OBRA': 'Obra',
+  'INFRAESTRUTURA': 'Infra',
+  'PROLABORE': 'Pró-labore',
+}
+
+const PIE_COLORS = [
+  '#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6',
+  '#06b6d4','#f97316','#84cc16','#ec4899','#6366f1',
+  '#14b8a6','#a78bfa','#fb923c','#4ade80','#60a5fa',
+]
 
 interface MonthData {
   month: string
@@ -23,6 +53,12 @@ interface MonthData {
   resultadoOp: number
   resultadoLiq: number
   margemOp: number
+}
+
+interface CatTotal {
+  name: string
+  value: number
+  pct: number
 }
 
 function fmtMoney(v: number, showSign = false) {
@@ -81,6 +117,7 @@ function StatusBadge({ value, threshold = 0 }: { value: number; threshold?: numb
 
 export default function ExecutivoPage() {
   const [months, setMonths] = useState<MonthData[]>([])
+  const [catTotals, setCatTotals] = useState<CatTotal[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -97,6 +134,9 @@ export default function ExecutivoPage() {
         if (!map[m]) map[m] = { month: m, receita: 0, recebido: 0, vendas: 0, opex: 0, capex: 0, prolabore: 0, aporte: 0, entradaCaixa: 0, resultadoOp: 0, resultadoLiq: 0, margemOp: 0 }
       }
 
+      // Acumulado por categoria (pós-inauguração, apenas saídas)
+      const catMap: Record<string, number> = {}
+
       for (const e of fin) {
         if (e.period === 'PRE_INAUGURACAO') continue
         ensure(e.period)
@@ -106,6 +146,10 @@ export default function ExecutivoPage() {
         if (e.type === 'S' && e.category === 'PROLABORE') m.prolabore += e.amount
         if (e.type === 'E' && e.category === 'APORTE NICE') m.aporte += e.amount
         if (e.type === 'E' && e.category === 'ENTRADA CAIXA') m.entradaCaixa += e.amount
+        // Para pizza — todas as saídas exceto aplicação financeira
+        if (e.type === 'S' && e.category !== 'APLICAÇÃO FINANCEIRA') {
+          catMap[e.category] = (catMap[e.category] || 0) + e.amount
+        }
       }
       for (const sm of (sales.byMonth || [])) {
         ensure(sm.month)
@@ -124,7 +168,13 @@ export default function ExecutivoPage() {
         }))
         .sort((a, b) => a.month.localeCompare(b.month))
 
+      const totalGastos = Object.values(catMap).reduce((s, v) => s + v, 0)
+      const cats: CatTotal[] = Object.entries(catMap)
+        .map(([name, value]) => ({ name, value, pct: (value / totalGastos) * 100 }))
+        .sort((a, b) => b.value - a.value)
+
       setMonths(result)
+      setCatTotals(cats)
       setLoading(false)
     }
     load()
@@ -292,44 +342,98 @@ export default function ExecutivoPage() {
         </div>
       </div>
 
-      {/* Barra de progresso visual por mês */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-6">
-        <h2 className="font-bold text-gray-800 mb-5">Receita vs OPEX — Mês a Mês</h2>
-        <div className="space-y-3">
-          {opMonths.map(m => {
-            const max = Math.max(...opMonths.map(x => Math.max(x.receita, x.opex))) || 1
-            const pctReceita = (m.receita / max) * 100
-            const pctOpex = (m.opex / max) * 100
-            return (
-              <div key={m.month}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-bold text-gray-600 w-12">{periodLabel(m.month)}</span>
-                  <div className="flex-1 mx-3 space-y-1">
-                    <div className="flex items-center gap-1">
-                      <div className="bg-gray-100 rounded-full flex-1 h-3 overflow-hidden">
-                        <div className="bg-emerald-400 h-3 rounded-full transition-all" style={{ width: `${pctReceita}%` }} />
-                      </div>
-                      <span className="text-xs font-mono text-emerald-600 w-24 text-right">{fmtMoney(m.receita)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="bg-gray-100 rounded-full flex-1 h-3 overflow-hidden">
-                        <div className="bg-orange-400 h-3 rounded-full transition-all" style={{ width: `${pctOpex}%` }} />
-                      </div>
-                      <span className="text-xs font-mono text-orange-500 w-24 text-right">{fmtMoney(m.opex)}</span>
-                    </div>
-                  </div>
-                  <span className={`text-xs font-bold w-20 text-right ${m.resultadoOp >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
-                    {fmtMoney(m.resultadoOp, true)}
-                  </span>
-                </div>
+      {/* GRÁFICOS — pizza + linha lado a lado */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        {/* Pizza — breakdown de gastos acumulados */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-6">
+          <h2 className="font-bold text-gray-800 mb-1">Breakdown de Gastos</h2>
+          <p className="text-xs text-gray-400 mb-4">Acumulado pós-inauguração — todas as categorias de saída</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie
+                data={catTotals}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={2}
+                dataKey="value"
+                nameKey="name"
+              >
+                {catTotals.map((entry, i) => (
+                  <Cell key={entry.name} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value: any, name: any) => [
+                  Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+                  CAT_LABELS[String(name)] || String(name)
+                ]}
+                contentStyle={{ fontSize: 12, borderRadius: 8 }}
+              />
+              <Legend
+                formatter={(value) => <span className="text-xs">{CAT_LABELS[value] || value}</span>}
+                iconSize={8}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          {/* Top 3 */}
+          <div className="mt-3 space-y-1.5">
+            {catTotals.slice(0, 5).map((c, i) => (
+              <div key={c.name} className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                <span className="text-xs text-gray-600 flex-1 truncate">{CAT_LABELS[c.name] || c.name}</span>
+                <span className="text-xs font-mono text-gray-500">{c.pct.toFixed(1)}%</span>
+                <span className="text-xs font-mono font-semibold text-gray-700 w-24 text-right">
+                  {c.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </span>
               </div>
-            )
-          })}
-          <div className="flex items-center gap-4 pt-2 text-xs text-gray-400">
-            <span className="flex items-center gap-1"><span className="w-3 h-2 rounded bg-emerald-400 inline-block" /> Receita</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-2 rounded bg-orange-400 inline-block" /> OPEX</span>
+            ))}
           </div>
         </div>
+
+        {/* Linha — tendência receita vs OPEX vs resultado */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-6">
+          <h2 className="font-bold text-gray-800 mb-1">Tendência Financeira</h2>
+          <p className="text-xs text-gray-400 mb-4">Receita, OPEX e resultado operacional por mês</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart
+              data={opMonths.map(m => ({
+                mes: periodLabel(m.month),
+                Receita: Math.round(m.receita),
+                OPEX: Math.round(m.opex),
+                Resultado: Math.round(m.resultadoOp),
+              }))}
+              margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+              <YAxis
+                tick={{ fontSize: 10 }}
+                tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`}
+                width={48}
+              />
+              <Tooltip
+                formatter={(v: any, name: any) => [
+                  Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), String(name)
+                ]}
+                contentStyle={{ fontSize: 12, borderRadius: 8 }}
+              />
+              <Legend iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+              <ReferenceLine y={0} stroke="#d1d5db" strokeDasharray="4 2" />
+              <Line type="monotone" dataKey="Receita" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="OPEX" stroke="#f97316" strokeWidth={2.5} dot={{ r: 4, fill: '#f97316' }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="Resultado" stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3, fill: '#3b82f6' }} activeDot={{ r: 5 }} />
+            </LineChart>
+          </ResponsiveContainer>
+          <div className="flex items-center gap-4 pt-1 text-xs text-gray-400">
+            <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-emerald-500 inline-block rounded" /> Receita</span>
+            <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-orange-500 inline-block rounded" /> OPEX</span>
+            <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-blue-500 inline-block rounded" style={{borderTop:'2px dashed #3b82f6',background:'none'}} /> Resultado</span>
+          </div>
+        </div>
+
       </div>
 
       {/* Insights automáticos */}
