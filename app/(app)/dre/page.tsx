@@ -63,6 +63,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   'APORTE NICE': 'Aporte de Capital (NICE)',
   'ADIANTAMENTO SÓCIO': 'Adiantamento de Sócio',
   'ENTRADA CAIXA': 'Entrada de Caixa',
+  'APLICAÇÃO FINANCEIRA': 'Aplicação Financeira (CDB/Renda Fixa)',
 }
 
 function fmtMoney(v: number) {
@@ -212,6 +213,15 @@ export default function DrePage() {
   for (const [cat, list] of Object.entries(byCategoryEntries)) {
     byCategory[cat] = list.reduce((s, e) => s + e.amount, 0)
   }
+
+  // Aplicações financeiras (CDB etc) — fora do resultado operacional
+  const aplicacaoSaidaEntries = filteredEntries.filter(e => e.type === 'S' && e.category === 'APLICAÇÃO FINANCEIRA')
+  const aplicacaoEntradaEntries = filteredEntries.filter(e => e.type === 'E' && e.category === 'APLICAÇÃO FINANCEIRA')
+  const totalAplicacaoSaida = aplicacaoSaidaEntries.reduce((s, e) => s + e.amount, 0)
+  const totalAplicacaoEntrada = aplicacaoEntradaEntries.reduce((s, e) => s + e.amount, 0)
+  const saldoAplicacao = totalAplicacaoEntrada - totalAplicacaoSaida
+  const allAplicacaoEntries = [...aplicacaoSaidaEntries, ...aplicacaoEntradaEntries]
+    .sort((a, b) => a.date.localeCompare(b.date))
 
   const aporteNiceEntries = filteredEntries.filter(e => e.type === 'E' && e.category === 'APORTE NICE')
   const totalAporteNice = aporteNiceEntries.reduce((s, e) => s + e.amount, 0)
@@ -485,6 +495,47 @@ export default function DrePage() {
                   </span>
                 </div>
               </div>
+
+              {/* APLICAÇÕES FINANCEIRAS — informativo */}
+              {(totalAplicacaoSaida > 0 || totalAplicacaoEntrada > 0) && (
+                <>
+                  <div className="px-6 py-2 bg-sky-50 border-t border-sky-200">
+                    <span className="text-xs font-bold text-sky-700 uppercase">Aplicações Financeiras (informativo — não impacta resultado operacional)</span>
+                  </div>
+                  <DreRow
+                    label={<span>Aplicado (saída para CDB) <span className="text-gray-400 text-xs font-normal">→ dinheiro alocado, não é despesa</span></span>}
+                    value={totalAplicacaoSaida}
+                    valueLabel={`(${fmtMoney(totalAplicacaoSaida)})`}
+                    indent
+                    colorClass="text-sky-600"
+                    bgClass="bg-sky-50/40"
+                    drillEntries={aplicacaoSaidaEntries}
+                    drillKey="aplicacao_saida"
+                    openDrill={openDrill}
+                    onToggle={toggleDrill}
+                  />
+                  {totalAplicacaoEntrada > 0 && (
+                    <DreRow
+                      label={<span>Resgatado (retorno CDB) <span className="text-gray-400 text-xs font-normal">↳ principal + rendimento</span></span>}
+                      value={totalAplicacaoEntrada}
+                      valueLabel={`+${fmtMoney(totalAplicacaoEntrada)}`}
+                      indent
+                      colorClass="text-emerald-600"
+                      bgClass="bg-sky-50/40"
+                      drillEntries={aplicacaoEntradaEntries}
+                      drillKey="aplicacao_entrada"
+                      openDrill={openDrill}
+                      onToggle={toggleDrill}
+                    />
+                  )}
+                  <div className="px-8 py-2 bg-sky-50/40 flex justify-between items-center border-t border-dashed border-sky-200">
+                    <span className="text-xs text-sky-700 font-semibold">Rendimento líquido CDB</span>
+                    <span className={`text-sm font-bold font-mono ${saldoAplicacao >= 0 ? 'text-emerald-600' : 'text-sky-700'}`}>
+                      {saldoAplicacao >= 0 ? '+' : ''}{fmtMoney(saldoAplicacao)}
+                    </span>
+                  </div>
+                </>
+              )}
 
               {/* APORTES DE CAPITAL — informativo */}
               {totalAporteNice > 0 && (
