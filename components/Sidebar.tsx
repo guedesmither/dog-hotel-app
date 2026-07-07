@@ -148,6 +148,12 @@ const navSections: NavSection[] = [
         roles: ['ADMIN', 'MANAGER'],
       },
       {
+        href: '/executivo',
+        label: 'Painel Executivo',
+        icon: <TrendingUp className="w-5 h-5" />,
+        roles: ['ADMIN', 'MANAGER'],
+      },
+      {
         href: '/dre',
         label: 'DRE',
         icon: <BarChart3 className="w-5 h-5" />,
