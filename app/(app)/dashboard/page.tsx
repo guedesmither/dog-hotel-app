@@ -72,6 +72,8 @@ function MealDot({ status }: { status: string }) {
 export default function DashboardPage() {
   const { data: session } = useSession()
   const router = useRouter()
+  const userRole = (session?.user as { role?: string })?.role || ''
+  const isMonitor = userRole === 'MONITOR'
   const [dogs, setDogs] = useState<DogWithStay[]>([])
   const [rosterEntries, setRosterEntries] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -347,17 +349,17 @@ export default function DashboardPage() {
   }
 
   useEffect(() => { loadDay() }, [today])
-  useEffect(() => { loadRenewals() }, [])
+  useEffect(() => { if (!isMonitor) loadRenewals() }, [])
   
   // Reload when window gains focus (returning from report page)
   useEffect(() => {
     const handleFocus = () => {
       loadDay(true) // silent reload
-      loadReplacements()
+      if (!isMonitor) loadReplacements()
     }
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [today])
+  }, [today, isMonitor])
 
   const hotelDogs = dogs.filter((d) => d.stays.some((s) => s.active))
   const crecheDogs = dogs.filter((d) => !d.stays.some((s) => s.active))
@@ -728,7 +730,7 @@ export default function DashboardPage() {
         </>
       )}
       {/* SCHEDULED REPLACEMENTS — Quick View */}
-      {(() => {
+      {!isMonitor && (() => {
         const scheduled = replacements.filter(r => r.status === 'SCHEDULED')
         if (scheduled.length === 0) return null
         // Sort by scheduledDate
@@ -773,7 +775,7 @@ export default function DashboardPage() {
       })()}
 
       {/* REPLACEMENTS SECTION — grouped by dog */}
-      {replacements.length > 0 && (() => {
+      {!isMonitor && replacements.length > 0 && (() => {
         // Group by dog
         const grouped = replacements.reduce((acc, r) => {
           if (!acc[r.dog.id]) acc[r.dog.id] = { dog: r.dog, items: [] }
@@ -949,7 +951,7 @@ export default function DashboardPage() {
       })()}
 
       {/* DONE REPLACEMENTS - Collapsible */}
-      {doneReplacements.length > 0 && (() => {
+      {!isMonitor && doneReplacements.length > 0 && (() => {
         const doneGroups = Object.entries(
           doneReplacements.reduce((acc, r) => {
             const key = r.dog.id
@@ -1008,7 +1010,7 @@ export default function DashboardPage() {
       })()}
 
       {/* RENEWALS PANEL */}
-      {renewals.length > 0 && (
+      {!isMonitor && renewals.length > 0 && (
         <div className="mt-8">
           <div className="rounded-2xl border-2 border-purple-200 bg-purple-50 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 bg-purple-100 border-b border-purple-200">
