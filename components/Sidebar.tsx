@@ -170,6 +170,12 @@ const navSections: NavSection[] = [
         icon: <ClipboardCheck className="w-5 h-5" />,
         roles: ['ADMIN', 'MANAGER'],
       },
+      {
+        href: '/admin/users',
+        label: 'Gerenciar Usuários',
+        icon: <Users className="w-5 h-5" />,
+        roles: ['ADMIN', 'MANAGER'],
+      },
     ],
   },
 ]
