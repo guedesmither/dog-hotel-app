@@ -32,7 +32,8 @@ type DocType = 'demonstrativo' | 'recibo'
 
 function fmtDate(d: string | null | undefined) {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString('pt-BR')
+  const [y, m, day] = d.split('T')[0].split('-')
+  return `${day}/${m}/${y}`
 }
 function fmtCurrency(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -55,7 +56,8 @@ function getServiceLabel(s: Sale): { label: string; cssClass: string } {
 }
 
 function buildHTML(sales: Sale[], docType: DocType, origin: string): string {
-  const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+  const now = new Date()
+  const today = `${String(now.getDate()).padStart(2, '0')} de ${now.toLocaleString('pt-BR', { month: 'long' })} de ${now.getFullYear()}`
   const docNum = Date.now().toString().slice(-6)
 
   // Group by owner
@@ -104,7 +106,7 @@ function buildHTML(sales: Sale[], docType: DocType, origin: string): string {
           const itemDiscount = itemsGross > 0 ? discount * (i.totalPrice / itemsGross) : 0
           return `
           <tr>
-            <td>${new Date(s.saleDate).toLocaleDateString('pt-BR')}</td>
+            <td>${fmtDate(s.saleDate)}</td>
             <td>${s.dog?.name || '—'}</td>
             <td>${i.product?.name || s.saleType}</td>
             <td>${periodo}</td>
@@ -118,7 +120,7 @@ function buildHTML(sales: Sale[], docType: DocType, origin: string): string {
         })
       }
       return [`<tr>
-        <td>${new Date(s.saleDate).toLocaleDateString('pt-BR')}</td>
+        <td>${fmtDate(s.saleDate)}</td>
         <td>${s.dog?.name || '—'}</td>
         <td>${s.saleType}</td>
         <td>${periodo}</td>
@@ -298,7 +300,7 @@ function SaleRow({ sale, selected, toggle }: { sale: Sale; selected: Set<string>
           <p className="text-sm font-medium text-gray-800 leading-tight">{sale.dog?.name || '—'} <span className="text-gray-400 font-normal text-xs">· {sale.dog?.ownerName}</span></p>
           <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${statusCfg.cls}`}>{statusCfg.label}</span>
         </div>
-        <p className="text-xs text-gray-500 mt-0.5">{new Date(sale.saleDate).toLocaleDateString('pt-BR')} · {sale.items.map(i => i.product?.name || sale.saleType).join(', ')} · <span className="font-semibold">{(sale.amountReceived ?? sale.finalPrice).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
+        <p className="text-xs text-gray-500 mt-0.5">{fmtDate(sale.saleDate)} · {sale.items.map(i => i.product?.name || sale.saleType).join(', ')} · <span className="font-semibold">{(sale.amountReceived ?? sale.finalPrice).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
       </div>
     </label>
   )
