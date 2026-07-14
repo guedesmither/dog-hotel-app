@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, X, Plus, GripVertical, Check, UserX, List, CalendarDays, RotateCcw, CalendarCheck } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Plus, Check, UserX, List, CalendarDays, RotateCcw, CalendarCheck } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -73,9 +73,6 @@ export default function AgendaPage() {
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()))
   const [data, setData] = useState<WeekData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [dragDogId, setDragDogId] = useState<string | null>(null)
-  const [dragFromDate, setDragFromDate] = useState<string | null>(null)
-  const [droppingDate, setDroppingDate] = useState<string | null>(null)
   const [addingToDate, setAddingToDate] = useState<string | null>(null)
   const [pendingAddDog, setPendingAddDog] = useState<{ dogId: string; date: string } | null>(null)
   const [togglingPresence, setTogglingPresence] = useState<string | null>(null)
@@ -409,32 +406,7 @@ export default function AgendaPage() {
     return entry.dog.dogStatus === 'BOLSISTA'
   }
 
-  // Drag handlers
-  function onDragStart(dogId: string, fromDate: string | null) {
-    setDragDogId(dogId)
-    setDragFromDate(fromDate)
-  }
-
-  function onDragOver(e: React.DragEvent, date: string) {
-    e.preventDefault()
-    setDroppingDate(date)
-  }
-
-  function onDragLeave() {
-    setDroppingDate(null)
-  }
-
-  async function onDrop(e: React.DragEvent, toDate: string) {
-    e.preventDefault()
-    setDroppingDate(null)
-    if (!dragDogId) return
-    if (dragFromDate === toDate) return
-    await addDog(dragDogId, toDate, 'CRECHE')
-    // Note: does NOT remove from source day — adds to new day only
-    setDragDogId(null)
-    setDragFromDate(null)
-  }
-
+  
   const today = toDateStr(new Date())
   const dates = data?.dates ?? Array.from({ length: 7 }, (_, i) => toDateStr(addDays(weekStart, i)))
 
@@ -734,28 +706,22 @@ export default function AgendaPage() {
         </div>
       ) : viewMode === 'week' ? (
         <div className="overflow-x-auto">
-          <div className="grid grid-cols-7 gap-3 min-w-[1800px] min-h-[500px]">
+          <div className="grid grid-cols-7 gap-2 min-w-[1600px] min-h-[450px]">
           {dates.map((date, i) => {
             const dayDate = new Date(date + 'T12:00:00')
             const dayIdx = dayDate.getDay()
             const isToday = date === today
             const entries = entriesForDate(date)
-            const isDroppingHere = droppingDate === date
             const isWeekend = dayIdx === 0 || dayIdx === 6
 
             return (
               <div key={date}
-                onDragOver={e => onDragOver(e, date)}
-                onDragLeave={onDragLeave}
-                onDrop={e => onDrop(e, date)}
-                className={`flex flex-col rounded-xl border-2 transition-colors min-h-[400px] ${
-                  isDroppingHere
-                    ? 'border-amber-400 bg-amber-50'
-                    : isToday
-                      ? 'border-amber-300 bg-amber-50/60'
-                      : isWeekend
-                        ? 'border-gray-100 bg-gray-50/50'
-                        : 'border-gray-200 bg-white'
+                className={`flex flex-col rounded-xl border-2 transition-colors min-h-[350px] ${
+                  isToday
+                    ? 'border-amber-300 bg-amber-50/60'
+                    : isWeekend
+                      ? 'border-gray-100 bg-gray-50/50'
+                      : 'border-gray-200 bg-white'
                 }`}
               >
                 {/* Day header */}
@@ -840,9 +806,7 @@ export default function AgendaPage() {
                     return (
                     <div
                       key={entry.id}
-                      draggable
-                      onDragStart={() => onDragStart(entry.dogId, date)}
-                      className={`group flex items-center gap-1.5 border border-gray-100 border-l-[3px] ${borderColor} rounded-md px-2 py-1.5 cursor-grab active:cursor-grabbing hover:shadow-sm transition-all ${bgColor}`}
+                      className={`group flex items-center gap-1.5 border border-gray-100 border-l-[3px] ${borderColor} rounded-md px-2 py-1.5 hover:shadow-sm transition-all ${bgColor}`}
                     >
                       {/* Photo + Name */}
                       <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[8px]">
@@ -924,7 +888,7 @@ export default function AgendaPage() {
                           className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
                           title="Alterar modalidade"
                         >
-                          <GripVertical className="w-3 h-3" />
+                          ⚙️
                         </button>
                         <button
                           onClick={() => removeDog(entry.dogId, date)}
