@@ -406,7 +406,6 @@ export default function AgendaPage() {
     return entry.dog.dogStatus === 'BOLSISTA'
   }
 
-  
   const today = toDateStr(new Date())
   const dates = data?.dates ?? Array.from({ length: 7 }, (_, i) => toDateStr(addDays(weekStart, i)))
 
@@ -418,6 +417,42 @@ export default function AgendaPage() {
       if (activeFilters.has(e.type)) return true
       return false
     })
+  }
+
+  function getSegmentedEntries(date: string) {
+    const all = entriesForDate(date)
+    const isFuture = date > today
+    
+    // Segmentar por status de presença
+    const undetermined: RosterEntry[] = []
+    const present: RosterEntry[] = []
+    const absent: RosterEntry[] = []
+    
+    all.forEach(entry => {
+      if (isFuture) {
+        // Dias futuros: todos são não determinados
+        undetermined.push(entry)
+      } else {
+        // Dias passados ou hoje: segmentar por presença
+        if (entry.present === true) {
+          present.push(entry)
+        } else if (entry.present === false) {
+          absent.push(entry)
+        } else {
+          undetermined.push(entry)
+        }
+      }
+    })
+    
+    // Ordenar alfabeticamente dentro de cada segmento
+    const sortByName = (a: RosterEntry, b: RosterEntry) => 
+      a.dog.name.localeCompare(b.dog.name, 'pt-BR')
+    
+    undetermined.sort(sortByName)
+    present.sort(sortByName)
+    absent.sort(sortByName)
+    
+    return { undetermined, present, absent }
   }
 
   function allEntriesForDate(date: string) {
@@ -441,8 +476,8 @@ export default function AgendaPage() {
             {formatDate(weekStartStr)} — {formatDate(toDateStr(addDays(weekStart, 6)))}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+        <div className="flex items-center gap-3">
+          <div className="flex bg-gray-100 rounded-lg p-1">
             <button onClick={() => setViewMode('week')}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
                 viewMode === 'week' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
@@ -550,53 +585,56 @@ export default function AgendaPage() {
             { key: 'REPOSICAO', label: '🔄 Reposição', color: 'purple' },
             { key: 'BANHO',     label: '🛁 Banho',      color: 'cyan' },
           ].map(({ key, label, color }) => {
-            const active = activeFilters.has(key)
+            const isActive = activeFilters.has(key)
             return (
-              <button key={key} onClick={() => toggleFilter(key)}
-                className={`text-xs px-2.5 py-1 rounded-full font-medium border transition-all ${
-                  active
-                    ? `bg-${color}-100 border-${color}-400 text-${color}-700`
-                    : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
-                }`}>
+              <button
+                key={key}
+                onClick={() => toggleFilter(key)}
+                className={`text-xs px-2 py-1 rounded-full font-medium transition-all ${
+                  isActive
+                    ? color === 'amber' ? 'bg-amber-100 text-amber-700' :
+                      color === 'blue' ? 'bg-blue-100 text-blue-700' :
+                      color === 'orange' ? 'bg-orange-100 text-orange-700' :
+                      color === 'green' ? 'bg-green-100 text-green-700' :
+                      color === 'purple' ? 'bg-purple-100 text-purple-700' :
+                      'bg-cyan-100 text-cyan-700'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
                 {label}
               </button>
             )
           })}
-          {activeFilters.size > 0 && (
-            <button onClick={() => setActiveFilters(new Set())} className="text-xs text-gray-400 hover:text-gray-600 underline">Limpar</button>
-          )}
-          <span className="text-xs text-gray-400 ml-auto">💡 Arraste ou clique <strong>+</strong> para adicionar, <strong>×</strong> para remover</span>
         </div>
       )}
 
       {viewMode === 'dog' && (
-        <div className="mb-6 relative max-w-xs" data-dog-search>
-          <input
-            type="text"
-            placeholder="Buscar cão ou tutor..."
-            className="input w-full"
-            value={dogSearch}
-            onChange={e => { setDogSearch(e.target.value); setShowDogSearch(true) }}
-            onFocus={() => setShowDogSearch(true)}
-          />
-          {showDogSearch && (
-            <div className="absolute top-full mt-1 left-0 right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
-              <div className="max-h-64 overflow-y-auto">
-                {(data?.allDogs ?? [])
-                  .slice()
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .filter(d => {
-                    const q = dogSearch.toLowerCase()
-                    return !q || d.name.toLowerCase().includes(q) || d.ownerName.toLowerCase().includes(q)
-                  })
-                  .map(d => (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+          <div className="p-4 border-b border-gray-100">
+            <div className="relative" data-dog-search>
+              <input
+                type="text"
+                placeholder="Buscar cão..."
+                value={dogSearch}
+                onChange={e => setDogSearch(e.target.value)}
+                onFocus={() => setShowDogSearch(true)}
+                className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+              <button
+                onClick={() => setShowDogSearch(!showDogSearch)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              {showDogSearch && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                  {(data?.allDogs ?? []).filter(d => 
+                    d.name.toLowerCase().includes(dogSearch.toLowerCase()) ||
+                    d.ownerName.toLowerCase().includes(dogSearch.toLowerCase())
+                  ).map(d => (
                     <button
                       key={d.id}
-                      onClick={() => {
-                        setSelectedDogId(d.id)
-                        setDogSearch(`${d.name} — ${d.ownerName}`)
-                        setShowDogSearch(false)
-                      }}
+                      onClick={() => { setSelectedDogId(d.id); setShowDogSearch(false); setDogSearch('') }}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 transition-colors text-left ${
                         d.id === selectedDogId ? 'bg-amber-100 text-amber-800 font-semibold' : 'text-gray-700'
                       }`}
@@ -610,9 +648,10 @@ export default function AgendaPage() {
                       </div>
                     </button>
                   ))}
-              </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -779,147 +818,389 @@ export default function AgendaPage() {
                 </div>
 
                 {/* Dog cards */}
-                <div className="flex-1 p-1.5 space-y-1 overflow-y-auto">
-                  {entries.map(entry => {
+                <div className="flex-1 p-1.5 space-y-2 overflow-y-auto">
+                  {(() => {
+                    const { undetermined, present, absent } = getSegmentedEntries(date)
                     const isFuture = date > today
-                    const pKey = `${entry.dogId}_${date}`
-                    const isToggling = togglingPresence === pKey
-                    const p = entry.present
-
-                    // Color scheme by modality
-                    const borderColor =
-                      isHotelEntry(entry) ? 'border-l-blue-500' :
-                      isReposicaoEntry(entry) ? 'border-l-purple-500' :
-                      entry.type === 'AVULSO' ? 'border-l-orange-500' :
-                      entry.type === 'PACOTE' ? 'border-l-emerald-500' :
-                      'border-l-amber-500'
-
-                    const bgColor =
-                      p === false
-                        ? 'bg-red-50/80'
-                        : p === true
-                          ? isHotelEntry(entry) || isReposicaoEntry(entry)
-                            ? 'bg-blue-50/40'
-                            : 'bg-green-50/40'
-                          : 'bg-white'
-
-                    return (
-                    <div
-                      key={entry.id}
-                      className={`group flex items-center gap-1.5 border border-gray-100 border-l-[3px] ${borderColor} rounded-md px-2 py-1.5 hover:shadow-sm transition-all ${bgColor}`}
-                    >
-                      {/* Photo + Name */}
-                      <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[8px]">
-                        {entry.dog.photoUrl
-                          ? <img src={entry.dog.photoUrl} alt={entry.dog.name} className="w-full h-full object-cover" />
-                          : entry.dog.name[0].toUpperCase()}
-                      </div>
-                      <Link href={`/dogs/${entry.dogId}`}
-                        className="flex-1 min-w-0"
-                        onClick={e => e.stopPropagation()}>
-                        <p className={`text-xs font-semibold truncate leading-tight ${
-                          p === false ? 'text-red-600 line-through' : 'text-gray-800'
-                        }`}>{entry.dog.name}</p>
-                      </Link>
-
-                      {/* Inline indicators (only when active) */}
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        {isBolsista(entry) && <span className="text-[9px]" title="Bolsista">🎓</span>}
-                        {entry.hasBanho && <span className="text-[9px]" title="Banho agendado">🛁</span>}
-                        {entry.isPernoite && <span className="text-[9px]" title="Pernoite">🌙</span>}
-                      </div>
-
-                      {/* Presence buttons (always visible for past/today) - ALL dog types */}
-                      {!isFuture && (
-                        <div className="flex gap-0.5">
-                          {/* Present button */}
-                          <button
-                            onClick={() => markPresent(entry.dogId, date, entry.type)}
-                            disabled={isToggling || p === true}
-                            title="Marcar presente"
-                            className={`p-0.5 rounded shrink-0 transition-all ${
-                              p === true
-                                ? 'text-green-600 bg-green-100 cursor-default'
-                                : 'text-gray-400 hover:text-green-600 hover:bg-green-100'
-                            }`}
-                          >
-                            <Check className="w-3 h-3" />
-                          </button>
-                          {/* Absent button */}
-                          <button
-                            onClick={() => markAbsent(entry.dogId, date, entry.type)}
-                            disabled={isToggling || p === false}
-                            title="Marcar falta"
-                            className={`p-0.5 rounded shrink-0 transition-all ${
-                              p === false
-                                ? 'text-red-500 bg-red-100 cursor-default'
-                                : 'text-gray-400 hover:text-red-500 hover:bg-red-100'
-                            }`}
-                          >
-                            <UserX className="w-3 h-3" />
-                          </button>
+                    
+                    // Render segmento de não determinados
+                    if (undetermined.length > 0) {
+                      return (
+                        <div className="space-y-1">
+                          {!isFuture && (
+                            <div className="text-xs font-medium text-gray-500 px-1 py-0.5 bg-yellow-50 rounded border border-yellow-100">
+                              ⏳ Não determinados ({undetermined.length})
+                            </div>
+                          )}
+                          {undetermined.map(entry => {
+                            const pKey = `${entry.dogId}_${date}`
+                            const isToggling = togglingPresence === pKey
+                            const p = entry.present
+                            
+                            const borderColor =
+                              isHotelEntry(entry) ? 'border-l-blue-500' :
+                              isReposicaoEntry(entry) ? 'border-l-purple-500' :
+                              entry.type === 'AVULSO' ? 'border-l-orange-500' :
+                              entry.type === 'PACOTE' ? 'border-l-emerald-500' :
+                              'border-l-amber-500'
+                            
+                            return (
+                              <div
+                                key={entry.id}
+                                className={`group flex items-center gap-1.5 border border-gray-100 border-l-[3px] ${borderColor} rounded-md px-2 py-1.5 hover:shadow-sm transition-all bg-yellow-50/60`}
+                              >
+                                <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[8px]">
+                                  {entry.dog.photoUrl
+                                    ? <img src={entry.dog.photoUrl} alt={entry.dog.name} className="w-full h-full object-cover" />
+                                    : entry.dog.name[0].toUpperCase()}
+                                </div>
+                                <Link href={`/dogs/${entry.dogId}`}
+                                  className="flex-1 min-w-0"
+                                  onClick={e => e.stopPropagation()}>
+                                  <p className={`text-xs font-semibold truncate leading-tight ${
+                                    p === false ? 'text-red-600 line-through' : 'text-gray-800'
+                                  }`}>{entry.dog.name}</p>
+                                </Link>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                  {isBolsista(entry) && <span className="text-[9px]" title="Bolsista">🎓</span>}
+                                  {entry.hasBanho && <span className="text-[9px]" title="Banho agendado">🛁</span>}
+                                  {entry.isPernoite && <span className="text-[9px]" title="Pernoite">🌙</span>}
+                                </div>
+                                {!isFuture && (
+                                  <div className="flex gap-0.5">
+                                    <button
+                                      onClick={() => markPresent(entry.dogId, date, entry.type)}
+                                      disabled={isToggling || p === true}
+                                      title="Marcar presente"
+                                      className={`p-0.5 rounded shrink-0 transition-all ${
+                                        p === true
+                                          ? 'text-green-600 bg-green-100 cursor-default'
+                                          : 'text-gray-400 hover:text-green-600 hover:bg-green-100'
+                                      }`}
+                                    >
+                                      <Check className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={() => markAbsent(entry.dogId, date, entry.type)}
+                                      disabled={isToggling || p === false}
+                                      title="Marcar falta"
+                                      className={`p-0.5 rounded shrink-0 transition-all ${
+                                        p === false
+                                          ? 'text-red-500 bg-red-100 cursor-default'
+                                          : 'text-gray-400 hover:text-red-500 hover:bg-red-100'
+                                      }`}
+                                    >
+                                      <UserX className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
+                                <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+                                  <button
+                                    onClick={() => toggleBanho(entry.dogId, date, entry.hasBanho)}
+                                    className={`p-0.5 rounded transition-all ${
+                                      entry.hasBanho ? 'text-cyan-600 hover:bg-cyan-100' : 'text-gray-400 hover:text-cyan-500 hover:bg-cyan-50'
+                                    }`}
+                                    title={entry.hasBanho ? 'Remover banho' : 'Agendar banho'}
+                                  >
+                                    <span className="text-[10px]">🛁</span>
+                                  </button>
+                                  {entry.type === 'CRECHE' && (
+                                    <button
+                                      onClick={() => togglePernoite(entry.dogId, date, entry.isPernoite)}
+                                      className={`p-0.5 rounded transition-all ${
+                                        entry.isPernoite ? 'text-purple-600 hover:bg-purple-100' : 'text-gray-400 hover:text-purple-500 hover:bg-purple-50'
+                                      }`}
+                                      title={entry.isPernoite ? 'Remover pernoite' : 'Marcar pernoite'}
+                                    >
+                                      <span className="text-[10px]">🌙</span>
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setChangingTypeId(changingTypeId === entry.id ? null : entry.id) }}
+                                    className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+                                    title="Alterar modalidade"
+                                  >
+                                    ⚙️
+                                  </button>
+                                  <button
+                                    onClick={() => removeDog(entry.dogId, date)}
+                                    className="p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                                    title="Remover do dia"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                {changingTypeId === entry.id && (
+                                  <div className="absolute right-1 mt-16 z-50 flex gap-0.5 bg-white border border-gray-200 rounded-lg shadow-lg p-1">
+                                    {[
+                                      { type: 'CRECHE', icon: '🐾', bg: 'hover:bg-amber-100' },
+                                      { type: 'AVULSO', icon: '💵', bg: 'hover:bg-orange-100' },
+                                      { type: 'PACOTE', icon: '📦', bg: 'hover:bg-green-100' },
+                                      { type: 'HOTEL', icon: '🏨', bg: 'hover:bg-blue-100' },
+                                      { type: 'REPOSICAO', icon: '🔄', bg: 'hover:bg-purple-100' },
+                                    ].map(({ type, icon, bg }) => (
+                                      <button key={type} onClick={e => { e.stopPropagation(); changeType(entry.dogId, date, type) }}
+                                        className={`text-xs px-1.5 py-1 rounded ${bg} transition-colors`}
+                                        title={type}
+                                      >{icon}</button>
+                                    ))}
+                                    <button onClick={e => { e.stopPropagation(); setChangingTypeId(null) }}
+                                      className="text-xs px-1 py-1 rounded hover:bg-gray-100 text-gray-500">✕</button>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
-                      )}
-
-                      {/* Hover actions */}
-                      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
-                        <button
-                          onClick={() => toggleBanho(entry.dogId, date, entry.hasBanho)}
-                          className={`p-0.5 rounded transition-all ${
-                            entry.hasBanho ? 'text-cyan-600 hover:bg-cyan-100' : 'text-gray-400 hover:text-cyan-500 hover:bg-cyan-50'
-                          }`}
-                          title={entry.hasBanho ? 'Remover banho' : 'Agendar banho'}
-                        >
-                          <span className="text-[10px]">🛁</span>
-                        </button>
-                        {entry.type === 'CRECHE' && (
-                          <button
-                            onClick={() => togglePernoite(entry.dogId, date, entry.isPernoite)}
-                            className={`p-0.5 rounded transition-all ${
-                              entry.isPernoite ? 'text-purple-600 hover:bg-purple-100' : 'text-gray-400 hover:text-purple-500 hover:bg-purple-50'
-                            }`}
-                            title={entry.isPernoite ? 'Remover pernoite' : 'Marcar pernoite'}
-                          >
-                            <span className="text-[10px]">🌙</span>
-                          </button>
-                        )}
-                        <button
-                          onClick={e => { e.stopPropagation(); setChangingTypeId(changingTypeId === entry.id ? null : entry.id) }}
-                          className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
-                          title="Alterar modalidade"
-                        >
-                          ⚙️
-                        </button>
-                        <button
-                          onClick={() => removeDog(entry.dogId, date)}
-                          className="p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                          title="Remover do dia"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-
-                      {/* Change type dropdown */}
-                      {changingTypeId === entry.id && (
-                        <div className="absolute right-1 mt-16 z-50 flex gap-0.5 bg-white border border-gray-200 rounded-lg shadow-lg p-1">
-                          {[
-                            { type: 'CRECHE', icon: '🐾', bg: 'hover:bg-amber-100' },
-                            { type: 'AVULSO', icon: '💵', bg: 'hover:bg-orange-100' },
-                            { type: 'PACOTE', icon: '📦', bg: 'hover:bg-green-100' },
-                            { type: 'HOTEL', icon: '🏨', bg: 'hover:bg-blue-100' },
-                            { type: 'REPOSICAO', icon: '🔄', bg: 'hover:bg-purple-100' },
-                          ].map(({ type, icon, bg }) => (
-                            <button key={type} onClick={e => { e.stopPropagation(); changeType(entry.dogId, date, type) }}
-                              className={`text-xs px-1.5 py-1 rounded ${bg} transition-colors`}
-                              title={type}
-                            >{icon}</button>
-                          ))}
-                          <button onClick={e => { e.stopPropagation(); setChangingTypeId(null) }}
-                            className="text-xs px-1 py-1 rounded hover:bg-gray-100 text-gray-500">✕</button>
+                      )
+                    }
+                  })()}
+                  
+                  {(() => {
+                    const { present } = getSegmentedEntries(date)
+                    const isFuture = date > today
+                    
+                    // Render segmento de presentes
+                    if (present.length > 0 && !isFuture) {
+                      return (
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium text-gray-500 px-1 py-0.5 bg-green-50 rounded border border-green-100">
+                            ✓ Presentes ({present.length})
+                          </div>
+                          {present.map(entry => {
+                            const pKey = `${entry.dogId}_${date}`
+                            const isToggling = togglingPresence === pKey
+                            const p = entry.present
+                            
+                            const borderColor =
+                              isHotelEntry(entry) ? 'border-l-blue-500' :
+                              isReposicaoEntry(entry) ? 'border-l-purple-500' :
+                              entry.type === 'AVULSO' ? 'border-l-orange-500' :
+                              entry.type === 'PACOTE' ? 'border-l-emerald-500' :
+                              'border-l-amber-500'
+                            
+                            return (
+                              <div
+                                key={entry.id}
+                                className={`group flex items-center gap-1.5 border border-gray-100 border-l-[3px] ${borderColor} rounded-md px-2 py-1.5 hover:shadow-sm transition-all bg-green-50/60`}
+                              >
+                                <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[8px]">
+                                  {entry.dog.photoUrl
+                                    ? <img src={entry.dog.photoUrl} alt={entry.dog.name} className="w-full h-full object-cover" />
+                                    : entry.dog.name[0].toUpperCase()}
+                                </div>
+                                <Link href={`/dogs/${entry.dogId}`}
+                                  className="flex-1 min-w-0"
+                                  onClick={e => e.stopPropagation()}>
+                                  <p className="text-xs font-semibold truncate leading-tight text-gray-800">{entry.dog.name}</p>
+                                </Link>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                  {isBolsista(entry) && <span className="text-[9px]" title="Bolsista">🎓</span>}
+                                  {entry.hasBanho && <span className="text-[9px]" title="Banho agendado">🛁</span>}
+                                  {entry.isPernoite && <span className="text-[9px]" title="Pernoite">🌙</span>}
+                                </div>
+                                <div className="flex gap-0.5">
+                                  <button
+                                    onClick={() => markPresent(entry.dogId, date, entry.type)}
+                                    disabled={isToggling || p === true}
+                                    title="Marcar presente"
+                                    className="p-0.5 rounded shrink-0 transition-all text-green-600 bg-green-100 cursor-default"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => markAbsent(entry.dogId, date, entry.type)}
+                                    disabled={isToggling || p === false}
+                                    title="Marcar falta"
+                                    className="p-0.5 rounded shrink-0 transition-all text-gray-400 hover:text-red-500 hover:bg-red-100"
+                                  >
+                                    <UserX className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+                                  <button
+                                    onClick={() => toggleBanho(entry.dogId, date, entry.hasBanho)}
+                                    className={`p-0.5 rounded transition-all ${
+                                      entry.hasBanho ? 'text-cyan-600 hover:bg-cyan-100' : 'text-gray-400 hover:text-cyan-500 hover:bg-cyan-50'
+                                    }`}
+                                    title={entry.hasBanho ? 'Remover banho' : 'Agendar banho'}
+                                  >
+                                    <span className="text-[10px]">🛁</span>
+                                  </button>
+                                  {entry.type === 'CRECHE' && (
+                                    <button
+                                      onClick={() => togglePernoite(entry.dogId, date, entry.isPernoite)}
+                                      className={`p-0.5 rounded transition-all ${
+                                        entry.isPernoite ? 'text-purple-600 hover:bg-purple-100' : 'text-gray-400 hover:text-purple-500 hover:bg-purple-50'
+                                      }`}
+                                      title={entry.isPernoite ? 'Remover pernoite' : 'Marcar pernoite'}
+                                    >
+                                      <span className="text-[10px]">🌙</span>
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setChangingTypeId(changingTypeId === entry.id ? null : entry.id) }}
+                                    className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+                                    title="Alterar modalidade"
+                                  >
+                                    ⚙️
+                                  </button>
+                                  <button
+                                    onClick={() => removeDog(entry.dogId, date)}
+                                    className="p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                                    title="Remover do dia"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                {changingTypeId === entry.id && (
+                                  <div className="absolute right-1 mt-16 z-50 flex gap-0.5 bg-white border border-gray-200 rounded-lg shadow-lg p-1">
+                                    {[
+                                      { type: 'CRECHE', icon: '🐾', bg: 'hover:bg-amber-100' },
+                                      { type: 'AVULSO', icon: '💵', bg: 'hover:bg-orange-100' },
+                                      { type: 'PACOTE', icon: '📦', bg: 'hover:bg-green-100' },
+                                      { type: 'HOTEL', icon: '🏨', bg: 'hover:bg-blue-100' },
+                                      { type: 'REPOSICAO', icon: '🔄', bg: 'hover:bg-purple-100' },
+                                    ].map(({ type, icon, bg }) => (
+                                      <button key={type} onClick={e => { e.stopPropagation(); changeType(entry.dogId, date, type) }}
+                                        className={`text-xs px-1.5 py-1 rounded ${bg} transition-colors`}
+                                        title={type}
+                                      >{icon}</button>
+                                    ))}
+                                    <button onClick={e => { e.stopPropagation(); setChangingTypeId(null) }}
+                                      className="text-xs px-1 py-1 rounded hover:bg-gray-100 text-gray-500">✕</button>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
-                      )}
-                    </div>
-                  )})}
+                      )
+                    }
+                  })()}
+                  
+                  {(() => {
+                    const { absent } = getSegmentedEntries(date)
+                    const isFuture = date > today
+                    
+                    // Render segmento de ausentes
+                    if (absent.length > 0 && !isFuture) {
+                      return (
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium text-gray-500 px-1 py-0.5 bg-red-50 rounded border border-red-100">
+                            ✗ Ausentes ({absent.length})
+                          </div>
+                          {absent.map(entry => {
+                            const pKey = `${entry.dogId}_${date}`
+                            const isToggling = togglingPresence === pKey
+                            const p = entry.present
+                            
+                            const borderColor =
+                              isHotelEntry(entry) ? 'border-l-blue-500' :
+                              isReposicaoEntry(entry) ? 'border-l-purple-500' :
+                              entry.type === 'AVULSO' ? 'border-l-orange-500' :
+                              entry.type === 'PACOTE' ? 'border-l-emerald-500' :
+                              'border-l-amber-500'
+                            
+                            return (
+                              <div
+                                key={entry.id}
+                                className={`group flex items-center gap-1.5 border border-gray-100 border-l-[3px] ${borderColor} rounded-md px-2 py-1.5 hover:shadow-sm transition-all bg-red-50/60`}
+                              >
+                                <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[8px]">
+                                  {entry.dog.photoUrl
+                                    ? <img src={entry.dog.photoUrl} alt={entry.dog.name} className="w-full h-full object-cover" />
+                                    : entry.dog.name[0].toUpperCase()}
+                                </div>
+                                <Link href={`/dogs/${entry.dogId}`}
+                                  className="flex-1 min-w-0"
+                                  onClick={e => e.stopPropagation()}>
+                                  <p className="text-xs font-semibold truncate leading-tight text-red-600 line-through">{entry.dog.name}</p>
+                                </Link>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                  {isBolsista(entry) && <span className="text-[9px]" title="Bolsista">🎓</span>}
+                                  {entry.hasBanho && <span className="text-[9px]" title="Banho agendado">🛁</span>}
+                                  {entry.isPernoite && <span className="text-[9px]" title="Pernoite">🌙</span>}
+                                </div>
+                                <div className="flex gap-0.5">
+                                  <button
+                                    onClick={() => markPresent(entry.dogId, date, entry.type)}
+                                    disabled={isToggling || p === true}
+                                    title="Marcar presente"
+                                    className="p-0.5 rounded shrink-0 transition-all text-gray-400 hover:text-green-600 hover:bg-green-100"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => markAbsent(entry.dogId, date, entry.type)}
+                                    disabled={isToggling || p === false}
+                                    title="Marcar falta"
+                                    className="p-0.5 rounded shrink-0 transition-all text-red-500 bg-red-100 cursor-default"
+                                  >
+                                    <UserX className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+                                  <button
+                                    onClick={() => toggleBanho(entry.dogId, date, entry.hasBanho)}
+                                    className={`p-0.5 rounded transition-all ${
+                                      entry.hasBanho ? 'text-cyan-600 hover:bg-cyan-100' : 'text-gray-400 hover:text-cyan-500 hover:bg-cyan-50'
+                                    }`}
+                                    title={entry.hasBanho ? 'Remover banho' : 'Agendar banho'}
+                                  >
+                                    <span className="text-[10px]">🛁</span>
+                                  </button>
+                                  {entry.type === 'CRECHE' && (
+                                    <button
+                                      onClick={() => togglePernoite(entry.dogId, date, entry.isPernoite)}
+                                      className={`p-0.5 rounded transition-all ${
+                                        entry.isPernoite ? 'text-purple-600 hover:bg-purple-100' : 'text-gray-400 hover:text-purple-500 hover:bg-purple-50'
+                                      }`}
+                                      title={entry.isPernoite ? 'Remover pernoite' : 'Marcar pernoite'}
+                                    >
+                                      <span className="text-[10px]">🌙</span>
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setChangingTypeId(changingTypeId === entry.id ? null : entry.id) }}
+                                    className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+                                    title="Alterar modalidade"
+                                  >
+                                    ⚙️
+                                  </button>
+                                  <button
+                                    onClick={() => removeDog(entry.dogId, date)}
+                                    className="p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                                    title="Remover do dia"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                {changingTypeId === entry.id && (
+                                  <div className="absolute right-1 mt-16 z-50 flex gap-0.5 bg-white border border-gray-200 rounded-lg shadow-lg p-1">
+                                    {[
+                                      { type: 'CRECHE', icon: '🐾', bg: 'hover:bg-amber-100' },
+                                      { type: 'AVULSO', icon: '💵', bg: 'hover:bg-orange-100' },
+                                      { type: 'PACOTE', icon: '📦', bg: 'hover:bg-green-100' },
+                                      { type: 'HOTEL', icon: '🏨', bg: 'hover:bg-blue-100' },
+                                      { type: 'REPOSICAO', icon: '🔄', bg: 'hover:bg-purple-100' },
+                                    ].map(({ type, icon, bg }) => (
+                                      <button key={type} onClick={e => { e.stopPropagation(); changeType(entry.dogId, date, type) }}
+                                        className={`text-xs px-1.5 py-1 rounded ${bg} transition-colors`}
+                                        title={type}
+                                      >{icon}</button>
+                                    ))}
+                                    <button onClick={e => { e.stopPropagation(); setChangingTypeId(null) }}
+                                      className="text-xs px-1 py-1 rounded hover:bg-gray-100 text-gray-500">✕</button>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    }
+                  })()}
                 </div>
 
                 {/* Add button */}
@@ -947,68 +1228,47 @@ export default function AgendaPage() {
                                     <button
                                       key={pkg.id}
                                       onClick={() => addDog(pendingAddDog!.dogId, date, 'PACOTE', pkg.id)}
-                                      className="w-full text-left px-2 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-xs font-medium text-green-700 transition-colors flex items-center justify-between"
+                                      className="w-full text-left px-2 py-1 text-xs bg-green-50 hover:bg-green-100 rounded transition-colors"
                                     >
-                                      <span>📦 {pkg.packageType} ({pkg.remainingDays} dias)</span>
-                                      <span className="text-xs text-green-600">Expira: {new Date(pkg.expiryDate).toLocaleDateString('pt-BR')}</span>
+                                      📦 {pkg.name}
                                     </button>
                                   ))}
                                 </>
                               )}
-                              {showCreche && (
-                                <button onClick={() => addDog(pendingAddDog!.dogId, date, 'CRECHE')}
-                                  className="w-full text-left px-2 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-xs font-medium text-amber-700 transition-colors">
-                                  🐾 Creche
-                                </button>
-                              )}
-                              {showAvulso && (
-                                <button onClick={() => addDog(pendingAddDog!.dogId, date, 'AVULSO')}
-                                  className="w-full text-left px-2 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-xs font-medium text-orange-700 transition-colors">
-                                  💵 Avulso
-                                </button>
-                              )}
-                              {showHotel && (
-                                <button onClick={() => addDog(pendingAddDog!.dogId, date, 'HOTEL')}
-                                  className="w-full text-left px-2 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-xs font-medium text-blue-700 transition-colors">
-                                  🏨 Hotel
-                                </button>
-                              )}
-                              {showReposicao && (
-                                <button onClick={() => addDog(pendingAddDog!.dogId, date, 'REPOSICAO')}
-                                  className="w-full text-left px-2 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-xs font-medium text-purple-700 transition-colors">
-                                  🔄 Reposição
-                                </button>
-                              )}
-                              {dogSaleTypes.length > 0 && (
-                                <details className="mt-1">
-                                  <summary className="text-[10px] text-gray-400 cursor-pointer hover:text-gray-600 px-1">+ outras modalidades</summary>
-                                  <div className="mt-0.5 space-y-0.5">
-                                    {!showCreche && (
-                                      <button onClick={() => addDog(pendingAddDog!.dogId, date, 'CRECHE')}
-                                        className="w-full text-left px-2 py-1.5 rounded-lg bg-gray-50 hover:bg-amber-50 text-xs font-medium text-gray-600 transition-colors">
-                                        🐾 Creche
-                                      </button>
-                                    )}
-                                    {!showAvulso && (
-                                      <button onClick={() => addDog(pendingAddDog!.dogId, date, 'AVULSO')}
-                                        className="w-full text-left px-2 py-1.5 rounded-lg bg-gray-50 hover:bg-orange-50 text-xs font-medium text-gray-600 transition-colors">
-                                        💵 Avulso
-                                      </button>
-                                    )}
-                                    {!showHotel && (
-                                      <button onClick={() => addDog(pendingAddDog!.dogId, date, 'HOTEL')}
-                                        className="w-full text-left px-2 py-1.5 rounded-lg bg-gray-50 hover:bg-blue-50 text-xs font-medium text-gray-600 transition-colors">
-                                        🏨 Hotel
-                                      </button>
-                                    )}
-                                  </div>
-                                </details>
-                              )}
-                              <button onClick={() => {
-                                setPendingAddDog(null)
-                                setDogPackages(null)
-                              }}
-                                className="w-full text-xs text-gray-400 hover:text-gray-600 py-0.5">← Voltar</button>
+                              <div className="grid grid-cols-2 gap-1 mt-1">
+                                {showCreche && (
+                                  <button
+                                    onClick={() => addDog(pendingAddDog!.dogId, date, 'CRECHE')}
+                                    className="px-2 py-1 text-xs bg-amber-50 hover:bg-amber-100 rounded transition-colors"
+                                  >
+                                    🐾 Creche
+                                  </button>
+                                )}
+                                {showAvulso && (
+                                  <button
+                                    onClick={() => addDog(pendingAddDog!.dogId, date, 'AVULSO')}
+                                    className="px-2 py-1 text-xs bg-orange-50 hover:bg-orange-100 rounded transition-colors"
+                                  >
+                                    💵 Avulso
+                                  </button>
+                                )}
+                                {showHotel && (
+                                  <button
+                                    onClick={() => addDog(pendingAddDog!.dogId, date, 'HOTEL')}
+                                    className="px-2 py-1 text-xs bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+                                  >
+                                    🏨 Hotel
+                                  </button>
+                                )}
+                                {showReposicao && (
+                                  <button
+                                    onClick={() => addDog(pendingAddDog!.dogId, date, 'REPOSICAO')}
+                                    className="px-2 py-1 text-xs bg-purple-50 hover:bg-purple-100 rounded transition-colors"
+                                  >
+                                    🔄 Reposição
+                                  </button>
+                                )}
+                              </div>
                             </>
                           )
                         })()}
@@ -1017,119 +1277,70 @@ export default function AgendaPage() {
                         // Step 1: choose dog
                         <>
                           <input
-                            autoFocus
                             type="text"
                             placeholder="Buscar cão..."
                             value={addSearch}
                             onChange={e => setAddSearch(e.target.value)}
-                            className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 bg-white mb-1"
+                            className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            autoFocus
                           />
-                          <div className="max-h-40 overflow-y-auto space-y-0.5">
-                            {(() => {
-                              const all = dogsForDate(date)
-                              const q = addSearch.toLowerCase()
-                              const filtered = q
-                                ? all.filter(({ dog }) => dog.name.toLowerCase().includes(q) || dog.ownerName.toLowerCase().includes(q))
-                                : all
-                              const suggested = filtered.filter(({ dog }) => suggestedDogSales.has(dog.id))
-                              const others = filtered.filter(({ dog }) => !suggestedDogSales.has(dog.id))
-                              const sorted = [...suggested, ...others]
-                              if (sorted.length === 0) return <p className="text-xs text-gray-400 text-center py-1">Nenhum encontrado</p>
+                          <div className="max-h-32 overflow-y-auto space-y-1">
+                            {(data?.allDogs ?? []).filter(d => 
+                              d.name.toLowerCase().includes(addSearch.toLowerCase()) ||
+                              d.ownerName.toLowerCase().includes(addSearch.toLowerCase())
+                            ).slice(0, 10).map(d => {
+                              const alreadyInDate = entriesForDate(date).some(e => e.dogId === d.id)
                               return (
-                                <>
-                                  {suggested.length > 0 && !q && (
-                                    <p className="text-[10px] text-amber-600 font-semibold px-1 pt-0.5">⭐ Com venda ativa este mês</p>
-                                  )}
-                                  {sorted.map(({ dog, alreadyInDate }, idx) => (
-                                    <>
-                                      {!q && idx === suggested.length && suggested.length > 0 && (
-                                        <p key="sep" className="text-[10px] text-gray-400 px-1 pt-1">Outros cães</p>
-                                      )}
-                                      <button
-                                        key={dog.id}
-                                        onClick={() => {
-                                          setPendingAddDog({ dogId: dog.id, date })
-                                          loadDogPackages(dog.id)
-                                        }}
-                                        className={`w-full flex items-center gap-2 text-left px-2 py-1.5 rounded-lg text-xs transition-colors ${
-                                          suggestedDogSales.has(dog.id)
-                                            ? 'bg-amber-50 hover:bg-amber-100 border border-amber-200'
-                                            : 'hover:bg-gray-50'
-                                        }`}
-                                      >
-                                        <div className="w-6 h-6 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-xs">
-                                          {dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="w-full h-full object-cover" /> : '🐶'}
-                                        </div>
-                                        <div className="flex-1 min-w-0 leading-tight">
-                                          <div className="font-semibold text-gray-800 truncate text-[13px]">{dog.name}</div>
-                                          <div className="text-[10px] text-gray-500 truncate">
-                                            {dog.ownerName?.split(' ')[0] || 'Tutor não informado'}
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-1 shrink-0">
-                                          {alreadyInDate && <span className="text-[9px] text-blue-500" title="Já agendado neste dia">✓</span>}
-                                          {suggestedDogSales.has(dog.id) && (
-                                            <span title="Com venda ativa para este dia">
-                                              <CalendarCheck className="w-3.5 h-3.5 text-amber-500" />
-                                            </span>
-                                          )}
-                                        </div>
-                                      </button>
-                                    </>
-                                  ))}
-                                </>
+                                <button
+                                  key={d.id}
+                                  onClick={() => {
+                                    setPendingAddDog({ dogId: d.id, date })
+                                    loadDogPackages(d.id)
+                                  }}
+                                  disabled={alreadyInDate}
+                                  className={`w-full text-left px-2 py-1 text-xs rounded transition-colors ${
+                                    alreadyInDate
+                                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                      : 'bg-amber-50 hover:bg-amber-100 text-gray-700'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-4 h-4 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[6px]">
+                                      {d.photoUrl ? <img src={d.photoUrl} alt={d.name} className="w-full h-full object-cover" /> : '🐶'}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium truncate">{d.name}</p>
+                                      <p className="text-gray-400 truncate">{d.ownerName}</p>
+                                    </div>
+                                  </div>
+                                </button>
                               )
-                            })()}
+                            })}
                           </div>
-                          <button onClick={() => { setAddingToDate(null); setAddSearch('') }}
-                            className="w-full text-xs text-gray-400 hover:text-gray-600 py-0.5">
-                            Cancelar
-                          </button>
                         </>
                       )}
                     </div>
                   ) : (
                     <button
-                      onClick={() => { setAddingToDate(date); setAddSearch(''); loadSuggestedDogs(date) }}
-                      className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-amber-400 hover:text-amber-600 hover:bg-amber-50 transition-colors text-xs"
+                      onClick={() => {
+                        setAddingToDate(date)
+                        setAddSearch('')
+                        setPendingAddDog(null)
+                        setDogPackages(null)
+                        loadSuggestedDogs(date)
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Adicionar
+                      <Plus className="w-3 h-3" /> Adicionar
                     </button>
                   )}
                 </div>
               </div>
             )
           })}
-        </div>
-        </div>
-      ) : null}
-
-      {/* Pool of all dogs — only in week view */}
-      {viewMode === 'week' && data && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-          <p className="text-sm font-semibold text-gray-600 mb-3">
-            Arraste para adicionar a qualquer dia:
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {data.allDogs.map(dog => (
-              <div
-                key={dog.id}
-                draggable
-                onDragStart={() => onDragStart(dog.id, null)}
-                className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 cursor-grab active:cursor-grabbing hover:border-amber-300 hover:shadow-sm transition-all text-xs"
-              >
-                <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center">
-                  {dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="w-full h-full object-cover" /> : '🐶'}
-                </div>
-                <span className="font-medium text-gray-700">{dog.name}</span>
-                {dog.scheduledDays && (
-                  <span className="text-gray-400">· {dog.scheduledDays}</span>
-                )}
-              </div>
-            ))}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
