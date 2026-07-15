@@ -221,6 +221,8 @@ model Package {
   id              String   @id @default(cuid())
   dogId           String
   dog             Dog      @relation(fields: [dogId], references: [id])
+  saleId          String?  @unique // Vincula o pacote à venda que o originou
+  sale            Sales?   @relation(fields: [saleId], references: [id])
   packageType     String   // AVULSO_5, AVULSO_10
   totalDays       Int      // 5 or 10
   remainingDays   Int      // Decrements when used
@@ -283,6 +285,7 @@ model Sales {
   manualBaixa     Boolean  @default(false) // Manual service completion flag
   manualBaixaDate DateTime? // Date when service was manually marked as completed
   items           SaleItem[]
+  package         Package? // Pacote gerado a partir desta venda (se saleType = PACOTE)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

@@ -30,31 +30,25 @@ export async function POST(req: NextRequest) {
   })
 
   for (const pkg of packages) {
-    const purchaseDate = pkg.purchaseDate.toISOString().split('T')[0]
-    const expiryDate = pkg.expiryDate.toISOString().split('T')[0]
-
-    // Count ALL roster entries for this dog in the package window
+    // Conta apenas entradas vinculadas especificamente a este pacote (evita misturar com outros pacotes do mesmo cão)
     const rosterEntries = await prisma.dailyRoster.findMany({
-      where: {
-        dogId: pkg.dogId,
-        date: { gte: purchaseDate, lte: expiryDate },
-        type: { not: 'HOTEL' } // Exclude hotel stays
-      },
+      where: { packageId: pkg.id },
       select: { date: true },
       orderBy: { date: 'asc' }
     })
 
     const daysUsed = rosterEntries.length
     const correctRemaining = Math.max(0, pkg.totalDays - daysUsed)
+    const correctIsActive = correctRemaining > 0
     
     const beforeDisplay = `${pkg.totalDays - pkg.remainingDays}/${pkg.totalDays}`
     const afterDisplay = `${daysUsed}/${pkg.totalDays}`
 
     // Update if wrong
-    if (pkg.remainingDays !== correctRemaining || pkg.remainingDays < 0) {
+    if (pkg.remainingDays !== correctRemaining || pkg.remainingDays < 0 || pkg.isActive !== correctIsActive) {
       await prisma.package.update({
         where: { id: pkg.id },
-        data: { remainingDays: correctRemaining }
+        data: { remainingDays: correctRemaining, isActive: correctIsActive }
       })
     }
 

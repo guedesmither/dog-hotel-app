@@ -1230,7 +1230,7 @@ export default function AgendaPage() {
                                       onClick={() => addDog(pendingAddDog!.dogId, date, 'PACOTE', pkg.id)}
                                       className="w-full text-left px-2 py-1 text-xs bg-green-50 hover:bg-green-100 rounded transition-colors"
                                     >
-                                      📦 {pkg.name}
+                                      📦 {pkg.remainingDays}/{pkg.totalDays} dias · válido até {new Date(pkg.expiryDate).toLocaleDateString('pt-BR')}
                                     </button>
                                   ))}
                                 </>

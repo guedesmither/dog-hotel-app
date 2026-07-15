@@ -34,17 +34,9 @@ export async function POST(req: NextRequest) {
   })
 
   for (const pkg of packages) {
-    const purchaseDate = pkg.purchaseDate.toISOString().split('T')[0]
-    const expiryDate = pkg.expiryDate.toISOString().split('T')[0]
-
-    // Count ALL roster entries for this dog between purchase and expiry
+    // Conta apenas entradas vinculadas especificamente a este pacote (evita misturar com outros pacotes do mesmo cão)
     const rosterEntries = await prisma.dailyRoster.findMany({
-      where: {
-        dogId: pkg.dogId,
-        date: { gte: purchaseDate, lte: expiryDate },
-        // Count any type except HOTEL (reposicao, creche, pacote all count)
-        type: { not: 'HOTEL' }
-      },
+      where: { packageId: pkg.id },
       select: { date: true },
       orderBy: { date: 'asc' }
     })

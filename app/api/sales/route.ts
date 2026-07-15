@@ -112,21 +112,20 @@ export async function GET(req: NextRequest) {
             serviceStatus = 'AGENDADO'
             return { ...sale, serviceStatus }
           }
-          const packages = await prisma.package.findMany({
-            where: { dogId: sale.dogId, isActive: true, expiryDate: { gte: new Date() } },
-            orderBy: { createdAt: 'desc' },
-          })
-          const pkg = packages[0]
+          // Busca o pacote vinculado especificamente a esta venda (evita misturar contagem com outros pacotes do mesmo cão)
+          let pkg = await prisma.package.findFirst({ where: { saleId: sale.id } })
+          if (!pkg) {
+            // Fallback para vendas antigas sem vínculo direto: usa o pacote ativo mais recente do cão
+            const legacyPackages = await prisma.package.findMany({
+              where: { dogId: sale.dogId, isActive: true, expiryDate: { gte: new Date() } },
+              orderBy: { createdAt: 'desc' },
+            })
+            pkg = legacyPackages[0] || null
+          }
           if (pkg) {
-            // Calculate days used from actual roster entries in package window (ignore remainingDays from DB)
-            const purchaseDate = pkg.purchaseDate.toISOString().split('T')[0]
-            const expiryDate = pkg.expiryDate.toISOString().split('T')[0]
+            // Conta apenas os dias usados especificamente deste pacote (via packageId no roster)
             const usedDays = await prisma.dailyRoster.count({
-              where: {
-                dogId: sale.dogId!,
-                date: { gte: purchaseDate, lte: expiryDate },
-                type: { not: 'HOTEL' }
-              }
+              where: { packageId: pkg.id }
             })
             serviceStatus = `${usedDays}/${pkg.totalDays}`
           } else {
@@ -147,7 +146,7 @@ export async function GET(req: NextRequest) {
             const totalDays = daysMatch ? parseInt(daysMatch[1], 10) : 10
             serviceStatus = usedDays > 0 ? `${usedDays}/${totalDays}` : 'AGENDADO'
           }
-          return { ...sale, packages, serviceStatus }
+          return { ...sale, packages: pkg ? [pkg] : [], serviceStatus }
         } else {
           const startD = sale.startDate ? new Date(sale.startDate) : null
           const endD   = sale.endDate   ? new Date(sale.endDate)   : null
@@ -364,6 +363,7 @@ export async function POST(req: NextRequest) {
         await prisma.package.create({
           data: {
             dogId,
+            saleId: sale.id,
             packageType: `AVULSO_${totalDays}`,
             totalDays,
             remainingDays: totalDays,
