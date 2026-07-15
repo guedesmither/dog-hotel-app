@@ -51,12 +51,14 @@ export async function POST(req: NextRequest) {
 
     const daysUsed = rosterEntries.length
     const newRemaining = Math.max(0, pkg.totalDays - daysUsed)
-    
+    // Baixa automática: desativa o pacote quando atinge o número máximo de utilizações
+    const newIsActive = newRemaining > 0
+
     // Only update if there's a discrepancy
-    if (newRemaining !== pkg.remainingDays) {
+    if (newRemaining !== pkg.remainingDays || newIsActive !== pkg.isActive) {
       await prisma.package.update({
         where: { id: pkg.id },
-        data: { remainingDays: newRemaining }
+        data: { remainingDays: newRemaining, isActive: newIsActive }
       })
     }
 

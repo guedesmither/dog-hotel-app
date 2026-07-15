@@ -929,10 +929,17 @@ export async function POST(req: NextRequest) {
   if (packageId) {
     updateData.packageId = packageId
     // Decrement package remaining days
-    await prisma.package.update({
+    const updatedPkg = await prisma.package.update({
       where: { id: packageId },
       data: { remainingDays: { decrement: 1 } },
     })
+    // Baixa automática: desativa o pacote quando atinge o número máximo de utilizações
+    if (updatedPkg.remainingDays <= 0 && updatedPkg.isActive) {
+      await prisma.package.update({
+        where: { id: packageId },
+        data: { isActive: false },
+      })
+    }
   }
 
   const entry = await prisma.dailyRoster.upsert({
@@ -997,10 +1004,17 @@ export async function DELETE(req: NextRequest) {
 
     if (entry && entry.packageId) {
       // Return the day to the package
-      await prisma.package.update({
+      const updatedPkg = await prisma.package.update({
         where: { id: entry.packageId },
         data: { remainingDays: { increment: 1 } },
       })
+      // Reverte a baixa automática se o pacote voltou a ter dias restantes
+      if (updatedPkg.remainingDays > 0 && !updatedPkg.isActive) {
+        await prisma.package.update({
+          where: { id: entry.packageId },
+          data: { isActive: true },
+        })
+      }
     }
 
     await prisma.dailyRoster.deleteMany({ where: { dogId, date } })
