@@ -445,14 +445,20 @@ export async function POST(req: NextRequest) {
       }, { status: 403 })
     }
 
-    if (pkg.dogId !== dogId) {
+    // Cães do mesmo tutor (mesmo CPF do responsável) podem compartilhar um pacote vendido para outro cão
+    const [targetDog, packageOwner] = await Promise.all([
+      prisma.dog.findUnique({ where: { id: dogId }, select: { ownerCpf: true } }),
+      prisma.dog.findUnique({ where: { id: pkg.dogId }, select: { ownerCpf: true } })
+    ])
+
+    if (pkg.dogId !== dogId && targetDog?.ownerCpf !== packageOwner?.ownerCpf) {
       return NextResponse.json({ 
         error: 'Pacote não pertence a este cão',
-        details: 'Este pacote não está associado ao cão especificado'
+        details: 'Este pacote só pode ser usado pelo cão titular ou por cães do mesmo tutor'
       }, { status: 403 })
     }
 
-    // Check how many times the dog has been scheduled this week using this package
+    // Check how many times this package has been scheduled this week across all dogs sharing it
     const weekStart = new Date(date)
     weekStart.setDate(weekStart.getDate() - weekStart.getDay())
     weekStart.setUTCHours(0, 0, 0, 0)
@@ -463,7 +469,6 @@ export async function POST(req: NextRequest) {
 
     const packageUsage = await prisma.dailyRoster.count({
       where: {
-        dogId,
         packageId,
         date: {
           gte: weekStart.toISOString(),

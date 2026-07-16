@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET /api/packages - List packages for a dog
+// GET /api/packages - List packages for a dog (and siblings under same owner)
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -68,13 +68,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'dogId is required' }, { status: 400 })
     }
 
+    const dog = await prisma.dog.findUnique({
+      where: { id: dogId },
+      select: { ownerCpf: true }
+    })
+
+    if (!dog) {
+      return NextResponse.json({ error: 'Dog not found' }, { status: 404 })
+    }
+
+    // Fetch packages linked to this dog OR to any sibling dog with the same owner (same CPF)
     const packages = await prisma.package.findMany({
       where: {
-        dogId,
         isActive: true,
-        expiryDate: {
-          gte: new Date(),
-        },
+        expiryDate: { gte: new Date() },
+        OR: [
+          { dogId },
+          ...(dog.ownerCpf ? [{ dog: { ownerCpf: dog.ownerCpf } }] : [])
+        ]
       },
       orderBy: {
         createdAt: 'desc',
