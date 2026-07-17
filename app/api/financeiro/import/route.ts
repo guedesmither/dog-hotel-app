@@ -92,7 +92,7 @@ function parseCSV(text: string, account: string): { entries: any[], skipped: str
 
     const descRaw = descCol >= 0 ? cols[descCol] : (cols[1] || '')
     const supplierRaw = supplierCol >= 0 ? cols[supplierCol] : ''
-    const valRaw = valCol >= 0 ? cols[valCol] : (cols[cols.length - 1] || '0')
+    const valRaw = valCol >= 0 ? cols.slice(valCol).join(',') : (cols[cols.length - 1] || '0')
 
     const amount = parseBRL(valRaw)
     if (isNaN(amount) || amount === 0) { skipped.push(`Linha ${i + 1}: valor inválido "${valRaw}"`); continue }
