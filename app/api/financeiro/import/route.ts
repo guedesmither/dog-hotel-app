@@ -32,7 +32,7 @@ function inferCategory(desc: string, supplier: string, type: string): string {
   const s = (desc + ' ' + supplier).toUpperCase()
   if (type === 'E') return 'ENTRADA CAIXA'
   if (s.includes('SALARI') || s.includes('FOLHA') || s.includes('SARAH')) return 'FOLHA SALARIAL'
-  if (s.includes('ALUGUEL') || s.includes('ELAINE')) return 'ALUGUEL'
+  if (s.includes('ALUGUEL') || s.includes('ELAINE DUMAS')) return 'ALUGUEL'
   if (s.includes('PROLABORE') || s.includes('PRO-LABORE') || s.includes('RETIRADA')) return 'PROLABORE'
   if (s.includes('ENEL') || s.includes('ELETRO') || s.includes('ENERGIA') || s.includes('ELETROPAULO')) return 'ENERGIA ELÉTRICA'
   if (s.includes('SABESP') || s.includes('ÁGUA') || s.includes('AGUA')) return 'ÁGUA'
@@ -98,10 +98,17 @@ function parseCSV(text: string, account: string): { entries: any[], skipped: str
     if (isNaN(amount) || amount === 0) { skipped.push(`Linha ${i + 1}: valor inválido "${valRaw}"`); continue }
 
     // Determinar tipo (E/S)
+    // Prioridade 1: sinal explícito (+/-) no valor bruto — é a fonte mais confiável
+    // quando presente (ex.: extratos com "Valor" tipo "+R$ 1.000,00" / "-R$ 100,00").
+    const valTrim = valRaw.trim()
     let type: 'E' | 'S'
-    if (typeCol >= 0) {
+    if (valTrim.startsWith('-')) {
+      type = 'S'
+    } else if (valTrim.startsWith('+')) {
+      type = 'E'
+    } else if (typeCol >= 0) {
       const t = cols[typeCol].toUpperCase()
-      type = (t.includes('C') || t.includes('E') || t.includes('+') || t === 'CRÉDITO' || t === 'CREDITO') ? 'E' : 'S'
+      type = (t === 'CRÉDITO' || t === 'CREDITO' || t === 'C' || t === 'E' || t === 'ENTRADA') ? 'E' : 'S'
     } else {
       type = amount > 0 ? 'E' : 'S'
     }
