@@ -745,14 +745,19 @@ function VendasContent() {
                           {(() => {
                             function fmtDate(d: string | Date | null | undefined) {
                               if (!d) return ''
-                              // Handle YYYY-MM-DD format directly without timezone issues
-                              if (typeof d === 'string' && d.includes('-') && !d.includes('T')) {
-                                const [year, month, day] = d.split('-').map(Number)
-                                return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`
+                              try {
+                                // Handle YYYY-MM-DD format directly without timezone issues
+                                if (typeof d === 'string' && d.includes('-') && !d.includes('T')) {
+                                  const [year, month, day] = d.split('-').map(Number)
+                                  return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`
+                                }
+                                // For ISO dates with time, parse and format
+                                const dateObj = typeof d === 'string' ? parseISO(d) : d
+                                if (isNaN(dateObj.getTime())) return ''
+                                return format(dateObj, 'dd/MM/yyyy', { locale: ptBR })
+                              } catch {
+                                return ''
                               }
-                              // For ISO dates with time, parse and format
-                              const dateObj = typeof d === 'string' ? parseISO(d) : d
-                              return format(dateObj, 'dd/MM/yyyy', { locale: ptBR })
                             }
                             // For period-based sales, show start date as the scheduled payment date
                             const hasPeriod = sale.startDate && (sale.saleType === 'MENSAL' || sale.saleType === 'HOTEL' || sale.saleType === 'PACOTE')
@@ -942,9 +947,20 @@ function VendasContent() {
                         const alreadyApplied = lp.unitPrice === item.unitPrice
                         // Fix timezone issue by parsing YYYY-MM-DD directly
                         const lpDateRaw = lp.saleDate
-                        const lpDate = lpDateRaw.includes('-') && !lpDateRaw.includes('T')
-                          ? (() => { const [y, m] = lpDateRaw.split('-'); return `${m}/${y.slice(2)}`; })()
-                          : format(parseISO(lpDateRaw), 'MM/yy', { locale: ptBR })
+                        const lpDate = (() => {
+                          try {
+                            if (!lpDateRaw) return ''
+                            if (lpDateRaw.includes('-') && !lpDateRaw.includes('T')) {
+                              const [y, m] = lpDateRaw.split('-')
+                              return `${m}/${y.slice(2)}`
+                            }
+                            const d = parseISO(lpDateRaw)
+                            if (isNaN(d.getTime())) return ''
+                            return format(d, 'MM/yy', { locale: ptBR })
+                          } catch {
+                            return ''
+                          }
+                        })()
                         const lastDiscount = lp.discount ?? 0
                         const discountAlreadyApplied = lastDiscount > 0 && parseFloat(discount) === lastDiscount
                         return (

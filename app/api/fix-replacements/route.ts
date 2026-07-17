@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/fix-replacements — fix billingMonthEnd and remove invalid replacements
 export async function GET() {
   const results: any = { deletedFromReposicao: [], fixedBillingMonthEnd: [] }
