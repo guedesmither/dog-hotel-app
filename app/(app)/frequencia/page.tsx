@@ -16,7 +16,10 @@ type MonthlyFrequency = {
   enrollments: number
   accumulatedEnrollments: number
   uniquePresentDogs: number
+  directBilledDogs: number
+  packageCoveredDogs: number
   uniqueBilledDogs: number
+  packageContractsUsed: number
   averagePayingDogsPerDay: number
   workingDays: number
   billedRevenue: number
@@ -94,17 +97,17 @@ export default function FrequenciaPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Base acumulada" value={String(current?.accumulatedEnrollments || 0)} helper="cães com 1ª mensalidade ou hospedagem" icon={Dog} tone="border-indigo-200 bg-indigo-50 text-indigo-800" />
+        <MetricCard label="Base acumulada" value={String(current?.accumulatedEnrollments || 0)} helper="data de matrícula, mensalidade ou hospedagem" icon={Dog} tone="border-indigo-200 bg-indigo-50 text-indigo-800" />
         <MetricCard label="Matrículas do mês" value={String(current?.enrollments || 0)} helper={`${enrollmentTrend >= 0 ? '+' : ''}${enrollmentTrend} vs. mês anterior`} icon={TrendingUp} tone="border-emerald-200 bg-emerald-50 text-emerald-800" />
         <MetricCard label="Média pagantes/dia" value={(current?.averagePayingDogsPerDay || 0).toFixed(1)} helper={`${current?.workingDays || 0} dias úteis (seg. a sáb.)`} icon={CalendarDays} tone="border-violet-200 bg-violet-50 text-violet-800" />
-        <MetricCard label="Presença x faturados" value={`${current?.uniquePresentDogs || 0} / ${current?.uniqueBilledDogs || 0}`} helper={`${attendanceRate}% dos faturados estiveram presentes`} icon={BarChart3} tone="border-amber-200 bg-amber-50 text-amber-800" />
+        <MetricCard label="Presença x cobertura" value={`${current?.uniquePresentDogs || 0} / ${current?.uniqueBilledDogs || 0}`} helper={`${current?.packageCoveredDogs || 0} cães usaram ${current?.packageContractsUsed || 0} pacote(s)`} icon={BarChart3} tone="border-amber-200 bg-amber-50 text-amber-800" />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
         <section className="rounded-2xl border border-gray-200 bg-white p-4">
           <div className="mb-4">
             <h2 className="font-bold text-gray-800">Matrículas e base acumulada</h2>
-            <p className="text-xs text-gray-500">Matrícula é a primeira venda mensal ou hospedagem registrada para o cão.</p>
+            <p className="text-xs text-gray-500">Matrícula usa a data registrada no cadastro ou a primeira mensalidade/hospedagem do cão.</p>
           </div>
           <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={enrollmentChart} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
@@ -124,8 +127,8 @@ export default function FrequenciaPage() {
 
         <section className="rounded-2xl border border-gray-200 bg-white p-4">
           <div className="mb-4">
-            <h2 className="font-bold text-gray-800">Cães presentes x faturados</h2>
-            <p className="text-xs text-gray-500">Contagem única de cães no mês; uma presença por cão basta para contabilizá-lo.</p>
+            <h2 className="font-bold text-gray-800">Cães presentes x cobertos por receita</h2>
+            <p className="text-xs text-gray-500">Contagem única no mês. Cobertura soma venda direta e uso real de pacote, sem duplicar o cão.</p>
           </div>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={data.monthly} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
@@ -135,7 +138,8 @@ export default function FrequenciaPage() {
               <Tooltip formatter={(value: any, name: any) => [`${Number(value || 0)} cães`, name]} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="uniquePresentDogs" name="Presentes" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="uniqueBilledDogs" name="Faturados" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="directBilledDogs" name="Venda direta" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="packageCoveredDogs" name="Uso de pacote" fill="#f59e0b" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </section>
@@ -167,10 +171,10 @@ export default function FrequenciaPage() {
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-              <tr><th className="px-4 py-3">Mês</th><th className="px-4 py-3 text-right">Matrículas</th><th className="px-4 py-3 text-right">Base acumulada</th><th className="px-4 py-3 text-right">Presentes únicos</th><th className="px-4 py-3 text-right">Faturados únicos</th><th className="px-4 py-3 text-right">Média pagantes/dia</th></tr>
+              <tr><th className="px-4 py-3">Mês</th><th className="px-4 py-3 text-right">Matrículas</th><th className="px-4 py-3 text-right">Base acumulada</th><th className="px-4 py-3 text-right">Presentes únicos</th><th className="px-4 py-3 text-right">Venda direta</th><th className="px-4 py-3 text-right">Uso pacote</th><th className="px-4 py-3 text-right">Média pagantes/dia</th></tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {[...data.monthly].reverse().map(item => <tr key={item.month} className="text-gray-700"><td className="px-4 py-3 font-semibold">{item.label}</td><td className="px-4 py-3 text-right">{item.enrollments}</td><td className="px-4 py-3 text-right">{item.accumulatedEnrollments}</td><td className="px-4 py-3 text-right">{item.uniquePresentDogs}</td><td className="px-4 py-3 text-right">{item.uniqueBilledDogs}</td><td className="px-4 py-3 text-right font-semibold">{item.averagePayingDogsPerDay.toFixed(1)}</td></tr>)}
+              {[...data.monthly].reverse().map(item => <tr key={item.month} className="text-gray-700"><td className="px-4 py-3 font-semibold">{item.label}</td><td className="px-4 py-3 text-right">{item.enrollments}</td><td className="px-4 py-3 text-right">{item.accumulatedEnrollments}</td><td className="px-4 py-3 text-right">{item.uniquePresentDogs}</td><td className="px-4 py-3 text-right">{item.directBilledDogs}</td><td className="px-4 py-3 text-right">{item.packageCoveredDogs} em {item.packageContractsUsed}</td><td className="px-4 py-3 text-right font-semibold">{item.averagePayingDogsPerDay.toFixed(1)}</td></tr>)}
             </tbody>
           </table>
         </div>
