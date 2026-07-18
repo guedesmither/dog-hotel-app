@@ -142,6 +142,12 @@ const navSections: NavSection[] = [
         roles: ['ADMIN', 'MANAGER'],
       },
       {
+        href: '/frequencia',
+        label: 'Frequência e Crescimento',
+        icon: <Users className="w-5 h-5" />,
+        roles: ['ADMIN', 'MANAGER'],
+      },
+      {
         href: '/lancamentos',
         label: 'Lançamentos',
         icon: <ReceiptText className="w-5 h-5" />,
