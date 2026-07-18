@@ -181,13 +181,7 @@ export async function GET() {
       const payingCoveredDogs = new Set([...Array.from(directBilledDogs), ...Array.from(packageCoveredDogs)])
       const monthPresentDogs = presentDogsByMonth.get(month) || new Set<string>()
       const monthEnrolledDogs = enrollmentByMonth.get(month) || new Set<string>()
-      const countedDogIds = new Set([
-        ...Array.from(monthEnrolledDogs),
-        ...Array.from(monthPresentDogs),
-        ...Array.from(directBilledDogs),
-        ...Array.from(packageCoveredDogs),
-      ])
-      const countedDogs = Array.from(countedDogIds)
+      const countedDogs = Array.from(monthEnrolledDogs)
         .map(id => {
           const dog = dogDetails.get(id)
           if (!dog) return null
