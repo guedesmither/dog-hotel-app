@@ -16,6 +16,7 @@ type MonthlyData = {
   averagePayingDogsPerDay: number
   workingDays: number
   billedRevenue: number
+  revenuePerPayingDogDay: number
   dogs: Array<{
     id: string
     name: string
@@ -101,6 +102,7 @@ export async function GET() {
     ])
 
     const datedSales = sales.filter((sale): sale is typeof sale & { dogId: string } => Boolean(sale.dogId))
+    const today = new Date().toISOString().slice(0, 10)
     const firstSaleByDog = new Map<string, Date>()
     const dogsWithoutEnrollmentDate = new Map<string, Date>()
     for (const dog of dogs) {
@@ -126,7 +128,6 @@ export async function GET() {
       return NextResponse.json({ monthly: [], summary: { totalEnrollments: 0, currentPayingDogs: 0, averagePayingDogsPerDay: 0 } })
     }
 
-    const today = new Date().toISOString().slice(0, 10)
     const months = monthRange(firstDate, today.slice(0, 7))
     const dogDetails = new Map(dogs.map(dog => [dog.id, dog]))
     const enrollmentByMonth = new Map<string, Set<string>>()
@@ -147,7 +148,9 @@ export async function GET() {
       const month = toMonth(sale.saleDate)
       if (!directBilledDogsByMonth.has(month)) directBilledDogsByMonth.set(month, new Set())
       directBilledDogsByMonth.get(month)!.add(sale.dogId)
-      billedRevenueByMonth.set(month, (billedRevenueByMonth.get(month) || 0) + sale.finalPrice)
+      if (sale.saleDate.toISOString().slice(0, 10) <= today) {
+        billedRevenueByMonth.set(month, (billedRevenueByMonth.get(month) || 0) + sale.finalPrice)
+      }
     }
 
     for (const entry of attendance) {
@@ -212,6 +215,9 @@ export async function GET() {
         averagePayingDogsPerDay: workingDays ? Math.round((dailyPayingTotal / workingDays) * 100) / 100 : 0,
         workingDays,
         billedRevenue: Math.round((billedRevenueByMonth.get(month) || 0) * 100) / 100,
+        revenuePerPayingDogDay: payingCoveredDogs.size && workingDays
+          ? Math.round(((billedRevenueByMonth.get(month) || 0) / payingCoveredDogs.size / workingDays) * 100) / 100
+          : 0,
         dogs: countedDogs,
       }
     })

@@ -23,6 +23,7 @@ type MonthlyFrequency = {
   averagePayingDogsPerDay: number
   workingDays: number
   billedRevenue: number
+  revenuePerPayingDogDay: number
   dogs: Array<{
     id: string
     name: string
@@ -158,8 +159,8 @@ export default function FrequenciaPage() {
         <section className="rounded-2xl border border-gray-200 bg-white p-4 xl:col-span-2">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
             <div>
-              <h2 className="font-bold text-gray-800">Média diária de cães pagantes</h2>
-              <p className="text-xs text-gray-500">Presenças confirmadas de cães com matrícula, divididas pelos dias de segunda a sábado do mês.</p>
+              <h2 className="font-bold text-gray-800">Média diária de cães pagantes e faturamento MTD</h2>
+              <p className="text-xs text-gray-500">O eixo direito mostra o faturamento acumulado do mês por cão coberto e por dia útil transcorrido.</p>
             </div>
             <span className="text-xs font-semibold text-gray-500">Faturamento de referência: {moneyShort(current?.billedRevenue || 0)}</span>
           </div>
@@ -167,9 +168,12 @@ export default function FrequenciaPage() {
             <LineChart data={data.monthly} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
               <CartesianGrid stroke="#f0f0f0" strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-              <YAxis allowDecimals tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(value: any) => [`${Number(value || 0).toFixed(1)} cães/dia`, 'Média pagantes']} />
-              <Line type="monotone" dataKey="averagePayingDogsPerDay" name="Média pagantes/dia" stroke="#ec4899" strokeWidth={3} dot={{ r: 4 }} />
+              <YAxis yAxisId="dogs" allowDecimals tick={{ fontSize: 11 }} label={{ value: 'cães/dia', angle: -90, position: 'insideLeft', fontSize: 11, fill: '#ec4899' }} />
+              <YAxis yAxisId="revenue" orientation="right" tick={{ fontSize: 11 }} tickFormatter={moneyShort} label={{ value: 'R$/cão/dia', angle: 90, position: 'insideRight', fontSize: 11, fill: '#0f766e' }} />
+              <Tooltip formatter={(value: any, name: any) => name === 'Faturamento MTD/cão/dia' ? [moneyShort(Number(value || 0)), name] : [`${Number(value || 0).toFixed(1)} cães/dia`, name]} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Line yAxisId="dogs" type="monotone" dataKey="averagePayingDogsPerDay" name="Média pagantes/dia" stroke="#ec4899" strokeWidth={3} dot={{ r: 4 }} />
+              <Line yAxisId="revenue" type="monotone" dataKey="revenuePerPayingDogDay" name="Faturamento MTD/cão/dia" stroke="#0f766e" strokeWidth={3} dot={{ r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
         </section>
