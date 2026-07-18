@@ -85,19 +85,25 @@ export async function GET() {
         orderBy: { date: 'asc' },
       }),
       prisma.dog.findMany({
-        select: { id: true, enrollmentDate: true },
+        select: { id: true, enrollmentDate: true, createdAt: true },
       }),
     ])
 
     const datedSales = sales.filter((sale): sale is typeof sale & { dogId: string } => Boolean(sale.dogId))
     const firstSaleByDog = new Map<string, Date>()
+    const dogsWithoutEnrollmentDate = new Map<string, Date>()
     for (const dog of dogs) {
       const enrollmentDate = dog.enrollmentDate ? parseEnrollmentDate(dog.enrollmentDate) : null
       if (enrollmentDate && !Number.isNaN(enrollmentDate.getTime())) firstSaleByDog.set(dog.id, enrollmentDate)
+      else dogsWithoutEnrollmentDate.set(dog.id, dog.createdAt)
     }
     for (const sale of datedSales.filter(item => item.saleType === 'MENSAL' || item.saleType === 'HOTEL')) {
       const existing = firstSaleByDog.get(sale.dogId)
       if (!existing || sale.saleDate < existing) firstSaleByDog.set(sale.dogId, sale.saleDate)
+      dogsWithoutEnrollmentDate.delete(sale.dogId)
+    }
+    for (const [dogId, createdAt] of Array.from(dogsWithoutEnrollmentDate.entries())) {
+      firstSaleByDog.set(dogId, createdAt)
     }
 
     const firstDate = [
