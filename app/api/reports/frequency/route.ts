@@ -16,6 +16,16 @@ type MonthlyData = {
   averagePayingDogsPerDay: number
   workingDays: number
   billedRevenue: number
+  dogs: Array<{
+    id: string
+    name: string
+    ownerName: string
+    photoUrl: string | null
+    enrolled: boolean
+    present: boolean
+    directSale: boolean
+    packageUse: boolean
+  }>
 }
 
 const monthLabel = (month: string) => {
@@ -86,7 +96,7 @@ export async function GET() {
       }),
       prisma.dog.findMany({
         where: { isBolsista: false },
-        select: { id: true, enrollmentDate: true, createdAt: true },
+        select: { id: true, name: true, ownerName: true, photoUrl: true, enrollmentDate: true, createdAt: true },
       }),
     ])
 
@@ -118,6 +128,7 @@ export async function GET() {
 
     const today = new Date().toISOString().slice(0, 10)
     const months = monthRange(firstDate, today.slice(0, 7))
+    const dogDetails = new Map(dogs.map(dog => [dog.id, dog]))
     const enrollmentByMonth = new Map<string, Set<string>>()
     const directBilledDogsByMonth = new Map<string, Set<string>>()
     const packageCoveredDogsByMonth = new Map<string, Set<string>>()
@@ -168,12 +179,38 @@ export async function GET() {
       const directBilledDogs = directBilledDogsByMonth.get(month) || new Set<string>()
       const packageCoveredDogs = packageCoveredDogsByMonth.get(month) || new Set<string>()
       const payingCoveredDogs = new Set([...Array.from(directBilledDogs), ...Array.from(packageCoveredDogs)])
+      const monthPresentDogs = presentDogsByMonth.get(month) || new Set<string>()
+      const monthEnrolledDogs = enrollmentByMonth.get(month) || new Set<string>()
+      const countedDogIds = new Set([
+        ...Array.from(monthEnrolledDogs),
+        ...Array.from(monthPresentDogs),
+        ...Array.from(directBilledDogs),
+        ...Array.from(packageCoveredDogs),
+      ])
+      const countedDogs = Array.from(countedDogIds)
+        .map(id => {
+          const dog = dogDetails.get(id)
+          if (!dog) return null
+          return {
+            id,
+            name: dog.name,
+            ownerName: dog.ownerName,
+            photoUrl: dog.photoUrl,
+            enrolled: monthEnrolledDogs.has(id),
+            present: monthPresentDogs.has(id),
+            directSale: directBilledDogs.has(id),
+            packageUse: packageCoveredDogs.has(id),
+          }
+        })
+        .filter((dog): dog is NonNullable<typeof dog> => Boolean(dog))
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+
       return {
         month,
         label: monthLabel(month),
         enrollments,
         accumulatedEnrollments,
-        uniquePresentDogs: presentDogsByMonth.get(month)?.size || 0,
+        uniquePresentDogs: monthPresentDogs.size,
         directBilledDogs: directBilledDogs.size,
         packageCoveredDogs: packageCoveredDogs.size,
         uniqueBilledDogs: payingCoveredDogs.size,
@@ -181,6 +218,7 @@ export async function GET() {
         averagePayingDogsPerDay: workingDays ? Math.round((dailyPayingTotal / workingDays) * 100) / 100 : 0,
         workingDays,
         billedRevenue: Math.round((billedRevenueByMonth.get(month) || 0) * 100) / 100,
+        dogs: countedDogs,
       }
     })
 

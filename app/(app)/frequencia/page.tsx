@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { BarChart3, CalendarDays, Dog, TrendingUp, Users } from 'lucide-react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import { BarChart3, CalendarDays, ChevronDown, ChevronRight, Dog, TrendingUp, Users } from 'lucide-react'
 import {
   DynamicAreaChart as AreaChart,
   DynamicBarChart as BarChart,
@@ -23,6 +23,16 @@ type MonthlyFrequency = {
   averagePayingDogsPerDay: number
   workingDays: number
   billedRevenue: number
+  dogs: Array<{
+    id: string
+    name: string
+    ownerName: string
+    photoUrl: string | null
+    enrolled: boolean
+    present: boolean
+    directSale: boolean
+    packageUse: boolean
+  }>
 }
 
 type FrequencyData = {
@@ -53,6 +63,7 @@ function MetricCard({ label, value, helper, icon: Icon, tone }: { label: string;
 
 export default function FrequenciaPage() {
   const [data, setData] = useState<FrequencyData | null>(null)
+  const [expandedMonth, setExpandedMonth] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -174,7 +185,30 @@ export default function FrequenciaPage() {
               <tr><th className="px-4 py-3">Mês</th><th className="px-4 py-3 text-right">Matrículas</th><th className="px-4 py-3 text-right">Base acumulada</th><th className="px-4 py-3 text-right">Presentes únicos</th><th className="px-4 py-3 text-right">Venda direta</th><th className="px-4 py-3 text-right">Uso pacote</th><th className="px-4 py-3 text-right">Média pagantes/dia</th></tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {[...data.monthly].reverse().map(item => <tr key={item.month} className="text-gray-700"><td className="px-4 py-3 font-semibold">{item.label}</td><td className="px-4 py-3 text-right">{item.enrollments}</td><td className="px-4 py-3 text-right">{item.accumulatedEnrollments}</td><td className="px-4 py-3 text-right">{item.uniquePresentDogs}</td><td className="px-4 py-3 text-right">{item.directBilledDogs}</td><td className="px-4 py-3 text-right">{item.packageCoveredDogs} em {item.packageContractsUsed}</td><td className="px-4 py-3 text-right font-semibold">{item.averagePayingDogsPerDay.toFixed(1)}</td></tr>)}
+              {[...data.monthly].reverse().map(item => {
+                const isExpanded = expandedMonth === item.month
+                return (
+                  <Fragment key={item.month}>
+                    <tr className="text-gray-700 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-semibold">
+                        <button onClick={() => setExpandedMonth(isExpanded ? null : item.month)} className="flex items-center gap-1.5 text-left hover:text-indigo-700">
+                          {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          {item.label}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-right">{item.enrollments}</td><td className="px-4 py-3 text-right">{item.accumulatedEnrollments}</td><td className="px-4 py-3 text-right">{item.uniquePresentDogs}</td><td className="px-4 py-3 text-right">{item.directBilledDogs}</td><td className="px-4 py-3 text-right">{item.packageCoveredDogs} em {item.packageContractsUsed}</td><td className="px-4 py-3 text-right font-semibold">{item.averagePayingDogsPerDay.toFixed(1)}</td>
+                    </tr>
+                    {isExpanded && (
+                      <tr key={`${item.month}-details`} className="bg-indigo-50/50">
+                        <td colSpan={7} className="px-4 py-4">
+                          <div className="mb-3 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-wide"><span className="rounded-full bg-indigo-100 px-2 py-1 text-indigo-700">Matrícula</span><span className="rounded-full bg-sky-100 px-2 py-1 text-sky-700">Presente</span><span className="rounded-full bg-violet-100 px-2 py-1 text-violet-700">Venda direta</span><span className="rounded-full bg-amber-100 px-2 py-1 text-amber-700">Uso de pacote</span></div>
+                          {item.dogs.length ? <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{item.dogs.map(dog => <div key={dog.id} className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-white p-2.5"><div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-indigo-100">{dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="h-full w-full object-cover" /> : <Dog className="m-2 h-6 w-6 text-indigo-400" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-gray-800">{dog.name}</p><p className="truncate text-xs text-gray-500">{dog.ownerName}</p><div className="mt-1 flex flex-wrap gap-1">{dog.enrolled && <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700">Matrícula</span>}{dog.present && <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold text-sky-700">Presente</span>}{dog.directSale && <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">Venda</span>}{dog.packageUse && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">Pacote</span>}</div></div></div>)}</div> : <p className="text-sm text-gray-500">Nenhum cão considerado neste mês.</p>}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })}
             </tbody>
           </table>
         </div>
