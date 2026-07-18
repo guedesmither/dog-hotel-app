@@ -75,16 +75,17 @@ export async function GET() {
   try {
     const [sales, attendance, dogs] = await Promise.all([
       prisma.sales.findMany({
-        where: { dogId: { not: null } },
+        where: { dogId: { not: null }, dog: { isBolsista: false } },
         select: { dogId: true, saleDate: true, saleType: true, finalPrice: true },
         orderBy: { saleDate: 'asc' },
       }),
       prisma.dailyRoster.findMany({
-        where: { present: true },
+        where: { present: true, dog: { isBolsista: false } },
         select: { dogId: true, date: true, packageId: true },
         orderBy: { date: 'asc' },
       }),
       prisma.dog.findMany({
+        where: { isBolsista: false },
         select: { id: true, enrollmentDate: true, createdAt: true },
       }),
     ])
