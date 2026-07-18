@@ -28,6 +28,14 @@ const toMonth = (date: Date | string) => {
   return value.slice(0, 7)
 }
 
+const parseEnrollmentDate = (value: string) => {
+  const brMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (brMatch) return new Date(`${brMatch[3]}-${brMatch[2]}-${brMatch[1]}T12:00:00.000Z`)
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (isoMatch) return new Date(`${value}T12:00:00.000Z`)
+  return null
+}
+
 const monthRange = (start: string, end: string) => {
   const [startYear, startMonth] = start.split('-').map(Number)
   const [endYear, endMonth] = end.split('-').map(Number)
@@ -84,7 +92,8 @@ export async function GET() {
     const datedSales = sales.filter((sale): sale is typeof sale & { dogId: string } => Boolean(sale.dogId))
     const firstSaleByDog = new Map<string, Date>()
     for (const dog of dogs) {
-      if (dog.enrollmentDate) firstSaleByDog.set(dog.id, new Date(`${dog.enrollmentDate}T12:00:00.000Z`))
+      const enrollmentDate = dog.enrollmentDate ? parseEnrollmentDate(dog.enrollmentDate) : null
+      if (enrollmentDate && !Number.isNaN(enrollmentDate.getTime())) firstSaleByDog.set(dog.id, enrollmentDate)
     }
     for (const sale of datedSales.filter(item => item.saleType === 'MENSAL' || item.saleType === 'HOTEL')) {
       const existing = firstSaleByDog.get(sale.dogId)
