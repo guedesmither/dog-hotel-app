@@ -215,8 +215,8 @@ export async function GET() {
         averagePayingDogsPerDay: workingDays ? Math.round((dailyPayingTotal / workingDays) * 100) / 100 : 0,
         workingDays,
         billedRevenue: Math.round((billedRevenueByMonth.get(month) || 0) * 100) / 100,
-        revenuePerPayingDogDay: monthPresentDogs.size && workingDays
-          ? Math.round(((billedRevenueByMonth.get(month) || 0) / monthPresentDogs.size / workingDays) * 100) / 100
+        revenuePerPayingDogDay: payingCoveredDogs.size && workingDays
+          ? Math.round(((billedRevenueByMonth.get(month) || 0) / payingCoveredDogs.size / workingDays) * 100) / 100
           : 0,
         dogs: countedDogs,
       }

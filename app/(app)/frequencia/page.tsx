@@ -160,7 +160,7 @@ export default function FrequenciaPage() {
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
             <div>
               <h2 className="font-bold text-gray-800">Média diária de cães pagantes e faturamento mensal</h2>
-              <p className="text-xs text-gray-500">O eixo direito mostra o faturamento de cada mês dividido pelos cães presentes e dias úteis de segunda a sábado.</p>
+              <p className="text-xs text-gray-500">O eixo direito mostra o faturamento de cada mês dividido pelos cães cobertos por receita e dias úteis de segunda a sábado.</p>
             </div>
             <span className="text-xs font-semibold text-gray-500">Faturamento de referência: {moneyShort(current?.billedRevenue || 0)}</span>
           </div>
