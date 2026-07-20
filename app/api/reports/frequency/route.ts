@@ -9,10 +9,6 @@ type MonthlyData = {
   enrollments: number
   accumulatedEnrollments: number
   uniquePresentDogs: number
-  directBilledDogs: number
-  packageCoveredDogs: number
-  uniqueBilledDogs: number
-  packageContractsUsed: number
   averagePayingDogsPerDay: number
   workingDays: number
   billedRevenue: number
@@ -25,8 +21,6 @@ type MonthlyData = {
     photoUrl: string | null
     enrolled: boolean
     present: boolean
-    directSale: boolean
-    packageUse: boolean
   }>
 }
 
@@ -88,17 +82,17 @@ export async function GET() {
     const today = new Date().toISOString().slice(0, 10)
     const [sales, attendance, dogs] = await Promise.all([
       prisma.sales.findMany({
-        where: { dogId: { not: null }, dog: { isBolsista: false } },
+        where: { dogId: { not: null }, dog: { isBolsista: false, serviceType: 'CRECHE' } },
         select: { dogId: true, saleDate: true, saleType: true, finalPrice: true },
         orderBy: { saleDate: 'asc' },
       }),
       prisma.dailyRoster.findMany({
-        where: { present: true, date: { lte: today }, dog: { isBolsista: false } },
-        select: { dogId: true, date: true, packageId: true },
+        where: { present: true, date: { lte: today }, dog: { isBolsista: false, serviceType: 'CRECHE' } },
+        select: { dogId: true, date: true },
         orderBy: { date: 'asc' },
       }),
       prisma.dog.findMany({
-        where: { isBolsista: false },
+        where: { isBolsista: false, serviceType: 'CRECHE' },
         select: { id: true, name: true, ownerName: true, photoUrl: true, enrollmentDate: true, createdAt: true },
       }),
     ])
@@ -111,7 +105,7 @@ export async function GET() {
       if (enrollmentDate && !Number.isNaN(enrollmentDate.getTime())) firstSaleByDog.set(dog.id, enrollmentDate)
       else dogsWithoutEnrollmentDate.set(dog.id, dog.createdAt)
     }
-    for (const sale of datedSales.filter(item => item.saleType === 'MENSAL' || item.saleType === 'HOTEL')) {
+    for (const sale of datedSales.filter(item => item.saleType === 'MENSAL')) {
       const existing = firstSaleByDog.get(sale.dogId)
       if (!existing || sale.saleDate < existing) firstSaleByDog.set(sale.dogId, sale.saleDate)
       dogsWithoutEnrollmentDate.delete(sale.dogId)
@@ -132,9 +126,6 @@ export async function GET() {
     const months = monthRange(firstDate, today.slice(0, 7))
     const dogDetails = new Map(dogs.map(dog => [dog.id, dog]))
     const enrollmentByMonth = new Map<string, Set<string>>()
-    const directBilledDogsByMonth = new Map<string, Set<string>>()
-    const packageCoveredDogsByMonth = new Map<string, Set<string>>()
-    const packageContractsByMonth = new Map<string, Set<string>>()
     const billedRevenueByMonth = new Map<string, number>()
     const presentDogsByMonth = new Map<string, Set<string>>()
     const presentPayingDogsByDay = new Map<string, Set<string>>()
@@ -147,8 +138,6 @@ export async function GET() {
 
     for (const sale of datedSales) {
       const month = toMonth(sale.saleDate)
-      if (!directBilledDogsByMonth.has(month)) directBilledDogsByMonth.set(month, new Set())
-      directBilledDogsByMonth.get(month)!.add(sale.dogId)
       if (sale.saleDate.toISOString().slice(0, 10) <= today) {
         billedRevenueByMonth.set(month, (billedRevenueByMonth.get(month) || 0) + sale.finalPrice)
       }
@@ -158,12 +147,6 @@ export async function GET() {
       const month = entry.date.slice(0, 7)
       if (!presentDogsByMonth.has(month)) presentDogsByMonth.set(month, new Set())
       presentDogsByMonth.get(month)!.add(entry.dogId)
-      if (entry.packageId) {
-        if (!packageCoveredDogsByMonth.has(month)) packageCoveredDogsByMonth.set(month, new Set())
-        if (!packageContractsByMonth.has(month)) packageContractsByMonth.set(month, new Set())
-        packageCoveredDogsByMonth.get(month)!.add(entry.dogId)
-        packageContractsByMonth.get(month)!.add(entry.packageId)
-      }
       const enrolledAt = firstSaleByDog.get(entry.dogId)
       if (enrolledAt && enrolledAt.toISOString().slice(0, 10) <= entry.date) {
         if (!presentPayingDogsByDay.has(entry.date)) presentPayingDogsByDay.set(entry.date, new Set())
@@ -180,9 +163,6 @@ export async function GET() {
         .filter(([date]) => date.startsWith(month))
         .reduce((total, [, dogs]) => total + dogs.size, 0)
 
-      const directBilledDogs = directBilledDogsByMonth.get(month) || new Set<string>()
-      const packageCoveredDogs = packageCoveredDogsByMonth.get(month) || new Set<string>()
-      const payingCoveredDogs = new Set([...Array.from(directBilledDogs), ...Array.from(packageCoveredDogs)])
       const monthPresentDogs = presentDogsByMonth.get(month) || new Set<string>()
       const monthEnrolledDogs = enrollmentByMonth.get(month) || new Set<string>()
       const countedDogs = Array.from(monthEnrolledDogs)
@@ -196,8 +176,6 @@ export async function GET() {
             photoUrl: dog.photoUrl,
             enrolled: monthEnrolledDogs.has(id),
             present: monthPresentDogs.has(id),
-            directSale: directBilledDogs.has(id),
-            packageUse: packageCoveredDogs.has(id),
           }
         })
         .filter((dog): dog is NonNullable<typeof dog> => Boolean(dog))
@@ -209,10 +187,6 @@ export async function GET() {
         enrollments,
         accumulatedEnrollments,
         uniquePresentDogs: monthPresentDogs.size,
-        directBilledDogs: directBilledDogs.size,
-        packageCoveredDogs: packageCoveredDogs.size,
-        uniqueBilledDogs: payingCoveredDogs.size,
-        packageContractsUsed: packageContractsByMonth.get(month)?.size || 0,
         averagePayingDogsPerDay: workingDays ? Math.round((dailyPayingTotal / workingDays) * 100) / 100 : 0,
         workingDays,
         billedRevenue: Math.round((billedRevenueByMonth.get(month) || 0) * 100) / 100,
