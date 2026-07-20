@@ -16,6 +16,7 @@ type MonthlyData = {
   averagePayingDogsPerDay: number
   workingDays: number
   billedRevenue: number
+  payingDogDays: number
   revenuePerPayingDogDay: number
   dogs: Array<{
     id: string
@@ -84,6 +85,7 @@ export async function GET() {
   }
 
   try {
+    const today = new Date().toISOString().slice(0, 10)
     const [sales, attendance, dogs] = await Promise.all([
       prisma.sales.findMany({
         where: { dogId: { not: null }, dog: { isBolsista: false } },
@@ -91,7 +93,7 @@ export async function GET() {
         orderBy: { saleDate: 'asc' },
       }),
       prisma.dailyRoster.findMany({
-        where: { present: true, dog: { isBolsista: false } },
+        where: { present: true, date: { lte: today }, dog: { isBolsista: false } },
         select: { dogId: true, date: true, packageId: true },
         orderBy: { date: 'asc' },
       }),
@@ -102,7 +104,6 @@ export async function GET() {
     ])
 
     const datedSales = sales.filter((sale): sale is typeof sale & { dogId: string } => Boolean(sale.dogId))
-    const today = new Date().toISOString().slice(0, 10)
     const firstSaleByDog = new Map<string, Date>()
     const dogsWithoutEnrollmentDate = new Map<string, Date>()
     for (const dog of dogs) {
@@ -215,6 +216,7 @@ export async function GET() {
         averagePayingDogsPerDay: workingDays ? Math.round((dailyPayingTotal / workingDays) * 100) / 100 : 0,
         workingDays,
         billedRevenue: Math.round((billedRevenueByMonth.get(month) || 0) * 100) / 100,
+        payingDogDays: dailyPayingTotal,
         revenuePerPayingDogDay: dailyPayingTotal
           ? Math.round(((billedRevenueByMonth.get(month) || 0) / dailyPayingTotal) * 100) / 100
           : 0,

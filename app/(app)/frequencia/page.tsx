@@ -23,6 +23,7 @@ type MonthlyFrequency = {
   averagePayingDogsPerDay: number
   workingDays: number
   billedRevenue: number
+  payingDogDays: number
   revenuePerPayingDogDay: number
   dogs: Array<{
     id: string
@@ -187,7 +188,7 @@ export default function FrequenciaPage() {
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-              <tr><th className="px-4 py-3">Mês</th><th className="px-4 py-3 text-right">Matrículas</th><th className="px-4 py-3 text-right">Base acumulada</th><th className="px-4 py-3 text-right">Presentes únicos</th><th className="px-4 py-3 text-right">Venda direta</th><th className="px-4 py-3 text-right">Uso pacote</th><th className="px-4 py-3 text-right">Média pagantes/dia</th></tr>
+              <tr><th className="px-4 py-3">Mês</th><th className="px-4 py-3 text-right">Matrículas</th><th className="px-4 py-3 text-right">Base acumulada</th><th className="px-4 py-3 text-right">Presentes únicos</th><th className="px-4 py-3 text-right">Venda direta</th><th className="px-4 py-3 text-right">Uso pacote</th><th className="px-4 py-3 text-right">Cão-dias</th><th className="px-4 py-3 text-right">Média pagantes/dia</th></tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {[...data.monthly].reverse().map(item => {
@@ -201,11 +202,11 @@ export default function FrequenciaPage() {
                           {item.label}
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-right">{item.enrollments}</td><td className="px-4 py-3 text-right">{item.accumulatedEnrollments}</td><td className="px-4 py-3 text-right">{item.uniquePresentDogs}</td><td className="px-4 py-3 text-right">{item.directBilledDogs}</td><td className="px-4 py-3 text-right">{item.packageCoveredDogs} em {item.packageContractsUsed}</td><td className="px-4 py-3 text-right font-semibold">{item.averagePayingDogsPerDay.toFixed(1)}</td>
+                      <td className="px-4 py-3 text-right">{item.enrollments}</td><td className="px-4 py-3 text-right">{item.accumulatedEnrollments}</td><td className="px-4 py-3 text-right">{item.uniquePresentDogs}</td><td className="px-4 py-3 text-right">{item.directBilledDogs}</td><td className="px-4 py-3 text-right">{item.packageCoveredDogs} em {item.packageContractsUsed}</td><td className="px-4 py-3 text-right">{item.payingDogDays}</td><td className="px-4 py-3 text-right font-semibold">{item.averagePayingDogsPerDay.toFixed(1)}</td>
                     </tr>
                     {isExpanded && (
                       <tr key={`${item.month}-details`} className="bg-indigo-50/50">
-                        <td colSpan={7} className="px-4 py-4">
+                        <td colSpan={8} className="px-4 py-4">
                           <p className="mb-3 text-xs font-semibold text-indigo-700">Cães matriculados em {item.label}</p>
                           {item.dogs.length ? <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{item.dogs.map(dog => <div key={dog.id} className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-white p-2.5"><div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-indigo-100">{dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="h-full w-full object-cover" /> : <Dog className="m-2 h-6 w-6 text-indigo-400" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-gray-800">{dog.name}</p><p className="truncate text-xs text-gray-500">{dog.ownerName}</p><div className="mt-1 flex flex-wrap gap-1">{dog.enrolled && <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700">Matrícula</span>}{dog.present && <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold text-sky-700">Presente</span>}{dog.directSale && <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">Venda</span>}{dog.packageUse && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">Pacote</span>}</div></div></div>)}</div> : <p className="text-sm text-gray-500">Nenhuma matrícula registrada neste mês.</p>}
                         </td>
