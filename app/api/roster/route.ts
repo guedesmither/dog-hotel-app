@@ -216,17 +216,15 @@ async function calcAllowedDays(sale: any, scheduledDays: string | null, prismaCl
   const periodStart = saleStart.toISOString().split('T')[0]
   const periodEnd = saleEnd.toISOString().split('T')[0]
 
+  const freq = getFrequencyFromProduct(sale)
   let allowed: number
-  if (scheduledDays && scheduledDays.trim() !== '') {
+  if (freq > 0) {
+    const weeks = Math.ceil((saleEnd.getTime() - saleStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
+    allowed = freq * weeks
+  } else if (scheduledDays && scheduledDays.trim() !== '') {
     allowed = countScheduledOccurrences(scheduledDays, saleStart, saleEnd)
   } else {
-    const freq = getFrequencyFromProduct(sale)
-    if (freq > 0) {
-      const weeks = Math.ceil((saleEnd.getTime() - saleStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
-      allowed = freq * weeks
-    } else {
-      allowed = Infinity
-    }
+    allowed = Infinity
   }
 
   const used = await prismaClient.dailyRoster.count({
@@ -706,7 +704,10 @@ export async function POST(req: NextRequest) {
         // Allow scheduling on ANY day within the subscription period
         // as long as monthly quota (totalScheduled) is not exceeded
         // Scheduled days are for organization only, not strict restriction
-        const totalScheduled = countScheduledOccurrences(dog.scheduledDays, countStart, expiryDate)
+        const frequency = getFrequencyFromProduct(sale)
+        const totalScheduled = frequency > 0
+          ? frequency * Math.ceil((expiryDate.getTime() - countStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
+          : countScheduledOccurrences(dog.scheduledDays, countStart, expiryDate)
 
         // Days already used (in roster) within the subscription period
         const usedDays = await prisma.dailyRoster.count({
