@@ -7,6 +7,13 @@ import toast from 'react-hot-toast'
 const R$ = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, style: 'currency', currency: 'BRL' })
 const pct = (v: number, total: number) => total > 0 ? Math.round((v / total) * 100) : 0
 
+interface FrequencyMonth {
+  month: string
+  billedRevenue: number
+  payingDogDays: number
+  revenuePerPayingDogDay: number
+}
+
 interface AnalyticsData {
   summary: {
     totalGross: number; totalDiscount: number; totalNet: number
@@ -48,6 +55,7 @@ function Bar({ value, max, color = 'bg-amber-400' }: { value: number; max: numbe
 export default function RelatorioPage() {
   const [tab, setTab]         = useState<Tab>('resumo')
   const [data, setData]       = useState<AnalyticsData | null>(null)
+  const [frequencyMonths, setFrequencyMonths] = useState<FrequencyMonth[]>([])
   const [loading, setLoading] = useState(true)
   const [yearMonth, setYearMonth] = useState(() => new Date().toISOString().slice(0, 7))
   const [allTime, setAllTime] = useState(false)
@@ -58,9 +66,16 @@ export default function RelatorioPage() {
     setLoading(true)
     try {
       const qs = allTime ? '' : `?yearMonth=${yearMonth}`
-      const res = await fetch(`/api/sales/analytics${qs}`)
+      const [res, frequencyRes] = await Promise.all([
+        fetch(`/api/sales/analytics${qs}`),
+        fetch('/api/reports/frequency'),
+      ])
       if (res.ok) setData(await res.json())
       else toast.error('Erro ao carregar dados')
+      if (frequencyRes.ok) {
+        const frequencyData = await frequencyRes.json()
+        setFrequencyMonths(frequencyData.monthly || [])
+      }
     } catch { toast.error('Erro ao carregar dados') }
     finally { setLoading(false) }
   }, [yearMonth, allTime])
@@ -68,6 +83,7 @@ export default function RelatorioPage() {
   useEffect(() => { load() }, [load])
 
   const s = data?.summary
+  const frequencyMonth = frequencyMonths.find(month => month.month === (allTime ? new Date().toISOString().slice(0, 7) : yearMonth))
 
   const tabs: { key: Tab; label: string; icon: any }[] = [
     { key: 'resumo',       label: 'Resumo',       icon: BarChart2 },
@@ -142,7 +158,7 @@ export default function RelatorioPage() {
               </div>
 
               {/* KPI row 2 — discount & count */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div className="card text-center py-4">
                   <p className="text-2xl font-bold text-gray-700">{s.salesCount}</p>
                   <p className="text-xs text-gray-500">Total de vendas</p>
@@ -160,6 +176,11 @@ export default function RelatorioPage() {
                     {s.totalNet > 0 ? (s.totalDiscount / s.totalGross * 100).toFixed(1) : 0}%
                   </p>
                   <p className="text-xs text-gray-500">Taxa de desconto</p>
+                </div>
+                <div className="card bg-teal-50 border-teal-200 text-center py-4">
+                  <p className="text-2xl font-bold text-teal-700">{frequencyMonth ? R$(frequencyMonth.revenuePerPayingDogDay) : '—'}</p>
+                  <p className="text-xs text-teal-700">Receita por cão-dia</p>
+                  {frequencyMonth && <p className="mt-0.5 text-[10px] text-teal-600">{frequencyMonth.payingDogDays} cão-dias</p>}
                 </div>
               </div>
 
