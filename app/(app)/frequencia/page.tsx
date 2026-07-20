@@ -15,7 +15,7 @@ type MonthlyFrequency = {
   label: string
   enrollments: number
   accumulatedEnrollments: number
-  accumulatedCrecheDogs: number
+  activeMonthlyCrecheDogs: number
   uniquePresentDogs: number
   directBilledDogs: number
   averagePayingDogsPerDay: number
@@ -105,7 +105,7 @@ export default function FrequenciaPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="Base acumulada" value={String(current?.accumulatedEnrollments || 0)} helper="data de matrícula, mensalidade ou hospedagem" icon={Dog} tone="border-indigo-200 bg-indigo-50 text-indigo-800" />
-        <MetricCard label="Cães de creche acumulados" value={String(current?.accumulatedCrecheDogs || 0)} helper="cães cadastrados como creche desde o início" icon={Users} tone="border-sky-200 bg-sky-50 text-sky-800" />
+        <MetricCard label="Creche ativa no mês" value={String(current?.activeMonthlyCrecheDogs || 0)} helper="cães de creche com mensalidade paga" icon={Users} tone="border-sky-200 bg-sky-50 text-sky-800" />
         <MetricCard label="Matrículas do mês" value={String(current?.enrollments || 0)} helper={`${enrollmentTrend >= 0 ? '+' : ''}${enrollmentTrend} vs. mês anterior`} icon={TrendingUp} tone="border-emerald-200 bg-emerald-50 text-emerald-800" />
         <MetricCard label="Média pagantes/dia" value={(current?.averagePayingDogsPerDay || 0).toFixed(1)} helper={`${current?.workingDays || 0} dias úteis (seg. a sáb.)`} icon={CalendarDays} tone="border-violet-200 bg-violet-50 text-violet-800" />
         <MetricCard label="Cães presentes no mês" value={String(current?.uniquePresentDogs || 0)} helper="presença única registrada no mês" icon={Users} tone="border-amber-200 bg-amber-50 text-amber-800" />
@@ -182,7 +182,7 @@ export default function FrequenciaPage() {
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-              <tr><th className="px-4 py-3">Mês</th><th className="px-4 py-3 text-right">Matrículas</th><th className="px-4 py-3 text-right">Base acumulada</th><th className="px-4 py-3 text-right">Cães creche acumulados</th><th className="px-4 py-3 text-right">Presentes únicos</th><th className="px-4 py-3 text-right">Venda direta</th><th className="px-4 py-3 text-right">Cão-dias</th><th className="px-4 py-3 text-right">Média pagantes/dia</th></tr>
+              <tr><th className="px-4 py-3">Mês</th><th className="px-4 py-3 text-right">Matrículas</th><th className="px-4 py-3 text-right">Base acumulada</th><th className="px-4 py-3 text-right">Creche ativa</th><th className="px-4 py-3 text-right">Presentes únicos</th><th className="px-4 py-3 text-right">Venda direta</th><th className="px-4 py-3 text-right">Cão-dias</th><th className="px-4 py-3 text-right">Média pagantes/dia</th></tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {[...data.monthly].reverse().map(item => {
@@ -196,7 +196,7 @@ export default function FrequenciaPage() {
                           {item.label}
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-right">{item.enrollments}</td><td className="px-4 py-3 text-right">{item.accumulatedEnrollments}</td><td className="px-4 py-3 text-right">{item.accumulatedCrecheDogs}</td><td className="px-4 py-3 text-right">{item.uniquePresentDogs}</td><td className="px-4 py-3 text-right">{item.directBilledDogs}</td><td className="px-4 py-3 text-right">{item.payingDogDays}</td><td className="px-4 py-3 text-right font-semibold">{item.averagePayingDogsPerDay.toFixed(1)}</td>
+                      <td className="px-4 py-3 text-right">{item.enrollments}</td><td className="px-4 py-3 text-right">{item.accumulatedEnrollments}</td><td className="px-4 py-3 text-right">{item.activeMonthlyCrecheDogs}</td><td className="px-4 py-3 text-right">{item.uniquePresentDogs}</td><td className="px-4 py-3 text-right">{item.directBilledDogs}</td><td className="px-4 py-3 text-right">{item.payingDogDays}</td><td className="px-4 py-3 text-right font-semibold">{item.averagePayingDogsPerDay.toFixed(1)}</td>
                     </tr>
                     {isExpanded && (
                       <tr key={`${item.month}-details`} className="bg-indigo-50/50">

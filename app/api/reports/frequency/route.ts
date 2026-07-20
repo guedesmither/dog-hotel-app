@@ -8,7 +8,7 @@ type MonthlyData = {
   label: string
   enrollments: number
   accumulatedEnrollments: number
-  accumulatedCrecheDogs: number
+  activeMonthlyCrecheDogs: number
   uniquePresentDogs: number
   averagePayingDogsPerDay: number
   workingDays: number
@@ -86,7 +86,7 @@ export async function GET() {
     const [sales, attendance, dogs] = await Promise.all([
       prisma.sales.findMany({
         where: { dogId: { not: null }, dog: { isBolsista: false } },
-        select: { dogId: true, saleDate: true, saleType: true, finalPrice: true },
+        select: { dogId: true, saleDate: true, saleType: true, paymentStatus: true, finalPrice: true },
         orderBy: { saleDate: 'asc' },
       }),
       prisma.dailyRoster.findMany({
@@ -129,7 +129,7 @@ export async function GET() {
     const months = monthRange(firstDate, today.slice(0, 7))
     const dogDetails = new Map(dogs.map(dog => [dog.id, dog]))
     const enrollmentByMonth = new Map<string, Set<string>>()
-    const crecheEnrollmentsByMonth = new Map<string, number>()
+    const activeMonthlyCrecheDogsByMonth = new Map<string, Set<string>>()
     const directBilledDogsByMonth = new Map<string, Set<string>>()
     const packageCoveredDogsByMonth = new Map<string, Set<string>>()
     const packageContractsByMonth = new Map<string, Set<string>>()
@@ -143,11 +143,12 @@ export async function GET() {
       enrollmentByMonth.get(month)!.add(dogId)
     }
 
-    for (const dog of dogs.filter(dog => dog.serviceType === 'CRECHE')) {
-      const firstSale = firstSaleByDog.get(dog.id)
-      if (!firstSale) continue
-      const month = toMonth(firstSale)
-      crecheEnrollmentsByMonth.set(month, (crecheEnrollmentsByMonth.get(month) || 0) + 1)
+    for (const sale of datedSales) {
+      if (sale.saleType !== 'MENSAL' || sale.paymentStatus !== 'PAGO') continue
+      if (dogDetails.get(sale.dogId)?.serviceType !== 'CRECHE') continue
+      const month = toMonth(sale.saleDate)
+      if (!activeMonthlyCrecheDogsByMonth.has(month)) activeMonthlyCrecheDogsByMonth.set(month, new Set())
+      activeMonthlyCrecheDogsByMonth.get(month)!.add(sale.dogId)
     }
 
     for (const sale of datedSales) {
@@ -177,11 +178,9 @@ export async function GET() {
     }
 
     let accumulatedEnrollments = 0
-    let accumulatedCrecheDogs = 0
     const monthly: MonthlyData[] = months.map(month => {
       const enrollments = enrollmentByMonth.get(month)?.size || 0
       accumulatedEnrollments += enrollments
-      accumulatedCrecheDogs += crecheEnrollmentsByMonth.get(month) || 0
       const workingDays = workingDaysUntil(month, today)
       const dailyPayingTotal = Array.from(presentPayingDogsByDay.entries())
         .filter(([date]) => date.startsWith(month))
@@ -215,7 +214,7 @@ export async function GET() {
         label: monthLabel(month),
         enrollments,
         accumulatedEnrollments,
-        accumulatedCrecheDogs,
+        activeMonthlyCrecheDogs: activeMonthlyCrecheDogsByMonth.get(month)?.size || 0,
         uniquePresentDogs: monthPresentDogs.size,
         directBilledDogs: directBilledDogs.size,
         packageCoveredDogs: packageCoveredDogs.size,
