@@ -15,7 +15,9 @@ type MonthlyFrequency = {
   label: string
   enrollments: number
   accumulatedEnrollments: number
+  accumulatedCrecheDogs: number
   uniquePresentDogs: number
+  directBilledDogs: number
   averagePayingDogsPerDay: number
   workingDays: number
   billedRevenue: number
@@ -28,6 +30,7 @@ type MonthlyFrequency = {
     photoUrl: string | null
     enrolled: boolean
     present: boolean
+    directSale: boolean
   }>
 }
 
@@ -93,25 +96,26 @@ export default function FrequenciaPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-extrabold text-gray-800"><Users className="h-6 w-6 text-indigo-600" /> Frequência e Crescimento</h1>
-          <p className="mt-1 text-sm text-gray-500">Visão mensal de matrículas e frequência dos cães de creche.</p>
+          <p className="mt-1 text-sm text-gray-500">Visão mensal de matrícula, presença e cães faturados.</p>
         </div>
         <div className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700">
           Média diária considera segunda a sábado
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Cães de creche acumulados" value={String(current?.accumulatedEnrollments || 0)} helper="cães cadastrados como creche desde o início" icon={Dog} tone="border-indigo-200 bg-indigo-50 text-indigo-800" />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <MetricCard label="Base acumulada" value={String(current?.accumulatedEnrollments || 0)} helper="data de matrícula, mensalidade ou hospedagem" icon={Dog} tone="border-indigo-200 bg-indigo-50 text-indigo-800" />
+        <MetricCard label="Cães de creche acumulados" value={String(current?.accumulatedCrecheDogs || 0)} helper="cães cadastrados como creche desde o início" icon={Users} tone="border-sky-200 bg-sky-50 text-sky-800" />
         <MetricCard label="Matrículas do mês" value={String(current?.enrollments || 0)} helper={`${enrollmentTrend >= 0 ? '+' : ''}${enrollmentTrend} vs. mês anterior`} icon={TrendingUp} tone="border-emerald-200 bg-emerald-50 text-emerald-800" />
         <MetricCard label="Média pagantes/dia" value={(current?.averagePayingDogsPerDay || 0).toFixed(1)} helper={`${current?.workingDays || 0} dias úteis (seg. a sáb.)`} icon={CalendarDays} tone="border-violet-200 bg-violet-50 text-violet-800" />
-        <MetricCard label="Cães presentes no mês" value={String(current?.uniquePresentDogs || 0)} helper="presença única dos cães de creche" icon={Users} tone="border-amber-200 bg-amber-50 text-amber-800" />
+        <MetricCard label="Cães presentes no mês" value={String(current?.uniquePresentDogs || 0)} helper="presença única registrada no mês" icon={Users} tone="border-amber-200 bg-amber-50 text-amber-800" />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
         <section className="rounded-2xl border border-gray-200 bg-white p-4">
           <div className="mb-4">
-            <h2 className="font-bold text-gray-800">Cães de creche e base acumulada</h2>
-            <p className="text-xs text-gray-500">Matrícula usa a data registrada no cadastro ou a primeira mensalidade do cão de creche.</p>
+            <h2 className="font-bold text-gray-800">Matrículas e base acumulada</h2>
+            <p className="text-xs text-gray-500">Matrícula usa a data registrada no cadastro ou a primeira mensalidade/hospedagem do cão.</p>
           </div>
           <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={enrollmentChart} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
@@ -131,8 +135,8 @@ export default function FrequenciaPage() {
 
         <section className="rounded-2xl border border-gray-200 bg-white p-4">
           <div className="mb-4">
-            <h2 className="font-bold text-gray-800">Frequência mensal de cães de creche</h2>
-            <p className="text-xs text-gray-500">Contagem única de cães de creche com presença registrada no mês.</p>
+            <h2 className="font-bold text-gray-800">Cães presentes e venda direta</h2>
+            <p className="text-xs text-gray-500">Contagem única no mês, sem detalhamento de pacotes.</p>
           </div>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={data.monthly} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
@@ -141,8 +145,8 @@ export default function FrequenciaPage() {
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
               <Tooltip formatter={(value: any, name: any) => [`${Number(value || 0)} cães`, name]} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="uniquePresentDogs" name="Cães presentes" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="enrollments" name="Matrículas" fill="#10b981" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="uniquePresentDogs" name="Presentes" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="directBilledDogs" name="Venda direta" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </section>
@@ -178,7 +182,7 @@ export default function FrequenciaPage() {
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-              <tr><th className="px-4 py-3">Mês</th><th className="px-4 py-3 text-right">Matrículas</th><th className="px-4 py-3 text-right">Cães de creche acumulados</th><th className="px-4 py-3 text-right">Presentes únicos</th><th className="px-4 py-3 text-right">Cão-dias</th><th className="px-4 py-3 text-right">Média pagantes/dia</th></tr>
+              <tr><th className="px-4 py-3">Mês</th><th className="px-4 py-3 text-right">Matrículas</th><th className="px-4 py-3 text-right">Base acumulada</th><th className="px-4 py-3 text-right">Cães creche acumulados</th><th className="px-4 py-3 text-right">Presentes únicos</th><th className="px-4 py-3 text-right">Venda direta</th><th className="px-4 py-3 text-right">Cão-dias</th><th className="px-4 py-3 text-right">Média pagantes/dia</th></tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {[...data.monthly].reverse().map(item => {
@@ -192,13 +196,13 @@ export default function FrequenciaPage() {
                           {item.label}
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-right">{item.enrollments}</td><td className="px-4 py-3 text-right">{item.accumulatedEnrollments}</td><td className="px-4 py-3 text-right">{item.uniquePresentDogs}</td><td className="px-4 py-3 text-right">{item.payingDogDays}</td><td className="px-4 py-3 text-right font-semibold">{item.averagePayingDogsPerDay.toFixed(1)}</td>
+                      <td className="px-4 py-3 text-right">{item.enrollments}</td><td className="px-4 py-3 text-right">{item.accumulatedEnrollments}</td><td className="px-4 py-3 text-right">{item.accumulatedCrecheDogs}</td><td className="px-4 py-3 text-right">{item.uniquePresentDogs}</td><td className="px-4 py-3 text-right">{item.directBilledDogs}</td><td className="px-4 py-3 text-right">{item.payingDogDays}</td><td className="px-4 py-3 text-right font-semibold">{item.averagePayingDogsPerDay.toFixed(1)}</td>
                     </tr>
                     {isExpanded && (
                       <tr key={`${item.month}-details`} className="bg-indigo-50/50">
-                        <td colSpan={6} className="px-4 py-4">
+                        <td colSpan={8} className="px-4 py-4">
                           <p className="mb-3 text-xs font-semibold text-indigo-700">Cães matriculados em {item.label}</p>
-                          {item.dogs.length ? <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{item.dogs.map(dog => <div key={dog.id} className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-white p-2.5"><div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-indigo-100">{dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="h-full w-full object-cover" /> : <Dog className="m-2 h-6 w-6 text-indigo-400" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-gray-800">{dog.name}</p><p className="truncate text-xs text-gray-500">{dog.ownerName}</p><div className="mt-1 flex flex-wrap gap-1">{dog.enrolled && <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700">Matrícula</span>}{dog.present && <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold text-sky-700">Presente</span>}</div></div></div>)}</div> : <p className="text-sm text-gray-500">Nenhuma matrícula registrada neste mês.</p>}
+                          {item.dogs.length ? <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{item.dogs.map(dog => <div key={dog.id} className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-white p-2.5"><div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-indigo-100">{dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="h-full w-full object-cover" /> : <Dog className="m-2 h-6 w-6 text-indigo-400" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-gray-800">{dog.name}</p><p className="truncate text-xs text-gray-500">{dog.ownerName}</p><div className="mt-1 flex flex-wrap gap-1">{dog.enrolled && <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700">Matrícula</span>}{dog.present && <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold text-sky-700">Presente</span>}{dog.directSale && <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">Venda</span>}</div></div></div>)}</div> : <p className="text-sm text-gray-500">Nenhuma matrícula registrada neste mês.</p>}
                         </td>
                       </tr>
                     )}
