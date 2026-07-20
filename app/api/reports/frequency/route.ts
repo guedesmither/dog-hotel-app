@@ -83,7 +83,7 @@ export async function GET() {
 
   try {
     const today = new Date().toISOString().slice(0, 10)
-    const [sales, attendance, dogs, crecheDogs] = await Promise.all([
+    const [sales, attendance, dogs] = await Promise.all([
       prisma.sales.findMany({
         where: { dogId: { not: null }, dog: { isBolsista: false } },
         select: { dogId: true, saleDate: true, saleType: true, finalPrice: true },
@@ -96,11 +96,7 @@ export async function GET() {
       }),
       prisma.dog.findMany({
         where: { isBolsista: false },
-        select: { id: true, name: true, ownerName: true, photoUrl: true, enrollmentDate: true, createdAt: true },
-      }),
-      prisma.dog.findMany({
-        where: { isBolsista: false, serviceType: 'CRECHE' },
-        select: { enrollmentDate: true, createdAt: true },
+        select: { id: true, name: true, ownerName: true, photoUrl: true, enrollmentDate: true, createdAt: true, serviceType: true },
       }),
     ])
 
@@ -147,10 +143,10 @@ export async function GET() {
       enrollmentByMonth.get(month)!.add(dogId)
     }
 
-    for (const dog of crecheDogs) {
-      const enrollmentDate = dog.enrollmentDate ? parseEnrollmentDate(dog.enrollmentDate) : null
-      const startDate = enrollmentDate && !Number.isNaN(enrollmentDate.getTime()) ? enrollmentDate : dog.createdAt
-      const month = toMonth(startDate)
+    for (const dog of dogs.filter(dog => dog.serviceType === 'CRECHE')) {
+      const firstSale = firstSaleByDog.get(dog.id)
+      if (!firstSale) continue
+      const month = toMonth(firstSale)
       crecheEnrollmentsByMonth.set(month, (crecheEnrollmentsByMonth.get(month) || 0) + 1)
     }
 
