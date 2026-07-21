@@ -140,6 +140,13 @@ export async function GET() {
       enrollmentByMonth.get(month)!.add(dogId)
     }
 
+    for (const [dogId, firstSale] of Array.from(firstSaleByDog.entries())) {
+      if (dogDetails.get(dogId)?.serviceType !== 'CRECHE') continue
+      const month = toMonth(firstSale)
+      if (!activeMonthlyCrecheDogsByMonth.has(month)) activeMonthlyCrecheDogsByMonth.set(month, new Set())
+      activeMonthlyCrecheDogsByMonth.get(month)!.add(dogId)
+    }
+
     for (const sale of datedSales) {
       if (sale.saleType !== 'MENSAL') continue
       if (dogDetails.get(sale.dogId)?.serviceType !== 'CRECHE') continue
