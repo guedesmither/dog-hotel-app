@@ -177,6 +177,10 @@ export async function GET() {
         if (!packageContractsByMonth.has(month)) packageContractsByMonth.set(month, new Set())
         packageCoveredDogsByMonth.get(month)!.add(entry.dogId)
         packageContractsByMonth.get(month)!.add(entry.packageId)
+        if (dogDetails.get(entry.dogId)?.serviceType === 'CRECHE') {
+          if (!activeMonthlyCrecheDogsByMonth.has(month)) activeMonthlyCrecheDogsByMonth.set(month, new Set())
+          activeMonthlyCrecheDogsByMonth.get(month)!.add(entry.dogId)
+        }
       }
       const enrolledAt = firstSaleByDog.get(entry.dogId)
       if (enrolledAt && enrolledAt.toISOString().slice(0, 10) <= entry.date) {
