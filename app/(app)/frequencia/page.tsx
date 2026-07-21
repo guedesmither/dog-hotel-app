@@ -105,7 +105,7 @@ export default function FrequenciaPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="Base acumulada" value={String(current?.accumulatedEnrollments || 0)} helper="data de matrícula, mensalidade ou hospedagem" icon={Dog} tone="border-indigo-200 bg-indigo-50 text-indigo-800" />
-        <MetricCard label="Creche ativa no mês" value={String(current?.activeMonthlyCrecheDogs || 0)} helper="cães de creche com mensalidade paga" icon={Users} tone="border-sky-200 bg-sky-50 text-sky-800" />
+        <MetricCard label="Creche ativa no mês" value={String(current?.activeMonthlyCrecheDogs || 0)} helper="cães de creche com vigência no mês" icon={Users} tone="border-sky-200 bg-sky-50 text-sky-800" />
         <MetricCard label="Matrículas do mês" value={String(current?.enrollments || 0)} helper={`${enrollmentTrend >= 0 ? '+' : ''}${enrollmentTrend} vs. mês anterior`} icon={TrendingUp} tone="border-emerald-200 bg-emerald-50 text-emerald-800" />
         <MetricCard label="Média pagantes/dia" value={(current?.averagePayingDogsPerDay || 0).toFixed(1)} helper={`${current?.workingDays || 0} dias úteis (seg. a sáb.)`} icon={CalendarDays} tone="border-violet-200 bg-violet-50 text-violet-800" />
         <MetricCard label="Cães presentes no mês" value={String(current?.uniquePresentDogs || 0)} helper="presença única registrada no mês" icon={Users} tone="border-amber-200 bg-amber-50 text-amber-800" />

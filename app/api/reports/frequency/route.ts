@@ -86,7 +86,7 @@ export async function GET() {
     const [sales, attendance, dogs] = await Promise.all([
       prisma.sales.findMany({
         where: { dogId: { not: null }, dog: { isBolsista: false } },
-        select: { dogId: true, saleDate: true, saleType: true, paymentStatus: true, finalPrice: true },
+        select: { dogId: true, saleDate: true, startDate: true, endDate: true, saleType: true, finalPrice: true },
         orderBy: { saleDate: 'asc' },
       }),
       prisma.dailyRoster.findMany({
@@ -144,11 +144,19 @@ export async function GET() {
     }
 
     for (const sale of datedSales) {
-      if (sale.saleType !== 'MENSAL' || sale.paymentStatus !== 'PAGO') continue
+      if (sale.saleType !== 'MENSAL') continue
       if (dogDetails.get(sale.dogId)?.serviceType !== 'CRECHE') continue
-      const month = toMonth(sale.saleDate)
-      if (!activeMonthlyCrecheDogsByMonth.has(month)) activeMonthlyCrecheDogsByMonth.set(month, new Set())
-      activeMonthlyCrecheDogsByMonth.get(month)!.add(sale.dogId)
+      const start = sale.startDate || sale.saleDate
+      const end = sale.endDate || new Date('2099-12-31T23:59:59.999Z')
+      for (const month of months) {
+        const [year, monthNumber] = month.split('-').map(Number)
+        const monthStart = new Date(Date.UTC(year, monthNumber - 1, 1))
+        const monthEnd = new Date(Date.UTC(year, monthNumber, 0, 23, 59, 59, 999))
+        if (start <= monthEnd && end >= monthStart) {
+          if (!activeMonthlyCrecheDogsByMonth.has(month)) activeMonthlyCrecheDogsByMonth.set(month, new Set())
+          activeMonthlyCrecheDogsByMonth.get(month)!.add(sale.dogId)
+        }
+      }
     }
 
     for (const sale of datedSales) {
