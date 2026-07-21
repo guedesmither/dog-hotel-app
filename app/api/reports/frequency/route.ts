@@ -15,16 +15,12 @@ type MonthlyData = {
   billedRevenue: number
   payingDogDays: number
   revenuePerPayingDogDay: number
-  dogs: Array<{
-    id: string
-    name: string
-    ownerName: string
-    photoUrl: string | null
-    enrolled: boolean
-    present: boolean
-    directSale: boolean
-    packageUse: boolean
-  }>
+  dogLists: {
+    newDogs: Array<{ id: string; name: string; ownerName: string }>
+    presentDogs: Array<{ id: string; name: string; ownerName: string }>
+    activeCrecheDogs: Array<{ id: string; name: string; ownerName: string }>
+    inactiveDogs: Array<{ id: string; name: string; ownerName: string }>
+  }
 }
 
 const monthLabel = (month: string) => {
@@ -91,7 +87,7 @@ export async function GET() {
       }),
       prisma.dailyRoster.findMany({
         where: { present: true, date: { lte: today }, dog: { isBolsista: false } },
-        select: { dogId: true, date: true, packageId: true },
+        select: { dogId: true, date: true, type: true, packageId: true },
         orderBy: { date: 'asc' },
       }),
       prisma.dog.findMany({
@@ -135,6 +131,7 @@ export async function GET() {
     const packageContractsByMonth = new Map<string, Set<string>>()
     const billedRevenueByMonth = new Map<string, number>()
     const presentDogsByMonth = new Map<string, Set<string>>()
+    const presentCrecheHotelDogsByMonth = new Map<string, Set<string>>()
     const presentPayingDogsByDay = new Map<string, Set<string>>()
 
     for (const [dogId, firstSale] of Array.from(firstSaleByDog.entries())) {
@@ -172,6 +169,10 @@ export async function GET() {
       const month = entry.date.slice(0, 7)
       if (!presentDogsByMonth.has(month)) presentDogsByMonth.set(month, new Set())
       presentDogsByMonth.get(month)!.add(entry.dogId)
+      if (entry.type === 'CRECHE' || entry.type === 'HOTEL') {
+        if (!presentCrecheHotelDogsByMonth.has(month)) presentCrecheHotelDogsByMonth.set(month, new Set())
+        presentCrecheHotelDogsByMonth.get(month)!.add(entry.dogId)
+      }
       if (entry.packageId) {
         if (!packageCoveredDogsByMonth.has(month)) packageCoveredDogsByMonth.set(month, new Set())
         if (!packageContractsByMonth.has(month)) packageContractsByMonth.set(month, new Set())
@@ -202,21 +203,21 @@ export async function GET() {
       const packageCoveredDogs = packageCoveredDogsByMonth.get(month) || new Set<string>()
       const payingCoveredDogs = new Set([...Array.from(directBilledDogs), ...Array.from(packageCoveredDogs)])
       const monthPresentDogs = presentDogsByMonth.get(month) || new Set<string>()
+      const monthPresentCrecheHotelDogs = presentCrecheHotelDogsByMonth.get(month) || new Set<string>()
       const monthEnrolledDogs = enrollmentByMonth.get(month) || new Set<string>()
-      const countedDogs = Array.from(monthEnrolledDogs)
+      const monthActiveCrecheDogs = activeMonthlyCrecheDogsByMonth.get(month) || new Set<string>()
+      const [year, monthNumber] = month.split('-').map(Number)
+      const monthEnd = new Date(Date.UTC(year, monthNumber, 0, 23, 59, 59, 999))
+      const inactiveDogs = dogs
+        .filter(dog => {
+          const enrolledAt = firstSaleByDog.get(dog.id)
+          return Boolean(enrolledAt && enrolledAt <= monthEnd && !monthPresentDogs.has(dog.id) && !directBilledDogs.has(dog.id))
+        })
+        .map(dog => dog.id)
+      const toDogList = (dogIds: Iterable<string>) => Array.from(dogIds)
         .map(id => {
           const dog = dogDetails.get(id)
-          if (!dog) return null
-          return {
-            id,
-            name: dog.name,
-            ownerName: dog.ownerName,
-            photoUrl: dog.photoUrl,
-            enrolled: monthEnrolledDogs.has(id),
-            present: monthPresentDogs.has(id),
-            directSale: directBilledDogs.has(id),
-            packageUse: packageCoveredDogs.has(id),
-          }
+          return dog ? { id, name: dog.name, ownerName: dog.ownerName } : null
         })
         .filter((dog): dog is NonNullable<typeof dog> => Boolean(dog))
         .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
@@ -239,7 +240,12 @@ export async function GET() {
         revenuePerPayingDogDay: dailyPayingTotal
           ? Math.round(((billedRevenueByMonth.get(month) || 0) / dailyPayingTotal) * 100) / 100
           : 0,
-        dogs: countedDogs,
+        dogLists: {
+          newDogs: toDogList(monthEnrolledDogs),
+          presentDogs: toDogList(monthPresentCrecheHotelDogs),
+          activeCrecheDogs: toDogList(monthActiveCrecheDogs),
+          inactiveDogs: toDogList(inactiveDogs),
+        },
       }
     })
 

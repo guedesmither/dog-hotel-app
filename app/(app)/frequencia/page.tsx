@@ -23,15 +23,12 @@ type MonthlyFrequency = {
   billedRevenue: number
   payingDogDays: number
   revenuePerPayingDogDay: number
-  dogs: Array<{
-    id: string
-    name: string
-    ownerName: string
-    photoUrl: string | null
-    enrolled: boolean
-    present: boolean
-    directSale: boolean
-  }>
+  dogLists: {
+    newDogs: Array<{ id: string; name: string; ownerName: string }>
+    presentDogs: Array<{ id: string; name: string; ownerName: string }>
+    activeCrecheDogs: Array<{ id: string; name: string; ownerName: string }>
+    inactiveDogs: Array<{ id: string; name: string; ownerName: string }>
+  }
 }
 
 type FrequencyData = {
@@ -177,7 +174,7 @@ export default function FrequenciaPage() {
       <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
         <div className="border-b border-gray-100 px-5 py-4">
           <h2 className="font-bold text-gray-800">Resumo mensal</h2>
-          <p className="mt-1 text-xs text-gray-500">Expanda o mês para ver somente os cães matriculados naquele período.</p>
+          <p className="mt-1 text-xs text-gray-500">Expanda o mês para ver cães novos, presentes, creches ativas e inativos.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -201,8 +198,23 @@ export default function FrequenciaPage() {
                     {isExpanded && (
                       <tr key={`${item.month}-details`} className="bg-indigo-50/50">
                         <td colSpan={8} className="px-4 py-4">
-                          <p className="mb-3 text-xs font-semibold text-indigo-700">Cães matriculados em {item.label}</p>
-                          {item.dogs.length ? <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{item.dogs.map(dog => <div key={dog.id} className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-white p-2.5"><div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-indigo-100">{dog.photoUrl ? <img src={dog.photoUrl} alt={dog.name} className="h-full w-full object-cover" /> : <Dog className="m-2 h-6 w-6 text-indigo-400" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-gray-800">{dog.name}</p><p className="truncate text-xs text-gray-500">{dog.ownerName}</p><div className="mt-1 flex flex-wrap gap-1">{dog.enrolled && <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700">Matrícula</span>}{dog.present && <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold text-sky-700">Presente</span>}{dog.directSale && <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">Venda</span>}</div></div></div>)}</div> : <p className="text-sm text-gray-500">Nenhuma matrícula registrada neste mês.</p>}
+                          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                            {[
+                              { label: 'Cães novos', dogs: item.dogLists.newDogs },
+                              { label: 'Presentes (creche + hotel)', dogs: item.dogLists.presentDogs },
+                              { label: 'Creches ativas', dogs: item.dogLists.activeCrecheDogs },
+                              { label: 'Inativos no mês', dogs: item.dogLists.inactiveDogs },
+                            ].map(group => (
+                              <div key={group.label}>
+                                <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-indigo-700">{group.label} ({group.dogs.length})</h3>
+                                {group.dogs.length ? (
+                                  <ul className="space-y-1.5 text-sm">
+                                    {group.dogs.map(dog => <li key={dog.id} className="border-b border-indigo-100 pb-1.5"><p className="font-semibold text-gray-800">{dog.name}</p><p className="text-xs text-gray-500">{dog.ownerName}</p></li>)}
+                                  </ul>
+                                ) : <p className="text-sm text-gray-500">Nenhum cão.</p>}
+                              </div>
+                            ))}
+                          </div>
                         </td>
                       </tr>
                     )}
