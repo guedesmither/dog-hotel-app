@@ -33,6 +33,8 @@ const toMonth = (date: Date | string) => {
   return value.slice(0, 7)
 }
 
+const isCrecheService = (serviceType: string | null) => serviceType?.toUpperCase().includes('CRECHE')
+
 const parseEnrollmentDate = (value: string) => {
   const brMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
   if (brMatch) return new Date(`${brMatch[3]}-${brMatch[2]}-${brMatch[1]}T12:00:00.000Z`)
@@ -152,7 +154,7 @@ export async function GET() {
       const month = entry.date.slice(0, 7)
       if (!presentDogsByMonth.has(month)) presentDogsByMonth.set(month, new Set())
       presentDogsByMonth.get(month)!.add(entry.dogId)
-      if (dogDetails.get(entry.dogId)?.serviceType === 'CRECHE') {
+      if (isCrecheService(dogDetails.get(entry.dogId)?.serviceType || null)) {
         if (!presentCrecheDogsByMonth.has(month)) presentCrecheDogsByMonth.set(month, new Set())
         presentCrecheDogsByMonth.get(month)!.add(entry.dogId)
       }
