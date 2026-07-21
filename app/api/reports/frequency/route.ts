@@ -8,7 +8,6 @@ type MonthlyData = {
   label: string
   enrollments: number
   accumulatedEnrollments: number
-  activeMonthlyCrecheDogs: number
   uniquePresentDogs: number
   averagePayingDogsPerDay: number
   workingDays: number
@@ -18,7 +17,6 @@ type MonthlyData = {
   dogLists: {
     newDogs: Array<{ id: string; name: string; ownerName: string }>
     presentDogs: Array<{ id: string; name: string; ownerName: string }>
-    activeCrecheDogs: Array<{ id: string; name: string; ownerName: string }>
     inactiveDogs: Array<{ id: string; name: string; ownerName: string }>
   }
 }
@@ -87,7 +85,7 @@ export async function GET() {
       }),
       prisma.dailyRoster.findMany({
         where: { present: true, date: { lte: today }, dog: { isBolsista: false } },
-        select: { dogId: true, date: true, type: true, packageId: true },
+        select: { dogId: true, date: true, packageId: true },
         orderBy: { date: 'asc' },
       }),
       prisma.dog.findMany({
@@ -125,42 +123,17 @@ export async function GET() {
     const months = monthRange(firstDate, today.slice(0, 7))
     const dogDetails = new Map(dogs.map(dog => [dog.id, dog]))
     const enrollmentByMonth = new Map<string, Set<string>>()
-    const activeMonthlyCrecheDogsByMonth = new Map<string, Set<string>>()
     const directBilledDogsByMonth = new Map<string, Set<string>>()
     const packageCoveredDogsByMonth = new Map<string, Set<string>>()
     const packageContractsByMonth = new Map<string, Set<string>>()
     const billedRevenueByMonth = new Map<string, number>()
     const presentDogsByMonth = new Map<string, Set<string>>()
-    const presentCrecheHotelDogsByMonth = new Map<string, Set<string>>()
     const presentPayingDogsByDay = new Map<string, Set<string>>()
 
     for (const [dogId, firstSale] of Array.from(firstSaleByDog.entries())) {
       const month = toMonth(firstSale)
       if (!enrollmentByMonth.has(month)) enrollmentByMonth.set(month, new Set())
       enrollmentByMonth.get(month)!.add(dogId)
-    }
-
-    for (const [dogId, firstSale] of Array.from(firstSaleByDog.entries())) {
-      if (dogDetails.get(dogId)?.serviceType !== 'CRECHE') continue
-      const month = toMonth(firstSale)
-      if (!activeMonthlyCrecheDogsByMonth.has(month)) activeMonthlyCrecheDogsByMonth.set(month, new Set())
-      activeMonthlyCrecheDogsByMonth.get(month)!.add(dogId)
-    }
-
-    for (const sale of datedSales) {
-      if (sale.saleType !== 'MENSAL') continue
-      if (dogDetails.get(sale.dogId)?.serviceType !== 'CRECHE') continue
-      const start = sale.startDate || sale.saleDate
-      const end = sale.endDate || new Date('2099-12-31T23:59:59.999Z')
-      for (const month of months) {
-        const [year, monthNumber] = month.split('-').map(Number)
-        const monthStart = new Date(Date.UTC(year, monthNumber - 1, 1))
-        const monthEnd = new Date(Date.UTC(year, monthNumber, 0, 23, 59, 59, 999))
-        if (start <= monthEnd && end >= monthStart) {
-          if (!activeMonthlyCrecheDogsByMonth.has(month)) activeMonthlyCrecheDogsByMonth.set(month, new Set())
-          activeMonthlyCrecheDogsByMonth.get(month)!.add(sale.dogId)
-        }
-      }
     }
 
     for (const sale of datedSales) {
@@ -176,19 +149,11 @@ export async function GET() {
       const month = entry.date.slice(0, 7)
       if (!presentDogsByMonth.has(month)) presentDogsByMonth.set(month, new Set())
       presentDogsByMonth.get(month)!.add(entry.dogId)
-      if (entry.type === 'CRECHE' || entry.type === 'HOTEL') {
-        if (!presentCrecheHotelDogsByMonth.has(month)) presentCrecheHotelDogsByMonth.set(month, new Set())
-        presentCrecheHotelDogsByMonth.get(month)!.add(entry.dogId)
-      }
       if (entry.packageId) {
         if (!packageCoveredDogsByMonth.has(month)) packageCoveredDogsByMonth.set(month, new Set())
         if (!packageContractsByMonth.has(month)) packageContractsByMonth.set(month, new Set())
         packageCoveredDogsByMonth.get(month)!.add(entry.dogId)
         packageContractsByMonth.get(month)!.add(entry.packageId)
-        if (dogDetails.get(entry.dogId)?.serviceType === 'CRECHE') {
-          if (!activeMonthlyCrecheDogsByMonth.has(month)) activeMonthlyCrecheDogsByMonth.set(month, new Set())
-          activeMonthlyCrecheDogsByMonth.get(month)!.add(entry.dogId)
-        }
       }
       const enrolledAt = firstSaleByDog.get(entry.dogId)
       if (enrolledAt && enrolledAt.toISOString().slice(0, 10) <= entry.date) {
@@ -210,9 +175,7 @@ export async function GET() {
       const packageCoveredDogs = packageCoveredDogsByMonth.get(month) || new Set<string>()
       const payingCoveredDogs = new Set([...Array.from(directBilledDogs), ...Array.from(packageCoveredDogs)])
       const monthPresentDogs = presentDogsByMonth.get(month) || new Set<string>()
-      const monthPresentCrecheHotelDogs = presentCrecheHotelDogsByMonth.get(month) || new Set<string>()
       const monthEnrolledDogs = enrollmentByMonth.get(month) || new Set<string>()
-      const monthActiveCrecheDogs = activeMonthlyCrecheDogsByMonth.get(month) || new Set<string>()
       const [year, monthNumber] = month.split('-').map(Number)
       const monthEnd = new Date(Date.UTC(year, monthNumber, 0, 23, 59, 59, 999))
       const inactiveDogs = dogs
@@ -234,7 +197,6 @@ export async function GET() {
         label: monthLabel(month),
         enrollments,
         accumulatedEnrollments,
-        activeMonthlyCrecheDogs: activeMonthlyCrecheDogsByMonth.get(month)?.size || 0,
         uniquePresentDogs: monthPresentDogs.size,
         directBilledDogs: directBilledDogs.size,
         packageCoveredDogs: packageCoveredDogs.size,
@@ -249,8 +211,7 @@ export async function GET() {
           : 0,
         dogLists: {
           newDogs: toDogList(monthEnrolledDogs),
-          presentDogs: toDogList(monthPresentCrecheHotelDogs),
-          activeCrecheDogs: toDogList(monthActiveCrecheDogs),
+          presentDogs: toDogList(monthPresentDogs),
           inactiveDogs: toDogList(inactiveDogs),
         },
       }
