@@ -528,7 +528,7 @@ export default function RelatorioPage() {
                           <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{d.salesCount} vendas</span>
                         </div>
                         <a
-                          href={`/vendas?dogId=${d.dogId}`}
+                          href={`/vendas/historico?dogId=${d.dogId}`}
                           className="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
                         >
                           Ver vendas <span className="text-xs">→</span>
