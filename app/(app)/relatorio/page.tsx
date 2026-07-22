@@ -1,8 +1,13 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { RefreshCw, TrendingUp, DollarSign, Users, Package, Tag, Award, BarChart2 } from 'lucide-react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { RefreshCw, TrendingUp, DollarSign, Users, Package, Tag, Award, BarChart2, Calendar, Building2, FileSpreadsheet, LayoutGrid } from 'lucide-react'
 import toast from 'react-hot-toast'
+import DiarioSection from './sections/DiarioSection'
+import FrequenciaSection from './sections/FrequenciaSection'
+import ExecutivoSection from './sections/ExecutivoSection'
+import DreSection from './sections/DreSection'
 
 const R$ = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, style: 'currency', currency: 'BRL' })
 const pct = (v: number, total: number) => total > 0 ? Math.round((v / total) * 100) : 0
@@ -43,6 +48,7 @@ function fmtDay(d: string) {
 }
 
 type Tab = 'resumo' | 'periodo' | 'caes' | 'produtos' | 'tutores' | 'vendasPorCao'
+type Section = 'financeiro' | 'diario' | 'frequencia' | 'executivo' | 'dre'
 
 function Bar({ value, max, color = 'bg-amber-400' }: { value: number; max: number; color?: string }) {
   return (
@@ -52,7 +58,21 @@ function Bar({ value, max, color = 'bg-amber-400' }: { value: number; max: numbe
   )
 }
 
+// Wrap in Suspense because RelatorioContent reads the ?section= query param
 export default function RelatorioPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-24"><div className="text-4xl animate-bounce">📊</div></div>}>
+      <RelatorioContent />
+    </Suspense>
+  )
+}
+
+function RelatorioContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const section = (searchParams.get('section') as Section) || 'financeiro'
+  const setSection = (s: Section) => router.push(s === 'financeiro' ? '/relatorio' : `/relatorio?section=${s}`, { scroll: false })
+
   const [tab, setTab]         = useState<Tab>('resumo')
   const [data, setData]       = useState<AnalyticsData | null>(null)
   const [frequencyMonths, setFrequencyMonths] = useState<FrequencyMonth[]>([])
@@ -80,7 +100,7 @@ export default function RelatorioPage() {
     finally { setLoading(false) }
   }, [yearMonth, allTime])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (section === 'financeiro') load() }, [load, section])
 
   const s = data?.summary
   const frequencyMonth = frequencyMonths.find(month => month.month === (allTime ? new Date().toISOString().slice(0, 7) : yearMonth))
@@ -94,12 +114,47 @@ export default function RelatorioPage() {
     { key: 'tutores',      label: 'Tutores',      icon: Users },
   ]
 
+  const sections: { key: Section; label: string; icon: any }[] = [
+    { key: 'financeiro',  label: 'Financeiro',  icon: LayoutGrid },
+    { key: 'diario',      label: 'Diário',       icon: Calendar },
+    { key: 'frequencia',  label: 'Frequência',   icon: Users },
+    { key: 'executivo',   label: 'Executivo',    icon: Building2 },
+    { key: 'dre',         label: 'DRE',          icon: FileSpreadsheet },
+  ]
+
   return (
     <div className="max-w-6xl mx-auto pb-10 space-y-5">
+      {/* Page header + top-level section switcher — one place for every report */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">📊 Relatórios</h1>
+        <p className="text-sm text-gray-500">Todos os indicadores do negócio, em um único lugar</p>
+      </div>
+
+      <div className="flex gap-1 bg-white border border-gray-200 p-1 rounded-xl overflow-x-auto shadow-sm">
+        {sections.map(sec => {
+          const Icon = sec.icon
+          return (
+            <button key={sec.key} onClick={() => setSection(sec.key)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
+                section === sec.key ? 'bg-amber-500 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100'
+              }`}>
+              <Icon className="w-4 h-4" />{sec.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {section === 'diario' && <DiarioSection />}
+      {section === 'frequencia' && <FrequenciaSection />}
+      {section === 'executivo' && <ExecutivoSection />}
+      {section === 'dre' && <DreSection />}
+
+      {section === 'financeiro' && (
+      <>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">📊 Dashboard Financeiro</h1>
+          <h2 className="text-lg font-bold text-gray-800">Dashboard Financeiro</h2>
           <p className="text-sm text-gray-500">Análise de vendas e receita</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -635,6 +690,8 @@ export default function RelatorioPage() {
             </div>
           )}
         </>
+      )}
+      </>
       )}
     </div>
   )

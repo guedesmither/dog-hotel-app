@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import {
   TrendingUp, TrendingDown, DollarSign, BarChart3, Target,
   AlertTriangle, CheckCircle, Clock, ArrowUpRight, ArrowDownRight,
@@ -115,7 +116,7 @@ function StatusBadge({ value, threshold = 0 }: { value: number; threshold?: numb
   return <span className="flex items-center gap-1 text-red-500 font-bold text-sm"><AlertTriangle className="w-4 h-4" /> Negativo</span>
 }
 
-export default function ExecutivoPage() {
+export default function ExecutivoSection() {
   const [months, setMonths] = useState<MonthData[]>([])
   const [catTotals, setCatTotals] = useState<CatTotal[]>([])
   const [loading, setLoading] = useState(true)
@@ -203,8 +204,6 @@ export default function ExecutivoPage() {
   const totalResultadoLiq = totalResultadoOp - totalProlabore - totalCapex
   const margemAcum = totalReceita > 0 ? (totalResultadoOp / totalReceita) * 100 : 0
 
-  // Investimento total dos sócios
-  const allFin = months // we'll recompute from raw in the component — already computed
   const trendReceita = prev && prev.receita > 0 ? ((last.receita - prev.receita) / prev.receita) * 100 : 0
   const trendOpex = prev && prev.opex > 0 ? ((last.opex - prev.opex) / prev.opex) * 100 : 0
   const trendResultado = prev ? last.resultadoOp - prev.resultadoOp : 0
@@ -214,20 +213,20 @@ export default function ExecutivoPage() {
   const worstMonth = opMonths.reduce((worst, m) => m.resultadoOp < worst.resultadoOp ? m : worst, opMonths[0])
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <BarChart3 className="w-7 h-7 text-emerald-600" />
+          <h2 className="text-lg md:text-xl font-bold text-gray-900 flex items-center gap-2">
+            <BarChart3 className="w-6 h-6 text-emerald-600" />
             Painel Executivo
-          </h1>
+          </h2>
           <p className="text-sm text-gray-500 mt-0.5">AU-Ê Petcare · Visão consolidada desde a inauguração</p>
         </div>
-        <a href="/dre" className="px-4 py-2 rounded-lg border border-emerald-600 text-emerald-700 text-sm font-medium hover:bg-emerald-50 transition-colors">
+        <Link href="/relatorio?section=dre" className="px-4 py-2 rounded-lg border border-emerald-600 text-emerald-700 text-sm font-medium hover:bg-emerald-50 transition-colors">
           Ver DRE completo →
-        </a>
+        </Link>
       </div>
 
       {/* KPIs principais — acumulado */}
@@ -244,7 +243,7 @@ export default function ExecutivoPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Último mês operacional</span>
-              <h2 className="text-xl font-extrabold text-gray-900">{periodLabel(last.month)}</h2>
+              <h3 className="text-xl font-extrabold text-gray-900">{periodLabel(last.month)}</h3>
             </div>
             <StatusBadge value={last.resultadoOp} />
           </div>
@@ -276,7 +275,7 @@ export default function ExecutivoPage() {
       {/* Tabela mês a mês */}
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-          <h2 className="font-bold text-gray-800">Evolução Mensal</h2>
+          <h3 className="font-bold text-gray-800">Evolução Mensal</h3>
           <p className="text-xs text-gray-400 mt-0.5">Resultado operacional = Receita − OPEX (exclui CAPEX e retiradas)</p>
         </div>
         <div className="overflow-x-auto">
@@ -347,7 +346,7 @@ export default function ExecutivoPage() {
 
         {/* Pizza — breakdown de gastos acumulados */}
         <div className="bg-white border border-gray-200 rounded-2xl p-6">
-          <h2 className="font-bold text-gray-800 mb-1">Breakdown de Gastos</h2>
+          <h3 className="font-bold text-gray-800 mb-1">Breakdown de Gastos</h3>
           <p className="text-xs text-gray-400 mb-4">Acumulado pós-inauguração — todas as categorias de saída</p>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
@@ -395,7 +394,7 @@ export default function ExecutivoPage() {
 
         {/* Linha — tendência receita vs OPEX vs resultado */}
         <div className="bg-white border border-gray-200 rounded-2xl p-6">
-          <h2 className="font-bold text-gray-800 mb-1">Tendência Financeira</h2>
+          <h3 className="font-bold text-gray-800 mb-1">Tendência Financeira</h3>
           <p className="text-xs text-gray-400 mb-4">Receita, OPEX e resultado operacional por mês</p>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart
@@ -438,7 +437,7 @@ export default function ExecutivoPage() {
 
       {/* Insights automáticos */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6">
-        <h2 className="font-bold text-gray-800 mb-4">Insights</h2>
+        <h3 className="font-bold text-gray-800 mb-4">Insights</h3>
         <div className="space-y-3">
           {totalResultadoOp > 0 && (
             <div className="flex items-start gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100">

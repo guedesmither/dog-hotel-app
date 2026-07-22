@@ -196,7 +196,7 @@ export default function LancamentosPage() {
           <p className="text-sm text-gray-500 mt-0.5">Registro de despesas e receitas</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/dre" className="px-4 py-2 rounded-lg border border-emerald-600 text-emerald-700 text-sm font-medium hover:bg-emerald-50 transition-colors">
+          <Link href="/relatorio?section=dre" className="px-4 py-2 rounded-lg border border-emerald-600 text-emerald-700 text-sm font-medium hover:bg-emerald-50 transition-colors">
             Ver DRE
           </Link>
           <Link href="/lancamentos/importar" className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors">

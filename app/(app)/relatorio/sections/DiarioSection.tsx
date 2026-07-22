@@ -10,7 +10,7 @@ import {
   DynamicResponsiveContainer as ResponsiveContainer,
   Area, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine
-} from './ChartsWrapper'
+} from '../ChartsWrapper'
 
 interface RevenueByStatus {
   pago: number
@@ -77,7 +77,7 @@ async function fetchMonthData(year: number, month: number): Promise<{ reports: D
   return { reports: data.dailyReports || [], summary: data.summary || null }
 }
 
-export default function RelatoriosPage() {
+export default function DiarioSection() {
   const { data: session } = useSession()
   const role = (session?.user as { role?: string })?.role || ''
 
@@ -249,11 +249,11 @@ export default function RelatoriosPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-5">
+    <div className="space-y-5">
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-800">📊 Relatório MTD</h1>
+        <h2 className="text-lg md:text-xl font-bold text-gray-800">Relatório Diário</h2>
         <div className="flex items-center gap-2">
           <button onClick={prevMonth} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <ChevronLeft className="w-5 h-5" />

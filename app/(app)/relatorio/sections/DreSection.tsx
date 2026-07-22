@@ -154,7 +154,7 @@ function DreRow({
   )
 }
 
-export default function DrePage() {
+export default function DreSection() {
   const [entries, setEntries] = useState<FinancialEntry[]>([])
   const [salesByMonth, setSalesByMonth] = useState<SalesMonth[]>([])
   const [loading, setLoading] = useState(true)
@@ -274,10 +274,10 @@ export default function DrePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <BarChart3 className="w-7 h-7 text-emerald-600" />
+          <h2 className="text-lg md:text-xl font-bold text-gray-900 flex items-center gap-2">
+            <BarChart3 className="w-6 h-6 text-emerald-600" />
             DRE — Demonstrativo de Resultado
-          </h1>
+          </h2>
           <p className="text-sm text-gray-500 mt-0.5">AU-Ê Petcare · Inauguração: 07/02/2026</p>
         </div>
         <a href="/lancamentos" className="px-4 py-2 rounded-lg border border-emerald-600 text-emerald-700 text-sm font-medium hover:bg-emerald-50 transition-colors w-fit">
@@ -348,9 +348,9 @@ export default function DrePage() {
           {/* DRE Table */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="font-bold text-gray-800">
+              <h3 className="font-bold text-gray-800">
                 DRE — {periodRangeLabel}
-              </h2>
+              </h3>
               <span className="text-xs text-gray-400 flex items-center gap-1"><ChevronRight className="w-3 h-3" /> clique nas linhas para detalhar</span>
             </div>
             <div className="divide-y divide-gray-100">
@@ -563,7 +563,7 @@ export default function DrePage() {
           {/* MÓDULO SÓCIOS */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-              <h2 className="font-bold text-gray-800 text-sm">Retorno dos Sócios</h2>
+              <h3 className="font-bold text-gray-800 text-sm">Retorno dos Sócios</h3>
               <p className="text-xs text-gray-400 mt-0.5">Acumulado total — quanto cada sócio investiu vs. já recuperou</p>
             </div>
             <div className="divide-y divide-gray-100">
@@ -651,7 +651,7 @@ export default function DrePage() {
           {/* Per-account breakdown */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-              <h2 className="font-bold text-gray-800 text-sm">Despesas por Conta</h2>
+              <h3 className="font-bold text-gray-800 text-sm">Despesas por Conta</h3>
             </div>
             <div className="divide-y divide-gray-100">
               {['AUÊ', 'SEBÁ', 'VÊ', 'NICE'].map(acc => {

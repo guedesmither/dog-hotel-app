@@ -8,7 +8,7 @@ import {
   DynamicLineChart as LineChart,
   DynamicResponsiveContainer as ResponsiveContainer,
   Area, Bar, CartesianGrid, Legend, Line, Tooltip, XAxis, YAxis,
-} from '../relatorios/ChartsWrapper'
+} from '../ChartsWrapper'
 
 type MonthlyFrequency = {
   month: string
@@ -57,7 +57,7 @@ function MetricCard({ label, value, helper, icon: Icon, tone }: { label: string;
   )
 }
 
-export default function FrequenciaPage() {
+export default function FrequenciaSection() {
   const [data, setData] = useState<FrequencyData | null>(null)
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -89,10 +89,10 @@ export default function FrequenciaPage() {
   if (!data?.monthly.length) return <div className="p-8 text-center text-gray-500">Ainda não há vendas ou presenças registradas para gerar este relatório.</div>
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-extrabold text-gray-800"><Users className="h-6 w-6 text-indigo-600" /> Frequência e Crescimento</h1>
+          <h2 className="flex items-center gap-2 text-lg md:text-xl font-bold text-gray-800"><Users className="h-5 w-5 text-indigo-600" /> Frequência e Crescimento</h2>
           <p className="mt-1 text-sm text-gray-500">Visão mensal de matrícula, presença e cães faturados.</p>
         </div>
         <div className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700">
@@ -111,7 +111,7 @@ export default function FrequenciaPage() {
       <div className="grid gap-5 xl:grid-cols-2">
         <section className="rounded-2xl border border-gray-200 bg-white p-4">
           <div className="mb-4">
-            <h2 className="font-bold text-gray-800">Matrículas e base acumulada</h2>
+            <h3 className="font-bold text-gray-800">Matrículas e base acumulada</h3>
             <p className="text-xs text-gray-500">Matrícula usa a data registrada no cadastro ou a primeira mensalidade/hospedagem do cão.</p>
           </div>
           <ResponsiveContainer width="100%" height={280}>
@@ -132,7 +132,7 @@ export default function FrequenciaPage() {
 
         <section className="rounded-2xl border border-gray-200 bg-white p-4">
           <div className="mb-4">
-            <h2 className="font-bold text-gray-800">Cães presentes e venda direta</h2>
+            <h3 className="font-bold text-gray-800">Cães presentes e venda direta</h3>
             <p className="text-xs text-gray-500">Contagem única no mês, sem detalhamento de pacotes.</p>
           </div>
           <ResponsiveContainer width="100%" height={280}>
@@ -151,7 +151,7 @@ export default function FrequenciaPage() {
         <section className="rounded-2xl border border-gray-200 bg-white p-4 xl:col-span-2">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
             <div>
-              <h2 className="font-bold text-gray-800">Média diária de cães pagantes e faturamento mensal</h2>
+              <h3 className="font-bold text-gray-800">Média diária de cães pagantes e faturamento mensal</h3>
               <p className="text-xs text-gray-500">O eixo direito mostra o faturamento de cada mês dividido pelos cão-dias reais: presenças de cães pagantes no mês.</p>
             </div>
             <span className="text-xs font-semibold text-gray-500">Faturamento de referência: {moneyShort(current?.billedRevenue || 0)}</span>
@@ -173,7 +173,7 @@ export default function FrequenciaPage() {
 
       <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
         <div className="border-b border-gray-100 px-5 py-4">
-          <h2 className="font-bold text-gray-800">Resumo mensal</h2>
+          <h3 className="font-bold text-gray-800">Resumo mensal</h3>
           <p className="mt-1 text-xs text-gray-500">Expanda o mês para ver cães novos, presentes, creches presentes e inativos.</p>
         </div>
         <div className="overflow-x-auto">
