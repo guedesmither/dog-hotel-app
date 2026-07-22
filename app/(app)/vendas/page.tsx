@@ -113,10 +113,12 @@ function VendasContent() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [productSearchTerm, setProductSearchTerm] = useState('')
+  const [productCategoryFilter, setProductCategoryFilter] = useState<string>('')
   const [selectedDogId, setSelectedDogId] = useState<string>(urlDogId || '')
   const [searchDropdownOpen, setSearchDropdownOpen] = useState(false)
   const [loading, setLoading] = useState(true)
-  const salesSectionRef = useRef<HTMLDivElement>(null)
+  const [mobileTab, setMobileTab] = useState<'venda' | 'historico'>('venda')
+  const cartSectionRef = useRef<HTMLDivElement>(null)
   
   // Payment fields
   const [amountReceived, setAmountReceived] = useState<string>('')
@@ -379,6 +381,7 @@ function VendasContent() {
         setIsExempt(false)
         setSaleStartDate('')
         setSaleEndDate('')
+        setMobileTab('historico')
         loadSales()
       } else {
         const errorData = await res.json()
@@ -500,9 +503,11 @@ function VendasContent() {
     }
   }
 
+  const productCategories = Array.from(new Set(products.map(p => p.category))).sort()
   const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-    p.category.toLowerCase().includes(productSearchTerm.toLowerCase())
+    (!productCategoryFilter || p.category === productCategoryFilter) &&
+    (p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+    p.category.toLowerCase().includes(productSearchTerm.toLowerCase()))
   )
 
   const totalSales = sales.reduce((sum, sale) => sum + sale.finalPrice, 0)
@@ -519,10 +524,10 @@ function VendasContent() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <DollarSign className="w-8 h-8" /> PDV - Ponto de Venda
+    <div className="p-3 md:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 md:mb-6">
+        <h1 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
+          <DollarSign className="w-7 h-7 md:w-8 md:h-8" /> PDV - Ponto de Venda
         </h1>
         <button
           onClick={() => setShowCobrancaModal(true)}
@@ -532,9 +537,29 @@ function VendasContent() {
         </button>
       </div>
 
+      {/* Mobile tabs — switch between building a sale and viewing history without scrolling past everything */}
+      <div className="lg:hidden flex gap-2 mb-4 bg-gray-100 rounded-lg p-1">
+        <button
+          onClick={() => setMobileTab('venda')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-semibold transition-colors ${mobileTab === 'venda' ? 'bg-white shadow text-purple-700' : 'text-gray-500'}`}
+        >
+          <ShoppingCart className="w-4 h-4" /> Nova Venda
+          {cart.length > 0 && (
+            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-bold">{cart.length}</span>
+          )}
+        </button>
+        <button
+          onClick={() => setMobileTab('historico')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-semibold transition-colors ${mobileTab === 'historico' ? 'bg-white shadow text-purple-700' : 'text-gray-500'}`}
+        >
+          <Calendar className="w-4 h-4" /> Histórico
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Products Catalog */}
         <div className="lg:col-span-2 space-y-6">
+          <div className={`${mobileTab === 'venda' ? '' : 'hidden'} lg:block space-y-6`}>
           {/* Search */}
           <div className="card">
             <div className="flex gap-2">
@@ -549,6 +574,25 @@ function VendasContent() {
                 />
               </div>
             </div>
+            {productCategories.length > 1 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                <button
+                  onClick={() => setProductCategoryFilter('')}
+                  className={`text-xs px-3 py-1 rounded-full font-medium border ${!productCategoryFilter ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200'}`}
+                >
+                  Todos
+                </button>
+                {productCategories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setProductCategoryFilter(cat)}
+                    className={`text-xs px-3 py-1 rounded-full font-medium border ${productCategoryFilter === cat ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200'}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Products Grid */}
@@ -584,7 +628,9 @@ function VendasContent() {
               ))
             )}
           </div>
+          </div>
 
+          <div className={`${mobileTab === 'historico' ? '' : 'hidden'} lg:block`}>
           {/* Sales History */}
           <div className="card">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
@@ -894,11 +940,12 @@ function VendasContent() {
               </table>
             </div>
           </div>
+          </div>
         </div>
 
         {/* Cart */}
-        <div className="lg:col-span-1">
-          <div className="card sticky top-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
+        <div ref={cartSectionRef} className={`${mobileTab === 'venda' ? '' : 'hidden'} lg:block lg:col-span-1`}>
+          <div className="card lg:sticky lg:top-6 lg:max-h-[calc(100vh-2rem)] overflow-y-auto">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <ShoppingCart className="w-5 h-5" /> Carrinho
               <span className="text-sm font-normal text-gray-500">({cart.length} itens)</span>
