@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
-import { DollarSign, Plus, Trash2, ShoppingCart, Package, Calendar, Search, FileText, Printer } from 'lucide-react'
+import { DollarSign, Plus, Trash2, ShoppingCart, Package, Calendar, Search, FileText, Printer, X } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import CobrancaModal from './CobrancaModal'
@@ -117,8 +117,7 @@ function VendasContent() {
   const [selectedDogId, setSelectedDogId] = useState<string>(urlDogId || '')
   const [searchDropdownOpen, setSearchDropdownOpen] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [mobileTab, setMobileTab] = useState<'venda' | 'historico'>('venda')
-  const cartSectionRef = useRef<HTMLDivElement>(null)
+  const [mobileCartOpen, setMobileCartOpen] = useState(false)
   
   // Payment fields
   const [amountReceived, setAmountReceived] = useState<string>('')
@@ -381,7 +380,7 @@ function VendasContent() {
         setIsExempt(false)
         setSaleStartDate('')
         setSaleEndDate('')
-        setMobileTab('historico')
+        setMobileCartOpen(false)
         loadSales()
       } else {
         const errorData = await res.json()
@@ -523,8 +522,291 @@ function VendasContent() {
     }
   }
 
+  // Shared cart panel — rendered inline in the desktop sidebar and inside the mobile bottom sheet
+  const cartPanelContent = (
+    <>
+      <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+        <ShoppingCart className="w-5 h-5" /> Carrinho
+        <span className="text-sm font-normal text-gray-500">({cart.length} itens)</span>
+      </h2>
+
+      {/* Dog Selection */}
+      <div className="mb-4">
+        <label className="label">Cão (opcional)</label>
+        <select
+          className="select"
+          value={selectedDog}
+          onChange={(e) => {
+            setSelectedDog(e.target.value)
+            setLastPrices({})
+            if (e.target.value) {
+              cart.forEach(item => { if (item.productId) fetchLastPrice(e.target.value, item.productId) })
+            }
+          }}
+        >
+          <option value="">Selecione um cão (opcional)</option>
+          {dogs.map(dog => (
+            <option key={dog.id} value={dog.id}>
+              {dog.name}{dog.ownerName ? ` — ${dog.ownerName}` : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Cart Items */}
+      <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto">
+        {cart.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <ShoppingCart className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+            <p>Carrinho vazio</p>
+          </div>
+        ) : (
+          cart.map(item => (
+            <div key={item.productId} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">{item.productName}</p>
+                <p className="text-xs text-gray-500">
+                  R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} un.
+                </p>
+                {item.productId && lastPrices[item.productId] && (() => {
+                  const lp = lastPrices[item.productId!]
+                  const alreadyApplied = lp.unitPrice === item.unitPrice
+                  // Fix timezone issue by parsing YYYY-MM-DD directly
+                  const lpDateRaw = lp.saleDate
+                  const lpDate = (() => {
+                    try {
+                      if (!lpDateRaw) return ''
+                      if (lpDateRaw.includes('-') && !lpDateRaw.includes('T')) {
+                        const [y, m] = lpDateRaw.split('-')
+                        return `${m}/${y.slice(2)}`
+                      }
+                      const d = parseISO(lpDateRaw)
+                      if (isNaN(d.getTime())) return ''
+                      return format(d, 'MM/yy', { locale: ptBR })
+                    } catch {
+                      return ''
+                    }
+                  })()
+                  const lastDiscount = lp.discount ?? 0
+                  const discountAlreadyApplied = lastDiscount > 0 && parseFloat(discount) === lastDiscount
+                  return (
+                    <div className="flex flex-col gap-0.5 mt-0.5">
+                      <div className="flex items-center gap-1">
+                        <span className={`text-xs ${alreadyApplied ? 'text-green-600' : 'text-amber-600'}`}>
+                          {alreadyApplied ? '✓ ' : ''}Último preço: R$ {(lp.finalPrice ?? lp.unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-gray-400">({lpDate})</span>
+                        </span>
+                        {!alreadyApplied && (
+                          <button
+                            onClick={() => applyLastPrice(item.productId!, lp.unitPrice)}
+                            className="text-xs text-amber-700 font-semibold underline hover:text-amber-900"
+                          >Usar</button>
+                        )}
+                      </div>
+                      {lastDiscount > 0 && (
+                        <div className="flex items-center gap-1">
+                          <span className={`text-xs ${discountAlreadyApplied ? 'text-green-600' : 'text-purple-600'}`}>
+                            {discountAlreadyApplied ? '✓ ' : ''}Último desconto: R$ {lastDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                          {!discountAlreadyApplied && (
+                            <button
+                              onClick={() => setDiscount(String(lastDiscount))}
+                              className="text-xs text-purple-700 font-semibold underline hover:text-purple-900"
+                            >Usar</button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => updateCartQuantity(item.productId, item.quantity - 1)}
+                  className="w-7 h-7 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold"
+                >
+                  -
+                </button>
+                <span className="w-8 text-center font-medium">{item.quantity}</span>
+                <button
+                  onClick={() => updateCartQuantity(item.productId, item.quantity + 1)}
+                  className="w-7 h-7 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold"
+                >
+                  +
+                </button>
+              </div>
+              <button
+                onClick={() => removeFromCart(item.productId)}
+                className="p-1.5 rounded hover:bg-red-100 text-red-600"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Totals */}
+      {cart.length > 0 && (
+        <div className="space-y-3 pt-4 border-t border-gray-200">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Subtotal:</span>
+            <span className="font-medium">R$ {cartTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex justify-between text-sm items-center gap-2">
+            <span className="text-gray-600">Desconto:</span>
+            <input
+              type="number"
+              step="0.01"
+              className="input w-24 text-right"
+              value={discount}
+              onChange={(e) => setDiscount(e.target.value)}
+              placeholder="0.00"
+            />
+          </div>
+          <div className="flex justify-between text-lg font-bold">
+            <span className="text-gray-800">Total:</span>
+            <span className="text-green-600">
+              R$ {finalTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+
+          {/* Service Dates — shown for HOTEL, CRECHE, PACOTE */}
+          {needsServiceDates && (
+            <div className="space-y-2 pt-3 border-t border-blue-200 bg-blue-50 rounded-lg p-3">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                {cartHasHotel ? '🏨 Período da Estadia' : cartHasCreche ? '📅 Período da Mensalidade' : '📦 Vigência do Serviço'}
+              </p>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="label text-xs">Início *</label>
+                  <input
+                    type="date"
+                    className="input text-sm"
+                    value={saleStartDate}
+                    onChange={(e) => {
+                      setSaleStartDate(e.target.value)
+                      if (cartHasCreche && e.target.value && !saleEndDate) {
+                        const d = new Date(e.target.value)
+                        d.setMonth(d.getMonth() + 1)
+                        setSaleEndDate(d.toISOString().split('T')[0])
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="label text-xs">Fim {cartHasHotel ? '*' : ''}</label>
+                  <input
+                    type="date"
+                    className="input text-sm"
+                    value={saleEndDate}
+                    onChange={(e) => setSaleEndDate(e.target.value)}
+                    min={saleStartDate}
+                  />
+                </div>
+              </div>
+              {cartHasHotel && !saleStartDate && (
+                <p className="text-xs text-amber-600">⚠ Informe as datas da estadia para criar o agendamento automaticamente.</p>
+              )}
+              {cartHasHotel && saleStartDate && saleEndDate && (
+                <p className="text-xs text-green-700">✓ Agendamento será criado automaticamente para este período.</p>
+              )}
+            </div>
+          )}
+
+          {/* Notes */}
+          <div>
+            <textarea
+              className="input"
+              placeholder="Notas da venda..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+            />
+          </div>
+
+          {/* Payment Fields */}
+          <div className="space-y-3 pt-3 border-t border-gray-200">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isExempt"
+                checked={isExempt}
+                onChange={(e) => setIsExempt(e.target.checked)}
+                className="rounded"
+              />
+              <label htmlFor="isExempt" className="text-sm font-semibold text-purple-700">
+                Isenção de Pagamento
+              </label>
+            </div>
+            <div className="flex justify-between text-sm items-center gap-2">
+              <span className="text-gray-600">Valor em Conta:</span>
+              <input
+                type="number"
+                step="0.01"
+                className="input w-24 text-right"
+                value={amountReceived}
+                onChange={(e) => setAmountReceived(e.target.value)}
+                placeholder="0.00"
+                disabled={isExempt}
+              />
+            </div>
+            <div className="flex justify-between text-sm items-center gap-2">
+              <span className="text-gray-600">Status:</span>
+              <select
+                className="input w-32"
+                value={paymentStatus}
+                onChange={(e) => setPaymentStatus(e.target.value)}
+              >
+                <option value="PAGO">PAGO</option>
+                <option value="PENDENTE">PENDENTE</option>
+                <option value="PROGRAMADA">PROGRAMADA</option>
+              </select>
+            </div>
+            <div className="flex justify-between text-sm items-center gap-2">
+              <span className="text-gray-600">Método:</span>
+              <input
+                type="text"
+                className="input w-40"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                placeholder="PIX, Crédito, etc."
+              />
+            </div>
+            <div className="flex justify-between text-sm items-center gap-2">
+              <span className="text-gray-600">Data Pagamento:</span>
+              <input
+                type="date"
+                className="input w-36"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-between text-sm items-center gap-2">
+              <span className="text-gray-600">Taxa (%):</span>
+              <input
+                type="number"
+                step="0.01"
+                className="input w-20 text-right"
+                value={paymentFee}
+                onChange={(e) => setPaymentFee(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={checkoutSale}
+            className="btn-primary w-full flex items-center justify-center gap-2 py-3"
+          >
+            <DollarSign className="w-5 h-5" /> Faturar
+          </button>
+        </div>
+      )}
+    </>
+  )
+
   return (
-    <div className="p-3 md:p-6">
+    <div className="p-3 md:p-6 pb-24 lg:pb-6">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4 md:mb-6">
         <h1 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
           <DollarSign className="w-7 h-7 md:w-8 md:h-8" /> PDV - Ponto de Venda
@@ -537,29 +819,9 @@ function VendasContent() {
         </button>
       </div>
 
-      {/* Mobile tabs — switch between building a sale and viewing history without scrolling past everything */}
-      <div className="lg:hidden flex gap-2 mb-4 bg-gray-100 rounded-lg p-1">
-        <button
-          onClick={() => setMobileTab('venda')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-semibold transition-colors ${mobileTab === 'venda' ? 'bg-white shadow text-purple-700' : 'text-gray-500'}`}
-        >
-          <ShoppingCart className="w-4 h-4" /> Nova Venda
-          {cart.length > 0 && (
-            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-bold">{cart.length}</span>
-          )}
-        </button>
-        <button
-          onClick={() => setMobileTab('historico')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-semibold transition-colors ${mobileTab === 'historico' ? 'bg-white shadow text-purple-700' : 'text-gray-500'}`}
-        >
-          <Calendar className="w-4 h-4" /> Histórico
-        </button>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Products Catalog */}
         <div className="lg:col-span-2 space-y-6">
-          <div className={`${mobileTab === 'venda' ? '' : 'hidden'} lg:block space-y-6`}>
           {/* Search */}
           <div className="card">
             <div className="flex gap-2">
@@ -628,9 +890,7 @@ function VendasContent() {
               ))
             )}
           </div>
-          </div>
 
-          <div className={`${mobileTab === 'historico' ? '' : 'hidden'} lg:block`}>
           {/* Sales History */}
           <div className="card">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
@@ -940,292 +1200,48 @@ function VendasContent() {
               </table>
             </div>
           </div>
-          </div>
         </div>
 
-        {/* Cart */}
-        <div ref={cartSectionRef} className={`${mobileTab === 'venda' ? '' : 'hidden'} lg:block lg:col-span-1`}>
-          <div className="card lg:sticky lg:top-6 lg:max-h-[calc(100vh-2rem)] overflow-y-auto">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5" /> Carrinho
-              <span className="text-sm font-normal text-gray-500">({cart.length} itens)</span>
-            </h2>
-
-            {/* Dog Selection */}
-            <div className="mb-4">
-              <label className="label">Cão (opcional)</label>
-              <select
-                className="select"
-                value={selectedDog}
-                onChange={(e) => {
-                  setSelectedDog(e.target.value)
-                  setLastPrices({})
-                  if (e.target.value) {
-                    cart.forEach(item => { if (item.productId) fetchLastPrice(e.target.value, item.productId) })
-                  }
-                }}
-              >
-                <option value="">Selecione um cão (opcional)</option>
-                {dogs.map(dog => (
-                  <option key={dog.id} value={dog.id}>
-                    {dog.name}{dog.ownerName ? ` — ${dog.ownerName}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Cart Items */}
-            <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto">
-              {cart.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <ShoppingCart className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                  <p>Carrinho vazio</p>
-                </div>
-              ) : (
-                cart.map(item => (
-                  <div key={item.productId} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{item.productName}</p>
-                      <p className="text-xs text-gray-500">
-                        R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} un.
-                      </p>
-                      {item.productId && lastPrices[item.productId] && (() => {
-                        const lp = lastPrices[item.productId!]
-                        const alreadyApplied = lp.unitPrice === item.unitPrice
-                        // Fix timezone issue by parsing YYYY-MM-DD directly
-                        const lpDateRaw = lp.saleDate
-                        const lpDate = (() => {
-                          try {
-                            if (!lpDateRaw) return ''
-                            if (lpDateRaw.includes('-') && !lpDateRaw.includes('T')) {
-                              const [y, m] = lpDateRaw.split('-')
-                              return `${m}/${y.slice(2)}`
-                            }
-                            const d = parseISO(lpDateRaw)
-                            if (isNaN(d.getTime())) return ''
-                            return format(d, 'MM/yy', { locale: ptBR })
-                          } catch {
-                            return ''
-                          }
-                        })()
-                        const lastDiscount = lp.discount ?? 0
-                        const discountAlreadyApplied = lastDiscount > 0 && parseFloat(discount) === lastDiscount
-                        return (
-                          <div className="flex flex-col gap-0.5 mt-0.5">
-                            <div className="flex items-center gap-1">
-                              <span className={`text-xs ${alreadyApplied ? 'text-green-600' : 'text-amber-600'}`}>
-                                {alreadyApplied ? '✓ ' : ''}Último preço: R$ {(lp.finalPrice ?? lp.unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} <span className="text-gray-400">({lpDate})</span>
-                              </span>
-                              {!alreadyApplied && (
-                                <button
-                                  onClick={() => applyLastPrice(item.productId!, lp.unitPrice)}
-                                  className="text-xs text-amber-700 font-semibold underline hover:text-amber-900"
-                                >Usar</button>
-                              )}
-                            </div>
-                            {lastDiscount > 0 && (
-                              <div className="flex items-center gap-1">
-                                <span className={`text-xs ${discountAlreadyApplied ? 'text-green-600' : 'text-purple-600'}`}>
-                                  {discountAlreadyApplied ? '✓ ' : ''}Último desconto: R$ {lastDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </span>
-                                {!discountAlreadyApplied && (
-                                  <button
-                                    onClick={() => setDiscount(String(lastDiscount))}
-                                    className="text-xs text-purple-700 font-semibold underline hover:text-purple-900"
-                                  >Usar</button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })()}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => updateCartQuantity(item.productId, item.quantity - 1)}
-                        className="w-7 h-7 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold"
-                      >
-                        -
-                      </button>
-                      <span className="w-8 text-center font-medium">{item.quantity}</span>
-                      <button
-                        onClick={() => updateCartQuantity(item.productId, item.quantity + 1)}
-                        className="w-7 h-7 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold"
-                      >
-                        +
-                      </button>
-                    </div>
-                    <button
-                      onClick={() => removeFromCart(item.productId)}
-                      className="p-1.5 rounded hover:bg-red-100 text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Totals */}
-            {cart.length > 0 && (
-              <div className="space-y-3 pt-4 border-t border-gray-200">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal:</span>
-                  <span className="font-medium">R$ {cartTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between text-sm items-center gap-2">
-                  <span className="text-gray-600">Desconto:</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="input w-24 text-right"
-                    value={discount}
-                    onChange={(e) => setDiscount(e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-                <div className="flex justify-between text-lg font-bold">
-                  <span className="text-gray-800">Total:</span>
-                  <span className="text-green-600">
-                    R$ {finalTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-
-                {/* Service Dates — shown for HOTEL, CRECHE, PACOTE */}
-                {needsServiceDates && (
-                  <div className="space-y-2 pt-3 border-t border-blue-200 bg-blue-50 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
-                      {cartHasHotel ? '🏨 Período da Estadia' : cartHasCreche ? '📅 Período da Mensalidade' : '📦 Vigência do Serviço'}
-                    </p>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="label text-xs">Início *</label>
-                        <input
-                          type="date"
-                          className="input text-sm"
-                          value={saleStartDate}
-                          onChange={(e) => {
-                            setSaleStartDate(e.target.value)
-                            if (cartHasCreche && e.target.value && !saleEndDate) {
-                              const d = new Date(e.target.value)
-                              d.setMonth(d.getMonth() + 1)
-                              setSaleEndDate(d.toISOString().split('T')[0])
-                            }
-                          }}
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="label text-xs">Fim {cartHasHotel ? '*' : ''}</label>
-                        <input
-                          type="date"
-                          className="input text-sm"
-                          value={saleEndDate}
-                          onChange={(e) => setSaleEndDate(e.target.value)}
-                          min={saleStartDate}
-                        />
-                      </div>
-                    </div>
-                    {cartHasHotel && !saleStartDate && (
-                      <p className="text-xs text-amber-600">⚠ Informe as datas da estadia para criar o agendamento automaticamente.</p>
-                    )}
-                    {cartHasHotel && saleStartDate && saleEndDate && (
-                      <p className="text-xs text-green-700">✓ Agendamento será criado automaticamente para este período.</p>
-                    )}
-                  </div>
-                )}
-
-                {/* Notes */}
-                <div>
-                  <textarea
-                    className="input"
-                    placeholder="Notas da venda..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={2}
-                  />
-                </div>
-
-                {/* Payment Fields */}
-                <div className="space-y-3 pt-3 border-t border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="isExempt"
-                      checked={isExempt}
-                      onChange={(e) => setIsExempt(e.target.checked)}
-                      className="rounded"
-                    />
-                    <label htmlFor="isExempt" className="text-sm font-semibold text-purple-700">
-                      Isenção de Pagamento
-                    </label>
-                  </div>
-                  <div className="flex justify-between text-sm items-center gap-2">
-                    <span className="text-gray-600">Valor em Conta:</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="input w-24 text-right"
-                      value={amountReceived}
-                      onChange={(e) => setAmountReceived(e.target.value)}
-                      placeholder="0.00"
-                      disabled={isExempt}
-                    />
-                  </div>
-                  <div className="flex justify-between text-sm items-center gap-2">
-                    <span className="text-gray-600">Status:</span>
-                    <select
-                      className="input w-32"
-                      value={paymentStatus}
-                      onChange={(e) => setPaymentStatus(e.target.value)}
-                    >
-                      <option value="PAGO">PAGO</option>
-                      <option value="PENDENTE">PENDENTE</option>
-                      <option value="PROGRAMADA">PROGRAMADA</option>
-                    </select>
-                  </div>
-                  <div className="flex justify-between text-sm items-center gap-2">
-                    <span className="text-gray-600">Método:</span>
-                    <input
-                      type="text"
-                      className="input w-40"
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      placeholder="PIX, Crédito, etc."
-                    />
-                  </div>
-                  <div className="flex justify-between text-sm items-center gap-2">
-                    <span className="text-gray-600">Data Pagamento:</span>
-                    <input
-                      type="date"
-                      className="input w-36"
-                      value={paymentDate}
-                      onChange={(e) => setPaymentDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex justify-between text-sm items-center gap-2">
-                    <span className="text-gray-600">Taxa (%):</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="input w-20 text-right"
-                      value={paymentFee}
-                      onChange={(e) => setPaymentFee(e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  onClick={checkoutSale}
-                  className="btn-primary w-full flex items-center justify-center gap-2 py-3"
-                >
-                  <DollarSign className="w-5 h-5" /> Faturar
-                </button>
-              </div>
-            )}
+        {/* Cart — desktop sidebar, always visible */}
+        <div className="hidden lg:block lg:col-span-1">
+          <div className="card sticky top-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
+            {cartPanelContent}
           </div>
         </div>
       </div>
+
+      {/* Mobile floating cart bar — tap to open full checkout without scrolling past the catalog/history */}
+      {cart.length > 0 && !mobileCartOpen && (
+        <button
+          onClick={() => setMobileCartOpen(true)}
+          className="lg:hidden fixed bottom-4 left-3 right-3 z-40 bg-purple-600 text-white rounded-xl shadow-lg px-4 py-3 flex items-center justify-between"
+        >
+          <span className="flex items-center gap-2 font-semibold text-sm">
+            <ShoppingCart className="w-5 h-5" />
+            {cart.length} {cart.length === 1 ? 'item' : 'itens'}
+          </span>
+          <span className="font-bold">R$ {finalTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+        </button>
+      )}
+
+      {/* Mobile cart bottom sheet */}
+      {mobileCartOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex items-end">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileCartOpen(false)} />
+          <div className="relative w-full bg-white rounded-t-2xl max-h-[92vh] overflow-y-auto p-4 pb-6 animate-in slide-in-from-bottom">
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-10 h-1.5 bg-gray-200 rounded-full mx-auto" />
+            </div>
+            <button
+              onClick={() => setMobileCartOpen(false)}
+              className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-gray-100 text-gray-500"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            {cartPanelContent}
+          </div>
+        </div>
+      )}
 
       {/* Print Modal */}
       {showPrintModal && (
