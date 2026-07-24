@@ -4,10 +4,9 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
-import { Calendar, FileText, Printer, ArrowLeft } from 'lucide-react'
+import { Calendar, Printer, ArrowLeft } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import CobrancaModal from '../CobrancaModal'
 import PrintModal from '../PrintModal'
 
 export default function HistoricoPage() {
@@ -104,7 +103,6 @@ function HistoricoContent() {
   const [editNotes, setEditNotes] = useState<string>('')
   const [editBasePrice, setEditBasePrice] = useState<string>('')
   const [editFinalPrice, setEditFinalPrice] = useState<string>('')
-  const [showCobrancaModal, setShowCobrancaModal] = useState(false)
   const [printSaleId, setPrintSaleId] = useState<string | undefined>(undefined)
   const [showPrintModal, setShowPrintModal] = useState(false)
 
@@ -289,10 +287,10 @@ function HistoricoContent() {
           </h1>
         </div>
         <button
-          onClick={() => setShowCobrancaModal(true)}
+          onClick={() => { setPrintSaleId(undefined); setShowPrintModal(true) }}
           className="btn-secondary flex items-center gap-2 text-sm"
         >
-          <FileText className="w-4 h-4 text-purple-600" /> Gerar Cobrança
+          <Printer className="w-4 h-4 text-purple-600" /> Gerar Cobrança
         </button>
       </div>
 
@@ -597,14 +595,6 @@ function HistoricoContent() {
           sales={sales}
           initialSaleId={printSaleId}
           onClose={() => { setShowPrintModal(false); setPrintSaleId(undefined) }}
-        />
-      )}
-
-      {/* Cobrança Modal */}
-      {showCobrancaModal && (
-        <CobrancaModal
-          sales={sales}
-          onClose={() => setShowCobrancaModal(false)}
         />
       )}
 

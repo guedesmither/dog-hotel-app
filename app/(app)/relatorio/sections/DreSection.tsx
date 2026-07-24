@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { BarChart3, TrendingDown, Minus, ShoppingBag, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
 
 interface FinancialEntry {
@@ -160,6 +160,7 @@ export default function DreSection() {
   const [loading, setLoading] = useState(true)
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>([])  // vazio = ALL
   const [openDrill, setOpenDrill] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'acumulado' | 'comparativo'>('acumulado')
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -263,6 +264,38 @@ export default function DreSection() {
     count: salesByMonth.filter(m => activePeriods.includes(m.month)).reduce((s, m) => s + m.count, 0),
   }
 
+  // Dados mensais para comparação
+  const monthlyDreData = useMemo(() => {
+    return activePeriods.map(period => {
+      const finEntriesForPeriod = entries.filter(e => e.period === period)
+      const salesForPeriod = salesByMonth.find(m => m.month === period)
+      const receita = salesForPeriod?.net || 0
+      const byCat: Record<string, number> = {}
+      for (const e of finEntriesForPeriod) {
+        if (e.type === 'S') {
+          byCat[e.category] = (byCat[e.category] || 0) + e.amount
+        }
+      }
+      const opex = OPEX_CATEGORIES.reduce((s, c) => s + (byCat[c] || 0), 0)
+      const capex = CAPEX_CATEGORIES.reduce((s, c) => s + (byCat[c] || 0), 0)
+      const prolabore = byCat['PROLABORE'] || 0
+      const resultadoOperacional = receita - opex
+      const resultadoAposRetiradas = resultadoOperacional - prolabore
+      const resultadoLiquido = resultadoAposRetiradas - capex
+      return {
+        period,
+        label: periodLabel(period),
+        receita,
+        opex,
+        capex,
+        prolabore,
+        resultadoOperacional,
+        resultadoAposRetiradas,
+        resultadoLiquido,
+      }
+    })
+  }, [selectablePeriods, entries, salesByMonth])
+
   const periodRangeLabel = isAll
     ? 'Acumulado (todos os meses)'
     : selectedPeriods.length === 1
@@ -286,7 +319,7 @@ export default function DreSection() {
       </div>
 
       {/* Period selector */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
+      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-xs font-semibold text-gray-500 uppercase mr-1">Período:</span>
           <button
@@ -318,6 +351,31 @@ export default function DreSection() {
             <button onClick={selectAll} className="text-xs text-gray-400 hover:text-red-500 underline">limpar</button>
           </div>
         )}
+
+        {/* View mode toggle */}
+        <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-gray-100">
+          <span className="text-xs font-semibold text-gray-500 uppercase mr-1">Visualização:</span>
+          <button
+            onClick={() => setViewMode('acumulado')}
+            className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
+              viewMode === 'acumulado'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Acumulado
+          </button>
+          <button
+            onClick={() => setViewMode('comparativo')}
+            className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
+              viewMode === 'comparativo'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Comparativo Mensal
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -345,15 +403,95 @@ export default function DreSection() {
             </div>
           </div>
 
-          {/* DRE Table */}
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="font-bold text-gray-800">
-                DRE — {periodRangeLabel}
-              </h3>
-              <span className="text-xs text-gray-400 flex items-center gap-1"><ChevronRight className="w-3 h-3" /> clique nas linhas para detalhar</span>
+          {viewMode === 'comparativo' && (
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <h3 className="font-bold text-gray-800">DRE Comparativo Mensal</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Comparativo dos meses selecionados · valores em competência</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[760px]">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-2.5 text-left font-semibold text-gray-700 sticky left-0 bg-gray-50 z-10 min-w-[220px]">Indicador</th>
+                      {monthlyDreData.map(m => (
+                        <th key={m.period} className="px-3 py-2.5 text-center font-semibold text-gray-700 min-w-[110px]">{m.label}</th>
+                      ))}
+                      <th className="px-3 py-2.5 text-center font-bold text-gray-800 bg-gray-100 min-w-[110px]">Total</th>
+                      <th className="px-3 py-2.5 text-center font-bold text-gray-700 bg-gray-50 min-w-[110px]">Var. Abs.</th>
+                      <th className="px-3 py-2.5 text-center font-bold text-gray-700 bg-gray-50 min-w-[90px]">Var. %</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {(() => {
+                      const rows = [
+                        { key: 'receita', label: '(+) Receita Operacional Bruta', labelCls: 'text-emerald-700', cellCls: 'text-emerald-700', resultCls: 'text-emerald-800', negative: false, favorable: true },
+                        { key: 'opex', label: '(−) Despesas Operacionais', labelCls: 'text-orange-700', cellCls: 'text-orange-700', resultCls: 'text-orange-800', negative: true, favorable: false },
+                        { key: 'resultadoOperacional', label: '(=) Resultado Operacional', labelCls: 'text-blue-700', cellCls: 'text-blue-800', resultCls: 'text-blue-800', negative: false, favorable: true },
+                        { key: 'prolabore', label: '(−) Pró-labore / Retiradas', labelCls: 'text-amber-700', cellCls: 'text-amber-700', resultCls: 'text-amber-800', negative: true, favorable: false },
+                        { key: 'resultadoAposRetiradas', label: '(=) Resultado após Retiradas', labelCls: 'text-blue-700', cellCls: 'text-blue-800', resultCls: 'text-blue-800', negative: false, favorable: true },
+                        { key: 'capex', label: '(−) Investimentos em Estrutura', labelCls: 'text-slate-700', cellCls: 'text-slate-700', resultCls: 'text-slate-800', negative: true, favorable: false },
+                        { key: 'resultadoLiquido', label: '(=) Resultado Líquido', labelCls: 'text-emerald-700', cellCls: 'text-emerald-800', resultCls: 'text-emerald-800', negative: false, favorable: true },
+                      ]
+                      const hasVar = monthlyDreData.length >= 2
+                      const prevIdx = monthlyDreData.length - 2
+                      const lastIdx = monthlyDreData.length - 1
+                      return rows.map(row => {
+                        const total = monthlyDreData.reduce((s, m) => s + (m as any)[row.key], 0)
+                        const isResult = row.key.startsWith('resultado')
+                        const fmtSigned = (v: number) => row.negative && v > 0 ? `(${fmtMoney(v)})` : fmtMoney(v)
+                        const lastVal = hasVar ? (monthlyDreData[lastIdx] as any)[row.key] as number : 0
+                        const prevVal = hasVar ? (monthlyDreData[prevIdx] as any)[row.key] as number : 0
+                        const varAbs = hasVar ? lastVal - prevVal : 0
+                        const varPct = hasVar && prevVal !== 0 ? (varAbs / Math.abs(prevVal)) * 100 : 0
+                        const isPositive = varAbs > 0
+                        const isNeutral = varAbs === 0
+                        const colorCls = isNeutral
+                          ? 'text-gray-400'
+                          : (isPositive === row.favorable)
+                            ? 'text-emerald-600'
+                            : 'text-red-600'
+                        return (
+                          <tr key={row.key} className={isResult ? 'bg-gray-50/60' : ''}>
+                            <td className={`px-4 py-2 font-semibold ${row.labelCls} sticky left-0 ${isResult ? 'bg-gray-50/80' : 'bg-white'} z-10`}>{row.label}</td>
+                            {monthlyDreData.map(m => {
+                              const val = (m as any)[row.key]
+                              return (
+                                <td key={m.period} className={`px-3 py-2 text-right font-medium ${row.cellCls}`}>
+                                  {fmtSigned(val)}
+                                </td>
+                              )
+                            })}
+                            <td className={`px-3 py-2 text-right font-bold bg-gray-50 ${row.resultCls}`}>
+                              {fmtSigned(total)}
+                            </td>
+                            <td className={`px-3 py-2 text-right font-semibold bg-gray-50 ${colorCls}`}>
+                              {hasVar ? (varAbs > 0 ? '+' : '') + fmtMoney(varAbs) : '—'}
+                            </td>
+                            <td className={`px-3 py-2 text-right font-semibold bg-gray-50 ${colorCls}`}>
+                              {hasVar && prevVal !== 0 ? `${varPct >= 0 ? '+' : ''}${varPct.toFixed(1)}%` : (hasVar ? '—' : '—')}
+                            </td>
+                          </tr>
+                        )
+                      })
+                    })()}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div className="divide-y divide-gray-100">
+          )}
+
+          {viewMode === 'acumulado' && (
+            <div className="space-y-5">
+              {/* DRE Table */}
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                  <h3 className="font-bold text-gray-800">
+                    DRE — {periodRangeLabel}
+                  </h3>
+                  <span className="text-xs text-gray-400 flex items-center gap-1"><ChevronRight className="w-3 h-3" /> clique nas linhas para detalhar</span>
+                </div>
+                <div className="divide-y divide-gray-100">
 
               {/* RECEITA OPERACIONAL */}
               <div className="px-6 py-3 bg-emerald-50">
@@ -683,6 +821,8 @@ export default function DreSection() {
               })}
             </div>
           </div>
+        </div>
+      )}
         </>
       )}
     </div>
