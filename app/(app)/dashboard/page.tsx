@@ -340,7 +340,9 @@ export default function DashboardPage() {
       const allDogs: DogWithStay[] = await dogsRes.json()
       const entries: any[] = await rosterRes.json()
       setRosterEntries(entries)
-      const rosterIds = new Set(entries.map((e: any) => e.dogId || e.dog?.id))
+      // Monitores não precisam ver cães que vieram só para banho (sem creche/hotel/etc no dia)
+      const relevantEntries = isMonitor ? entries.filter((e: any) => e.type !== 'BANHO') : entries
+      const rosterIds = new Set(relevantEntries.map((e: any) => e.dogId || e.dog?.id))
       const todayDogs = allDogs.filter(d => rosterIds.has(d.id))
       setDogs(todayDogs)
     } finally {
@@ -502,6 +504,7 @@ export default function DashboardPage() {
                             : entryType === 'REPOSICAO' ? 'bg-purple-100 text-purple-700'
                             : entryType === 'AVULSO' ? 'bg-orange-100 text-orange-700'
                             : entryType === 'PACOTE' ? 'bg-green-100 text-green-700'
+                            : entryType === 'BANHO' ? 'bg-cyan-100 text-cyan-700'
                             : 'bg-amber-100 text-amber-700'
                           }`}>{entryType}</span>
                         </td>

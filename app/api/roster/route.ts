@@ -523,8 +523,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Cão não encontrado' }, { status: 404 })
     }
 
+    // ── BANHO: standalone walk-in bath, no sale required — always eligible ──
+    if (entryType === 'BANHO') {
+      // Fall through directly to upsert below
+      console.log(`[DEBUG] Dog ${dogId} entryType BANHO - skipping eligibility checks`)
+    } else
     // ── BOLSISTA: always eligible, skip all checks ──────────────────────────
-    console.log(`[DEBUG] Dog ${dogId} status: "${dog.dogStatus}", isBolsista: ${dog.isBolsista}`)
     if (dog.dogStatus === 'BOLSISTA' || dog.isBolsista === true) {
       // Fall through directly to upsert below
       console.log(`[DEBUG] Dog ${dogId} is BOLSISTA - skipping eligibility checks`)

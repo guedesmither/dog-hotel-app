@@ -413,7 +413,7 @@ export default function AgendaPage() {
     const all = data?.entries.filter(e => e.date === date) ?? []
     if (activeFilters.size === 0) return all
     return all.filter(e => {
-      if (activeFilters.has('BANHO') && e.hasBanho) return true
+      if (activeFilters.has('BANHO') && (e.hasBanho || e.type === 'BANHO')) return true
       if (activeFilters.has(e.type)) return true
       return false
     })
@@ -424,11 +424,17 @@ export default function AgendaPage() {
     const isFuture = date > today
     
     // Segmentar por status de presença
+    const banho: RosterEntry[] = []
     const undetermined: RosterEntry[] = []
     const present: RosterEntry[] = []
     const absent: RosterEntry[] = []
     
     all.forEach(entry => {
+      // Banho avulso fica em segmentação própria, à parte da presença de creche/hotel
+      if (entry.type === 'BANHO') {
+        banho.push(entry)
+        return
+      }
       if (isFuture) {
         // Dias futuros: todos são não determinados
         undetermined.push(entry)
@@ -448,11 +454,12 @@ export default function AgendaPage() {
     const sortByName = (a: RosterEntry, b: RosterEntry) => 
       a.dog.name.localeCompare(b.dog.name, 'pt-BR')
     
+    banho.sort(sortByName)
     undetermined.sort(sortByName)
     present.sort(sortByName)
     absent.sort(sortByName)
     
-    return { undetermined, present, absent }
+    return { banho, undetermined, present, absent }
   }
 
   function allEntriesForDate(date: string) {
@@ -665,7 +672,7 @@ export default function AgendaPage() {
             const todayStr = toDateStr(new Date())
             const past = dogTimeline.filter(e => e.date < todayStr)
             const future = dogTimeline.filter(e => e.date >= todayStr)
-            const typeLabel = (t: string) => t === 'CRECHE' ? '🐾 Creche' : t === 'HOTEL' ? '🏨 Hotel' : t === 'AVULSO' ? '💵 Avulso' : t === 'PACOTE' ? '📦 Pacote' : t === 'REPOSICAO' ? '🔄 Reposição' : t
+            const typeLabel = (t: string) => t === 'CRECHE' ? '🐾 Creche' : t === 'HOTEL' ? '🏨 Hotel' : t === 'AVULSO' ? '💵 Avulso' : t === 'PACOTE' ? '📦 Pacote' : t === 'REPOSICAO' ? '🔄 Reposição' : t === 'BANHO' ? '🛁 Banho' : t
             const presenceBadge = (e: any) => {
               if (e.source === 'PROJECTED') return <span className="text-xs text-gray-400 italic">Previsto</span>
               if (e.date >= todayStr) return <span className="text-xs text-blue-500 font-medium">Agendado</span>
@@ -790,7 +797,7 @@ export default function AgendaPage() {
                       { icon: '\ud83d\udcb5', type: 'AVULSO',    label: 'Avulso',     n: all.filter(e => e.type === 'AVULSO').length },
                       { icon: '\ud83d\udce6', type: 'PACOTE',    label: 'Pacote',     n: all.filter(e => e.type === 'PACOTE').length },
                       { icon: '\ud83d\udd04', type: 'REPOSICAO', label: 'Reposição', n: all.filter(e => e.type === 'REPOSICAO').length },
-                      { icon: '\ud83d\udec1', type: 'BANHO',     label: 'Banho',      n: all.filter(e => e.hasBanho).length },
+                      { icon: '\ud83d\udec1', type: 'BANHO',     label: 'Banho',      n: all.filter(e => e.hasBanho || e.type === 'BANHO').length },
                     ].filter(c => c.n > 0)
                     if (counts.length === 0) return null
                     return (
@@ -819,6 +826,43 @@ export default function AgendaPage() {
 
                 {/* Dog cards */}
                 <div className="flex-1 p-1.5 space-y-2 overflow-y-auto">
+                  {(() => {
+                    const { banho } = getSegmentedEntries(date)
+                    if (banho.length === 0) return null
+                    return (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-cyan-600 px-1 py-0.5 bg-cyan-50 rounded border border-cyan-100">
+                          🛁 Banho ({banho.length})
+                        </div>
+                        {banho.map(entry => (
+                          <div
+                            key={entry.id}
+                            className="group flex items-center gap-1.5 border border-gray-100 border-l-[3px] border-l-cyan-500 rounded-md px-2 py-1.5 hover:shadow-sm transition-all bg-cyan-50/50"
+                          >
+                            <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[8px]">
+                              {entry.dog.photoUrl
+                                ? <img src={entry.dog.photoUrl} alt={entry.dog.name} className="w-full h-full object-cover" />
+                                : entry.dog.name[0].toUpperCase()}
+                            </div>
+                            <Link href={`/dogs/${entry.dogId}`}
+                              className="flex-1 min-w-0"
+                              onClick={e => e.stopPropagation()}>
+                              <p className="text-xs font-semibold truncate leading-tight text-gray-800">{entry.dog.name}</p>
+                            </Link>
+                            <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+                              <button
+                                onClick={() => removeDog(entry.dogId, date)}
+                                className="p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                                title="Remover do dia"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
                   {(() => {
                     const { undetermined, present, absent } = getSegmentedEntries(date)
                     const isFuture = date > today
@@ -938,6 +982,7 @@ export default function AgendaPage() {
                                       { type: 'PACOTE', icon: '📦', bg: 'hover:bg-green-100' },
                                       { type: 'HOTEL', icon: '🏨', bg: 'hover:bg-blue-100' },
                                       { type: 'REPOSICAO', icon: '🔄', bg: 'hover:bg-purple-100' },
+                                      { type: 'BANHO', icon: '🛁', bg: 'hover:bg-cyan-100' },
                                     ].map(({ type, icon, bg }) => (
                                       <button key={type} onClick={e => { e.stopPropagation(); changeType(entry.dogId, date, type) }}
                                         className={`text-xs px-1.5 py-1 rounded ${bg} transition-colors`}
@@ -1061,6 +1106,7 @@ export default function AgendaPage() {
                                       { type: 'PACOTE', icon: '📦', bg: 'hover:bg-green-100' },
                                       { type: 'HOTEL', icon: '🏨', bg: 'hover:bg-blue-100' },
                                       { type: 'REPOSICAO', icon: '🔄', bg: 'hover:bg-purple-100' },
+                                      { type: 'BANHO', icon: '🛁', bg: 'hover:bg-cyan-100' },
                                     ].map(({ type, icon, bg }) => (
                                       <button key={type} onClick={e => { e.stopPropagation(); changeType(entry.dogId, date, type) }}
                                         className={`text-xs px-1.5 py-1 rounded ${bg} transition-colors`}
@@ -1078,7 +1124,6 @@ export default function AgendaPage() {
                       )
                     }
                   })()}
-                  
                   {(() => {
                     const { absent } = getSegmentedEntries(date)
                     const isFuture = date > today
@@ -1184,6 +1229,7 @@ export default function AgendaPage() {
                                       { type: 'PACOTE', icon: '📦', bg: 'hover:bg-green-100' },
                                       { type: 'HOTEL', icon: '🏨', bg: 'hover:bg-blue-100' },
                                       { type: 'REPOSICAO', icon: '🔄', bg: 'hover:bg-purple-100' },
+                                      { type: 'BANHO', icon: '🛁', bg: 'hover:bg-cyan-100' },
                                     ].map(({ type, icon, bg }) => (
                                       <button key={type} onClick={e => { e.stopPropagation(); changeType(entry.dogId, date, type) }}
                                         className={`text-xs px-1.5 py-1 rounded ${bg} transition-colors`}
@@ -1268,6 +1314,12 @@ export default function AgendaPage() {
                                     🔄 Reposição
                                   </button>
                                 )}
+                                <button
+                                  onClick={() => addDog(pendingAddDog!.dogId, date, 'BANHO')}
+                                  className="px-2 py-1 text-xs bg-cyan-50 hover:bg-cyan-100 rounded transition-colors"
+                                >
+                                  🛁 Banho
+                                </button>
                               </div>
                             </>
                           )
