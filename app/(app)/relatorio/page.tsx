@@ -8,6 +8,7 @@ import DiarioSection from './sections/DiarioSection'
 import FrequenciaSection from './sections/FrequenciaSection'
 import ExecutivoSection from './sections/ExecutivoSection'
 import DreSection from './sections/DreSection'
+import InvestimentoSection from './sections/InvestimentoSection'
 
 const R$ = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, style: 'currency', currency: 'BRL' })
 const pct = (v: number, total: number) => total > 0 ? Math.round((v / total) * 100) : 0
@@ -48,7 +49,7 @@ function fmtDay(d: string) {
 }
 
 type Tab = 'resumo' | 'periodo' | 'caes' | 'produtos' | 'tutores' | 'vendasPorCao'
-type Section = 'financeiro' | 'diario' | 'frequencia' | 'executivo' | 'dre'
+type Section = 'financeiro' | 'diario' | 'frequencia' | 'executivo' | 'dre' | 'investimento'
 
 function Bar({ value, max, color = 'bg-amber-400' }: { value: number; max: number; color?: string }) {
   return (
@@ -120,6 +121,7 @@ function RelatorioContent() {
     { key: 'frequencia',  label: 'Frequência',   icon: Users },
     { key: 'executivo',   label: 'Executivo',    icon: Building2 },
     { key: 'dre',         label: 'DRE',          icon: FileSpreadsheet },
+    { key: 'investimento', label: 'Investimento', icon: TrendingUp },
   ]
 
   return (
@@ -148,6 +150,7 @@ function RelatorioContent() {
       {section === 'frequencia' && <FrequenciaSection />}
       {section === 'executivo' && <ExecutivoSection />}
       {section === 'dre' && <DreSection />}
+      {section === 'investimento' && <InvestimentoSection />}
 
       {section === 'financeiro' && (
       <>
