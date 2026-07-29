@@ -61,13 +61,6 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
-function periodLabel(p: string) {
-  if (p === 'PRE_INAUGURACAO') return 'Pré-Inauguração'
-  const [y, m] = p.split('-')
-  const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-  return `${months[parseInt(m) - 1]}/${y}`
-}
-
 function fmtPct(v: number) {
   return `${v.toFixed(1)}%`
 }
@@ -167,18 +160,15 @@ export default function InvestimentoSection() {
     const totalReceita = sales.reduce((s, m) => s + m.net, 0)
     const totalRecebido = sales.reduce((s, m) => s + m.received, 0)
 
-    // Amortização: quanto do investimento total já voltou em forma de caixa recebido das vendas
-    const investimentoTotal = totalAportes + totalGastos
-    const taxaAmortizacaoReceita = investimentoTotal > 0 ? (totalRecebido / investimentoTotal) * 100 : 0
-    const resultadoOperacional = totalReceita - opex
-    const taxaAmortizacaoLucro = investimentoTotal > 0 ? (resultadoOperacional / investimentoTotal) * 100 : 0
-    const paybackMeses = resultadoOperacional > 0 ? investimentoTotal / resultadoOperacional : 0
+    // Análise simples de caixa: tudo que saiu vs tudo que entrou de vendas
+    const resultante = totalRecebido - totalGastos
+    const taxaAmortizacao = totalGastos > 0 ? (totalRecebido / totalGastos) * 100 : 0
 
     return {
       aportes, aportePorConta, totalAportes,
       gastos, opex, capex, prolabore, aplicacao, totalGastos,
       totalReceita, totalRecebido,
-      investimentoTotal, taxaAmortizacaoReceita, taxaAmortizacaoLucro, resultadoOperacional, paybackMeses
+      resultante, taxaAmortizacao
     }
   }, [entries, sales])
 
@@ -208,10 +198,10 @@ export default function InvestimentoSection() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card label="Aportes de Capital" value={fmtMoney(totals.totalAportes)} sub="Sócios (Sebá, Vê, NICE)" color="blue" icon={Wallet} />
-        <Card label="Investimento Total" value={fmtMoney(totals.investimentoTotal)} sub="Aportes + gastos internos" color="violet" icon={Building2} />
-        <Card label="Caixa de Vendas AUÊ" value={fmtMoney(totals.totalRecebido)} sub={`${sales.reduce((s,m)=>s+m.count,0)} vendas · faturamento líq. ${fmtMoney(totals.totalReceita)}`} color="green" icon={DollarSign} />
-        <Card label="Taxa de Amortização" value={fmtPct(totals.taxaAmortizacaoReceita)} sub={`Payback: ${totals.paybackMeses > 0 ? totals.paybackMeses.toFixed(1) + ' meses' : 'ainda não atingido'}`} color={totals.taxaAmortizacaoReceita >= 100 ? 'emerald' : 'amber'} icon={PieChart} />
+        <Card label="Total Gasto" value={fmtMoney(totals.totalGastos)} sub="OPEX + CAPEX + obra inicial + retiradas" color="violet" icon={Building2} />
+        <Card label="Total Recebido AUÊ" value={fmtMoney(totals.totalRecebido)} sub={`${sales.reduce((s,m)=>s+m.count,0)} vendas · faturamento líq. ${fmtMoney(totals.totalReceita)}`} color="green" icon={DollarSign} />
+        <Card label="Resultante" value={fmtMoney(totals.resultante)} sub={totals.resultante >= 0 ? 'Recebido maior que gasto' : 'Gasto maior que recebido'} color={totals.resultante >= 0 ? 'emerald' : 'red'} icon={ArrowRight} />
+        <Card label="Amortização" value={fmtPct(totals.taxaAmortizacao)} sub={`${totals.taxaAmortizacao >= 100 ? 'Total já amortizado' : 'Ainda faltam ' + (100 - totals.taxaAmortizacao).toFixed(1) + '%'}`} color={totals.taxaAmortizacao >= 100 ? 'emerald' : 'amber'} icon={PieChart} />
       </div>
 
       {/* Resumo técnico */}
@@ -219,23 +209,23 @@ export default function InvestimentoSection() {
         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><ArrowRight className="w-4 h-4 text-emerald-600" /> Análise de Amortização</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div className="bg-gray-50 rounded-xl p-4">
-            <div className="text-xs font-semibold text-gray-500 uppercase">Total Gasto / Investido</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase">Total Gasto</div>
             <div className="text-xl font-bold text-slate-700 mt-1">{fmtMoney(totals.totalGastos)}</div>
-            <div className="text-xs text-gray-400 mt-1">OPEX + CAPEX + retiradas + aplicações</div>
+            <div className="text-xs text-gray-400 mt-1">OPEX + CAPEX + obra inicial + retiradas + aplicações</div>
           </div>
           <div className="bg-gray-50 rounded-xl p-4">
-            <div className="text-xs font-semibold text-gray-500 uppercase">Resultado Operacional</div>
-            <div className={`text-xl font-bold mt-1 ${totals.resultadoOperacional >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{fmtMoney(totals.resultadoOperacional)}</div>
-            <div className="text-xs text-gray-400 mt-1">Receita − OPEX</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase">Total Recebido</div>
+            <div className="text-xl font-bold text-emerald-700 mt-1">{fmtMoney(totals.totalRecebido)}</div>
+            <div className="text-xs text-gray-400 mt-1">Caixa de vendas AUÊ</div>
           </div>
           <div className="bg-gray-50 rounded-xl p-4">
-            <div className="text-xs font-semibold text-gray-500 uppercase">Amortização pelo Lucro</div>
-            <div className={`text-xl font-bold mt-1 ${totals.taxaAmortizacaoLucro >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{fmtPct(totals.taxaAmortizacaoLucro)}</div>
-            <div className="text-xs text-gray-400 mt-1">ROI acumulado sobre capital investido</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase">Resultante</div>
+            <div className={`text-xl font-bold mt-1 ${totals.resultante >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{fmtMoney(totals.resultante)}</div>
+            <div className="text-xs text-gray-400 mt-1">Recebido − Gasto</div>
           </div>
         </div>
         <div className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg p-3">
-          <strong>Como interpretar:</strong> o <em>Investimento Total</em> é a soma do capital aportado pelos sócios com todos os gastos internos já realizados (incluindo estrutura, operação e reinvestimentos). A <em>Taxa de Amortização</em> mostra quanto dessa monta já voltou em forma de <em>caixa recebido das vendas</em> na AUÊ. A <em>Amortização pelo Lucro</em> é o ROI acumulado — o resultado operacional dividido pelo investimento.
+          <strong>Como interpretar:</strong> o <em>Total Gasto</em> é tudo que já saiu das contas até hoje — inclui OPEX, CAPEX, investimento na obra inicial, retiradas e aplicações financeiras. O <em>Total Recebido</em> é o caixa real das vendas na AUÊ. O <em>Resultante</em> é a diferença entre os dois, e a <em>Amortização</em> mostra quanto do gasto total já foi recuperado pelas vendas.
         </div>
       </div>
 
