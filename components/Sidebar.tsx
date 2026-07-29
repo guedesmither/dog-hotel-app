@@ -339,7 +339,7 @@ export default function Sidebar() {
       <aside
         className={cn(
           'fixed left-0 top-0 h-full w-64 bg-white border-r border-brand-tealLight z-40 transition-transform duration-300',
-          'md:translate-x-0',
+          'md:sticky md:top-0 md:h-screen md:translate-x-0 md:shrink-0',
           mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
       >
