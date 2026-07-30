@@ -53,10 +53,11 @@ export async function GET(req: NextRequest) {
   const endWindow = new Date(year, m0 + 1, 0, 23, 59, 59, 999)
 
   const [dogs, windowSales] = await Promise.all([
+    // Sem filtro de isActive: baixas do mês alvo não afetam a base (estado no fim do mês anterior)
     prisma.dog.findMany({
-      where: { isActive: true, isBolsista: false, dogStatus: 'CRECHE' },
+      where: { isBolsista: false, dogStatus: 'CRECHE' },
       select: {
-        id: true, name: true, ownerName: true,
+        id: true, name: true, ownerName: true, isActive: true,
         sales: {
           where: { saleType: 'MENSAL', paymentStatus: { not: 'CANCELADO' }, isExempt: false },
           select: { saleDate: true, finalPrice: true, paymentStatus: true },
@@ -75,20 +76,26 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
-  // ── Creche (MENSAL): projeta última mensalidade de cada cão no dia típico de cobrança ──
-  const staleThreshold = new Date(now.getTime() - 75 * 24 * 3600 * 1000)
+  // ── Creche (MENSAL): base = estado das mensalidades no fim do mês anterior ao alvo ──
+  // Mensalidades agregadas/perdidas no mês alvo NÃO entram na projeção
+  const cutoff = new Date(prev[0].y, prev[0].m0 + 1, 0, 23, 59, 59, 999)
+  // Mensalista vigente na base deve ter venda MENSAL nos últimos ~40 dias (ciclo mensal + tolerância)
+  const staleThreshold = new Date(cutoff.getTime() - 40 * 24 * 3600 * 1000)
   const crecheDaily = new Array(daysInMonth + 1).fill(0)
   const crecheDogs: any[] = []
   const staleDogs: any[] = []
   let crecheTotal = 0
 
   for (const dog of dogs) {
-    const mensalSales = dog.sales
+    const mensalSales = dog.sales.filter(s => new Date(s.saleDate) <= cutoff)
     if (mensalSales.length === 0) continue
     const last = mensalSales[mensalSales.length - 1]
     const lastDate = new Date(last.saleDate)
     if (lastDate < staleThreshold) {
-      staleDogs.push({ id: dog.id, name: dog.name, ownerName: dog.ownerName, lastSaleDate: lastDate.toISOString().slice(0, 10), amount: last.finalPrice })
+      // Aviso só para cães ainda ativos — inativos antigos não são acionáveis
+      if (dog.isActive) {
+        staleDogs.push({ id: dog.id, name: dog.name, ownerName: dog.ownerName, lastSaleDate: lastDate.toISOString().slice(0, 10), amount: last.finalPrice })
+      }
       continue
     }
     // Dia típico de cobrança: dia do mês mais frequente nas vendas MENSAL (desempate: mais recente)
@@ -194,6 +201,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     month: curKey,
     monthLabel: labelOf(curKey),
+    baseMonthLabel: labelOf(monthKey(prev[0].y, prev[0].m0)),
     daysInMonth,
     todayDay: isCurrentMonth ? now.getDate() : null,
     totals: {

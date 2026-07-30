@@ -20,6 +20,7 @@ interface CrecheDog {
 interface ForecastData {
   month: string
   monthLabel: string
+  baseMonthLabel: string
   daysInMonth: number
   todayDay: number | null
   totals: { creche: number; hotel: number; pacote: number; servicos: number; total: number }
@@ -326,7 +327,7 @@ export default function ForecastSection() {
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
           <div>
             <h3 className="font-bold text-gray-800 flex items-center gap-2"><Dog className="w-4 h-4 text-amber-600" /> Mensalistas Projetados</h3>
-            <p className="text-xs text-gray-400">Última mensalidade registrada de cada cão, posicionada no dia típico de cobrança</p>
+            <p className="text-xs text-gray-400">Base: mensalistas ativos no fim de {data.baseMonthLabel} (sem altas/baixas de {data.monthLabel}), no dia típico de cobrança</p>
           </div>
           <span className="text-sm font-bold text-amber-700">{R$(t.creche)}</span>
         </div>
@@ -389,7 +390,7 @@ export default function ForecastSection() {
       {data.staleDogs.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
           <h4 className="font-semibold text-amber-800 text-sm flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-4 h-4" /> {data.staleDogs.length} {data.staleDogs.length === 1 ? 'cão ativo sem venda' : 'cães ativos sem venda'} nos últimos 75 dias (fora da projeção)
+            <AlertTriangle className="w-4 h-4" /> {data.staleDogs.length} {data.staleDogs.length === 1 ? 'cão sem mensalidade recente' : 'cães sem mensalidade recente'} na base (fora da projeção)
           </h4>
           <div className="flex flex-wrap gap-2">
             {data.staleDogs.map(d => (
@@ -398,13 +399,13 @@ export default function ForecastSection() {
               </span>
             ))}
           </div>
-          <p className="text-[11px] text-amber-600 mt-2">Se algum desses cães ainda é pagante, registre a mensalidade do mês para incluí-lo no forecast.</p>
+          <p className="text-[11px] text-amber-600 mt-2">Se algum desses cães era pagante em {data.baseMonthLabel}, registre a mensalidade daquele mês para incluí-lo na base do forecast.</p>
         </div>
       )}
 
       {/* Premissas */}
       <div className="text-xs text-gray-500 bg-violet-50 border border-violet-100 rounded-lg p-3">
-        <strong>Premissas:</strong> <em>Creche</em> = soma da última mensalidade (realizada ou programada) de cada cão ativo, posicionada no dia de cobrança mais frequente do histórico. <em>Hotel</em> = valor do mês anterior × (1 + crescimento médio dos últimos 3 meses). <em>Pacotes e Serviços</em> = valor do mês anterior (crescimento nulo). Distribuição diária segue o padrão do mês anterior.
+        <strong>Premissas:</strong> <em>Creche</em> = mensalistas ativos no fim de {data.baseMonthLabel} (última mensalidade registrada até lá), no dia de cobrança mais frequente — altas e baixas de {data.monthLabel} não entram. <em>Hotel</em> = valor de {data.baseMonthLabel} × (1 + crescimento médio dos últimos 3 meses). <em>Pacotes e Serviços</em> = valor de {data.baseMonthLabel} (crescimento nulo). Distribuição diária segue o padrão de {data.baseMonthLabel}.
       </div>
     </div>
   )
