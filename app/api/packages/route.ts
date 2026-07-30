@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
     const packages = await prisma.package.findMany({
       where: {
         isActive: true,
+        remainingDays: { gt: 0 },
         expiryDate: { gte: new Date() },
         OR: [
           { dogId },
