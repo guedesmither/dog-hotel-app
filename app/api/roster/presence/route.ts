@@ -73,7 +73,17 @@ export async function PATCH(req: NextRequest) {
   }
 
   // 2. Sync DailyReport and Replacement based on presence value
-  const isHotelOrReposicao = entryType === 'HOTEL' || entryType === 'REPOSICAO'
+  // Resolve entry type from the roster when the caller didn't send it (e.g. dashboard)
+  let resolvedType = entryType
+  if (!resolvedType) {
+    const rosterEntry = await prisma.dailyRoster.findUnique({
+      where: { dogId_date: { dogId, date } },
+      select: { type: true },
+    })
+    resolvedType = rosterEntry?.type
+  }
+  // BANHO entries are standalone walk-in services — never generate replacements
+  const isHotelOrReposicao = resolvedType === 'HOTEL' || resolvedType === 'REPOSICAO' || resolvedType === 'BANHO'
   if (present === false) {
     // Marking absent — upsert report with absent=true
     await prisma.dailyReport.upsert({

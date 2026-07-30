@@ -834,10 +834,17 @@ export default function AgendaPage() {
                         <div className="text-xs font-medium text-cyan-600 px-1 py-0.5 bg-cyan-50 rounded border border-cyan-100">
                           🛁 Banho ({banho.length})
                         </div>
-                        {banho.map(entry => (
+                        {banho.map(entry => {
+                          const isFuture = date > today
+                          const banhoDado = entry.present === true
+                          const pKey = `${entry.dogId}_${date}`
+                          const isToggling = togglingPresence === pKey
+                          return (
                           <div
                             key={entry.id}
-                            className="group flex items-center gap-1.5 border border-gray-100 border-l-[3px] border-l-cyan-500 rounded-md px-2 py-1.5 hover:shadow-sm transition-all bg-cyan-50/50"
+                            className={`group flex items-center gap-1.5 border border-gray-100 border-l-[3px] border-l-cyan-500 rounded-md px-2 py-1.5 hover:shadow-sm transition-all ${
+                              banhoDado ? 'bg-cyan-100/70' : 'bg-cyan-50/50'
+                            }`}
                           >
                             <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[8px]">
                               {entry.dog.photoUrl
@@ -847,8 +854,25 @@ export default function AgendaPage() {
                             <Link href={`/dogs/${entry.dogId}`}
                               className="flex-1 min-w-0"
                               onClick={e => e.stopPropagation()}>
-                              <p className="text-xs font-semibold truncate leading-tight text-gray-800">{entry.dog.name}</p>
+                              <p className={`text-xs font-semibold truncate leading-tight ${banhoDado ? 'text-cyan-800' : 'text-gray-800'}`}>
+                                {entry.dog.name}
+                                {banhoDado && <span className="ml-1 text-[9px] font-medium text-cyan-600">· banho dado ✓</span>}
+                              </p>
                             </Link>
+                            {!isFuture && (
+                              <button
+                                onClick={() => markPresent(entry.dogId, date, 'BANHO')}
+                                disabled={isToggling || banhoDado}
+                                title={banhoDado ? 'Banho confirmado' : 'Confirmar banho dado'}
+                                className={`p-0.5 rounded shrink-0 transition-all ${
+                                  banhoDado
+                                    ? 'text-cyan-700 bg-cyan-200 cursor-default'
+                                    : 'text-gray-400 hover:text-cyan-600 hover:bg-cyan-100'
+                                }`}
+                              >
+                                <Check className="w-3 h-3" />
+                              </button>
+                            )}
                             <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
                               <button
                                 onClick={() => removeDog(entry.dogId, date)}
@@ -859,7 +883,8 @@ export default function AgendaPage() {
                               </button>
                             </div>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )
                   })()}

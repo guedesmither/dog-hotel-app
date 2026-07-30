@@ -74,7 +74,8 @@ export async function POST(
     }),
   ])
 
-  const isSubscription = !!rosterEntry
+  // BANHO entries are standalone walk-in services — never generate replacements
+  const isSubscription = !!rosterEntry && rosterEntry.type !== 'BANHO'
 
   if (isAbsent && isSubscription) {
     const activeSale = (dog as any)?.sales?.[0]
