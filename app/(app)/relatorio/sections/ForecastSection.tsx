@@ -34,6 +34,7 @@ interface ForecastData {
   chart: { day: number; forecast: number; atual: number | null; prev1: number | null; prev2: number | null; prev3: number | null }[]
   crecheDogs: CrecheDog[]
   staleDogs: { id: string; name: string; ownerName: string; lastSaleDate: string; amount: number }[]
+  otherDogs: { id: string; name: string; ownerName: string }[]
 }
 
 const R$ = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -96,6 +97,13 @@ export default function ForecastSection() {
     for (const d of data.crecheDogs) {
       const v = crecheOverrides[d.id] ?? d.amount
       daily[Math.min(d.billingDay, dim)] += v
+      crecheTotal += v
+    }
+    // Cães incluídos manualmente no consensus (fora da base) — entram no dia 10
+    for (const d of data.otherDogs || []) {
+      const v = crecheOverrides[d.id]
+      if (v == null || !(v > 0)) continue
+      daily[Math.min(10, dim)] += v
       crecheTotal += v
     }
 
@@ -378,8 +386,49 @@ export default function ForecastSection() {
                   )}
                 </tr>
               ))}
-              {data.crecheDogs.length === 0 && (
-                <tr><td colSpan={consensusMode ? 7 : 6} className="px-6 py-8 text-center text-sm text-gray-400 italic">Nenhum mensalista ativo com venda recente.</td></tr>
+              {data.crecheDogs.length === 0 && !consensusMode && (
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-400 italic">Nenhum mensalista ativo com venda recente.</td></tr>
+              )}
+              {/* Cães fora da base — preenchíveis no modo Consensus */}
+              {consensusMode && (data.otherDogs || []).length > 0 && (
+                <>
+                  <tr className="bg-orange-50/70 border-y border-orange-100">
+                    <td colSpan={7} className="px-6 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-orange-500">
+                      Fora da base — preencha para incluir no consensus (entram no dia 10 do gráfico)
+                    </td>
+                  </tr>
+                  {(data.otherDogs || []).map(d => (
+                    <tr key={d.id} className="hover:bg-orange-50/40 transition-colors">
+                      <td className="px-6 py-2 font-medium text-gray-500">{d.name}</td>
+                      <td className="px-3 py-2 text-gray-400 text-xs">{d.ownerName}</td>
+                      <td className="px-3 py-2 text-center text-xs text-gray-300">—</td>
+                      <td className="px-3 py-2 text-center text-xs text-gray-300">—</td>
+                      <td className="px-3 py-2 text-center text-xs text-gray-300">—</td>
+                      <td className="px-3 py-2 text-right text-gray-300">—</td>
+                      <td className="px-6 py-1.5 text-right">
+                        <input
+                          type="number" min={0} step="0.01"
+                          value={crecheOverrides[d.id] ?? ''}
+                          placeholder="0,00"
+                          onChange={e => {
+                            const raw = e.target.value
+                            setCrecheOverrides(prev => {
+                              const next = { ...prev }
+                              if (raw === '') delete next[d.id]
+                              else next[d.id] = Math.max(0, parseFloat(raw) || 0)
+                              return next
+                            })
+                          }}
+                          className={`w-24 text-right text-sm font-semibold rounded-lg border px-2 py-1 outline-none focus:ring-2 focus:ring-orange-300 ${
+                            crecheOverrides[d.id] != null && crecheOverrides[d.id] > 0
+                              ? 'border-orange-400 bg-orange-50 text-orange-700'
+                              : 'border-dashed border-gray-300 text-gray-700'
+                          }`}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </>
               )}
             </tbody>
           </table>

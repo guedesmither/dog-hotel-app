@@ -198,6 +198,12 @@ export async function GET(req: NextRequest) {
     total: round2(prevDaily[i].reduce((a, b) => a + b, 0)),
   }))
 
+  // Cães ativos de creche fora da base — candidatos a inclusão manual no cenário Consensus
+  const projectedIds = new Set(crecheDogs.map(d => d.id))
+  const otherDogs = dogs
+    .filter(d => d.isActive && !projectedIds.has(d.id))
+    .map(d => ({ id: d.id, name: d.name, ownerName: d.ownerName }))
+
   return NextResponse.json({
     month: curKey,
     monthLabel: labelOf(curKey),
@@ -221,5 +227,6 @@ export async function GET(req: NextRequest) {
     chart,
     crecheDogs,
     staleDogs,
+    otherDogs,
   })
 }
