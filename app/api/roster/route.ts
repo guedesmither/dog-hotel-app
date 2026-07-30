@@ -455,32 +455,6 @@ export async function POST(req: NextRequest) {
         details: 'Este pacote só pode ser usado pelo cão titular ou por cães do mesmo tutor'
       }, { status: 403 })
     }
-
-    // Check how many times this package has been scheduled this week across all dogs sharing it
-    const weekStart = new Date(date)
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-    weekStart.setUTCHours(0, 0, 0, 0)
-
-    const weekEnd = new Date(weekStart)
-    weekEnd.setDate(weekEnd.getDate() + 6)
-    weekEnd.setUTCHours(23, 59, 59, 999)
-
-    const packageUsage = await prisma.dailyRoster.count({
-      where: {
-        packageId,
-        date: {
-          gte: weekStart.toISOString(),
-          lte: weekEnd.toISOString(),
-        },
-      },
-    })
-
-    if (packageUsage >= pkg.remainingDays) {
-      return NextResponse.json({ 
-        error: 'Pacote esgotado',
-        details: `Este pacote tem apenas ${pkg.remainingDays} dias restantes e já foi usado ${packageUsage} vezes esta semana`
-      }, { status: 403 })
-    }
   } else {
     // Eligibility check — varies by role:
     // ADMIN/MANAGER: light check (active sale of correct type must exist, no date restrictions)
