@@ -332,6 +332,16 @@ model FinancialEntry {
   updatedAt    DateTime @updatedAt
 }
 
+// Cenário Consensus do Forecast salvo por mês (crescimento por categoria + overrides de creche por cão)
+model ForecastScenario {
+  id            String   @id @default(cuid())
+  month         String   @unique // Format: YYYY-MM
+  growthInputs  String   // JSON: { hotel: string, pacote: string, servicos: string }
+  crecheOverrides String // JSON: { [dogId]: number }
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+}
+
 // Price history for each dog - preserves historical prices
 model DogPriceHistory {
   id              String   @id @default(cuid())

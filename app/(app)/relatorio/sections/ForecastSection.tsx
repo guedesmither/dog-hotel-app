@@ -67,7 +67,31 @@ export default function ForecastSection() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { load(targetMonth) }, [targetMonth])
+  // ── Cenário Consensus: ajustes manuais de crescimento e valor da creche (salvos por mês) ──
+  const [consensusMode, setConsensusMode] = useState(false)
+  const [crecheOverrides, setCrecheOverrides] = useState<Record<string, number>>({})
+  const [growthInputs, setGrowthInputs] = useState<{ hotel: string; pacote: string; servicos: string }>({ hotel: '', pacote: '', servicos: '' })
+  const [scenarioLoading, setScenarioLoading] = useState(false)
+  const [scenarioSaving, setScenarioSaving] = useState(false)
+  const [scenarioSavedAt, setScenarioSavedAt] = useState<string | null>(null)
+  const [scenarioDirty, setScenarioDirty] = useState(false)
+
+  async function loadScenario(month: string) {
+    setScenarioLoading(true)
+    try {
+      const res = await fetch(`/api/sales/forecast/scenario?month=${month}`)
+      if (res.ok) {
+        const s = await res.json()
+        setCrecheOverrides(s.crecheOverrides || {})
+        setGrowthInputs(s.growthInputs || { hotel: '', pacote: '', servicos: '' })
+        setScenarioSavedAt(s.updatedAt || null)
+        setScenarioDirty(false)
+      }
+    } catch { /* silencioso: cenário salvo é opcional */ }
+    finally { setScenarioLoading(false) }
+  }
+
+  useEffect(() => { load(targetMonth); loadScenario(targetMonth) }, [targetMonth])
 
   function shiftTargetMonth(delta: number) {
     const [y, m] = targetMonth.split('-').map(Number)
@@ -78,14 +102,28 @@ export default function ForecastSection() {
   const currentMonthKey = new Date().toISOString().slice(0, 7)
   const isFutureMonth = targetMonth > currentMonthKey
 
-  // ── Cenário Consensus: ajustes manuais de crescimento e valor da creche ──
-  const [consensusMode, setConsensusMode] = useState(false)
-  const [crecheOverrides, setCrecheOverrides] = useState<Record<string, number>>({})
-  const [growthInputs, setGrowthInputs] = useState<{ hotel: string; pacote: string; servicos: string }>({ hotel: '', pacote: '', servicos: '' })
-
   function resetConsensus() {
     setCrecheOverrides({})
     setGrowthInputs({ hotel: '', pacote: '', servicos: '' })
+    setScenarioDirty(true)
+  }
+
+  async function saveScenario() {
+    setScenarioSaving(true)
+    try {
+      const res = await fetch('/api/sales/forecast/scenario', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month: targetMonth, growthInputs, crecheOverrides }),
+      })
+      if (res.ok) {
+        const r = await res.json()
+        setScenarioSavedAt(r.updatedAt)
+        setScenarioDirty(false)
+        toast.success(`Cenário de ${data?.monthLabel || targetMonth} salvo`)
+      } else toast.error('Erro ao salvar cenário')
+    } catch { toast.error('Erro ao salvar cenário') }
+    finally { setScenarioSaving(false) }
   }
 
   const consensus = useMemo(() => {
@@ -204,12 +242,29 @@ export default function ForecastSection() {
         <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5">
           <div className="flex items-start justify-between flex-wrap gap-3">
             <div>
-              <h3 className="font-bold text-orange-800 flex items-center gap-2"><Handshake className="w-4 h-4" /> Cenário Consensus</h3>
+              <h3 className="font-bold text-orange-800 flex items-center gap-2"><Handshake className="w-4 h-4" /> Cenário Consensus — {data.monthLabel}</h3>
               <p className="text-xs text-orange-600 mt-0.5">Ajuste o crescimento das modalidades aqui e o valor da creche de cada cão na tabela abaixo.</p>
+              <p className="text-[11px] mt-1">
+                {scenarioLoading ? (
+                  <span className="text-orange-400">carregando cenário salvo…</span>
+                ) : scenarioDirty ? (
+                  <span className="text-amber-600 font-medium">alterações não salvas</span>
+                ) : scenarioSavedAt ? (
+                  <span className="text-emerald-600 font-medium">cenário salvo ✓</span>
+                ) : (
+                  <span className="text-gray-400">nenhum cenário salvo para este mês</span>
+                )}
+              </p>
             </div>
-            <button onClick={resetConsensus} className="text-xs font-medium text-orange-700 hover:text-orange-900 bg-white border border-orange-200 rounded-lg px-3 py-1.5 transition-all">
-              Limpar ajustes
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={resetConsensus} className="text-xs font-medium text-orange-700 hover:text-orange-900 bg-white border border-orange-200 rounded-lg px-3 py-1.5 transition-all">
+                Limpar ajustes
+              </button>
+              <button onClick={saveScenario} disabled={scenarioSaving || scenarioLoading}
+                className="text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50 rounded-lg px-3 py-1.5 transition-all">
+                {scenarioSaving ? 'Salvando…' : `Salvar cenário de ${data.monthLabel}`}
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
             {([
@@ -224,7 +279,7 @@ export default function ForecastSection() {
                     type="text" inputMode="decimal"
                     value={growthInputs[c.key]}
                     placeholder={`${c.base.avgGrowthPct}`}
-                    onChange={e => setGrowthInputs(prev => ({ ...prev, [c.key]: e.target.value }))}
+                    onChange={e => { setGrowthInputs(prev => ({ ...prev, [c.key]: e.target.value })); setScenarioDirty(true) }}
                     className="w-20 text-sm font-semibold text-gray-800 rounded-lg border border-gray-200 px-2 py-1 outline-none focus:ring-2 focus:ring-orange-300"
                   />
                   <span className="text-xs text-gray-400">%</span>
@@ -382,6 +437,7 @@ export default function ForecastSection() {
                         onChange={e => {
                           const v = parseFloat(e.target.value)
                           setCrecheOverrides(prev => ({ ...prev, [d.id]: isNaN(v) ? d.amount : Math.max(0, v) }))
+                          setScenarioDirty(true)
                         }}
                         className={`w-24 text-right text-sm font-semibold rounded-lg border px-2 py-1 outline-none focus:ring-2 focus:ring-orange-300 ${
                           crecheOverrides[d.id] != null && crecheOverrides[d.id] !== d.amount
@@ -419,6 +475,7 @@ export default function ForecastSection() {
                           placeholder="0,00"
                           onChange={e => {
                             const raw = e.target.value
+                            setScenarioDirty(true)
                             setCrecheOverrides(prev => {
                               const next = { ...prev }
                               if (raw === '') delete next[d.id]
