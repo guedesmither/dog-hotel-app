@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -20,21 +20,32 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
 const round2 = (v: number) => Math.round(v * 100) / 100
 
 type Cat = 'HOTEL' | 'PACOTE' | 'SERVICOS'
-const catOf = (saleType: string): Cat =>
-  saleType === 'HOTEL' ? 'HOTEL' : saleType === 'PACOTE' ? 'PACOTE' : 'SERVICOS'
+// MENSAL não entra nas categorias — a creche é projetada cão a cão, evitando dupla contagem
+const catOf = (saleType: string): Cat | null =>
+  saleType === 'HOTEL' ? 'HOTEL' : saleType === 'PACOTE' ? 'PACOTE' : saleType === 'MENSAL' ? null : 'SERVICOS'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const role = (session.user as { role?: string }).role
   if (role === 'TUTOR') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
 
   const now = new Date()
-  const year = now.getFullYear()
-  const m0 = now.getMonth()
+  // Mês alvo: ?month=YYYY-MM (padrão: mês corrente). Permite projetar meses futuros.
+  const monthParam = new URL(req.url).searchParams.get('month')
+  let year = now.getFullYear()
+  let m0 = now.getMonth()
+  if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+    year = parseInt(monthParam.slice(0, 4))
+    m0 = parseInt(monthParam.slice(5, 7)) - 1
+  }
   const curKey = monthKey(year, m0)
   const daysInMonth = new Date(year, m0 + 1, 0).getDate()
-  const todayDay = now.getDate()
+  const nowIdx = now.getFullYear() * 12 + now.getMonth()
+  const targetIdx = year * 12 + m0
+  const isCurrentMonth = targetIdx === nowIdx
+  // Linha "realizado": mês atual vai até hoje; passado mostra tudo; futuro mostra o que já está registrado (ex.: vendas programadas)
+  const actualLimitDay = isCurrentMonth ? now.getDate() : daysInMonth
 
   // prev[0] = mês passado, prev[1] = m-2, prev[2] = m-3
   const prev = [1, 2, 3].map(d => shiftMonth(year, m0, -d))
@@ -125,6 +136,7 @@ export async function GET() {
     if (pIdx < 0) continue
     prevDaily[pIdx][day] += s.finalPrice
     const cat = catOf(s.saleType)
+    if (!cat) continue
     monthTotals[cat][pIdx] += s.finalPrice
     if (pIdx === 0) lastMonthDaily[cat][day] += s.finalPrice
   }
@@ -136,7 +148,8 @@ export async function GET() {
     if (m2 > 0) growths.push((m1 - m2) / m2)
     if (m3 > 0) growths.push((m2 - m3) / m3)
     const avgGrowth = growths.length ? growths.reduce((a, b) => a + b, 0) / growths.length : 0
-    const g = clamp(avgGrowth, -0.5, 1)
+    // Crescimento nulo para Pacotes e Serviços; Hotel mantém a média dos últimos 3 meses
+    const g = cat === 'HOTEL' ? clamp(avgGrowth, -0.5, 1) : 0
     const forecast = Math.max(0, m1 * (1 + g))
     // Distribuição diária segue o padrão do mês passado; se vazio, distribui uniformemente
     const daily = new Array(daysInMonth + 1).fill(0)
@@ -144,7 +157,7 @@ export async function GET() {
     for (let d = 1; d <= daysInMonth; d++) {
       daily[d] = patternTotal > 0 ? forecast * (lastMonthDaily[cat][d] || 0) / patternTotal : forecast / daysInMonth
     }
-    return { lastMonth: round2(m1), avgGrowthPct: round2(avgGrowth * 100), forecast: round2(forecast), daily }
+    return { lastMonth: round2(m1), avgGrowthPct: round2(g * 100), forecast: round2(forecast), daily }
   }
 
   const hotel = forecastCat('HOTEL')
@@ -165,7 +178,7 @@ export async function GET() {
     chart.push({
       day: d,
       forecast: round2(cumF),
-      atual: d <= todayDay ? round2(cumA) : null,
+      atual: d <= actualLimitDay ? round2(cumA) : null,
       prev1: d < prevCums[0].length ? round2(prevCums[0][d]) : null,
       prev2: d < prevCums[1].length ? round2(prevCums[1][d]) : null,
       prev3: d < prevCums[2].length ? round2(prevCums[2][d]) : null,
@@ -182,7 +195,7 @@ export async function GET() {
     month: curKey,
     monthLabel: labelOf(curKey),
     daysInMonth,
-    todayDay,
+    todayDay: isCurrentMonth ? now.getDate() : null,
     totals: {
       creche: round2(crecheTotal),
       hotel: hotel.forecast,
@@ -190,7 +203,7 @@ export async function GET() {
       servicos: servicos.forecast,
       total: round2(crecheTotal + hotel.forecast + pacote.forecast + servicos.forecast),
     },
-    atualTotal: round2(actualDailyCur.reduce((a, b) => a + b, 0)),
+    atualTotal: actualLimitDay > 0 ? round2(actualDailyCur.reduce((a, b) => a + b, 0)) : 0,
     categories: {
       hotel: { lastMonth: hotel.lastMonth, avgGrowthPct: hotel.avgGrowthPct, forecast: hotel.forecast },
       pacote: { lastMonth: pacote.lastMonth, avgGrowthPct: pacote.avgGrowthPct, forecast: pacote.forecast },

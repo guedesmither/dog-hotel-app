@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TrendingUp, TrendingDown, RefreshCw, Dog, Building2, Package, Sparkles, CalendarDays, AlertTriangle } from 'lucide-react'
+import { TrendingUp, TrendingDown, RefreshCw, Dog, Building2, Package, Sparkles, CalendarDays, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine
@@ -21,7 +21,7 @@ interface ForecastData {
   month: string
   monthLabel: string
   daysInMonth: number
-  todayDay: number
+  todayDay: number | null
   totals: { creche: number; hotel: number; pacote: number; servicos: number; total: number }
   atualTotal: number
   categories: {
@@ -52,18 +52,28 @@ export default function ForecastSection() {
   const [data, setData] = useState<ForecastData | null>(null)
   const [loading, setLoading] = useState(true)
   const [visiblePrevs, setVisiblePrevs] = useState<Set<number>>(new Set([0]))
+  const [targetMonth, setTargetMonth] = useState(() => new Date().toISOString().slice(0, 7))
 
-  async function load() {
+  async function load(month = targetMonth) {
     setLoading(true)
     try {
-      const res = await fetch('/api/sales/forecast')
+      const res = await fetch(`/api/sales/forecast?month=${month}`)
       if (res.ok) setData(await res.json())
       else toast.error('Erro ao carregar forecast')
     } catch { toast.error('Erro ao carregar forecast') }
     finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(targetMonth) }, [targetMonth])
+
+  function shiftTargetMonth(delta: number) {
+    const [y, m] = targetMonth.split('-').map(Number)
+    const total = y * 12 + (m - 1) + delta
+    setTargetMonth(`${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`)
+  }
+
+  const currentMonthKey = new Date().toISOString().slice(0, 7)
+  const isFutureMonth = targetMonth > currentMonthKey
 
   function togglePrev(idx: number) {
     setVisiblePrevs(prev => {
@@ -103,9 +113,20 @@ export default function ForecastSection() {
           </h2>
           <p className="text-sm text-gray-500 mt-0.5">Previsão de vendas do mês com base em mensalistas e tendência recente</p>
         </div>
-        <button onClick={load} disabled={loading} className="btn-secondary flex items-center gap-1.5 text-sm">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-white border border-gray-200 rounded-lg">
+            <button onClick={() => shiftTargetMonth(-1)} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-l-lg transition-all" title="Mês anterior">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm font-semibold text-gray-700 px-2 min-w-[72px] text-center">{data?.monthLabel || '—'}</span>
+            <button onClick={() => shiftTargetMonth(1)} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-r-lg transition-all" title="Próximo mês">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+          <button onClick={() => load()} disabled={loading} className="btn-secondary flex items-center gap-1.5 text-sm">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -113,7 +134,11 @@ export default function ForecastSection() {
         <div className="rounded-2xl border p-4 bg-violet-50 border-violet-200 text-violet-700 col-span-2 md:col-span-1">
           <div className="text-xs font-semibold uppercase tracking-wide opacity-70 mb-1">Forecast Total</div>
           <div className="text-2xl font-extrabold leading-none">{R$(t.total)}</div>
-          <div className="text-xs opacity-60 mt-1.5">realizado até hoje: {R$(data.atualTotal)}</div>
+          {data.atualTotal > 0 && (
+            <div className="text-xs opacity-60 mt-1.5">
+              {isFutureMonth ? 'já faturado' : 'realizado até hoje'}: {R$(data.atualTotal)}
+            </div>
+          )}
         </div>
         {cats.map(c => (
           <div key={c.key} className="rounded-2xl border border-gray-200 bg-white p-4">
@@ -182,7 +207,7 @@ export default function ForecastSection() {
               contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            <ReferenceLine x={data.todayDay} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: 'hoje', position: 'top', fontSize: 10, fill: '#f59e0b' }} />
+            {data.todayDay != null && <ReferenceLine x={data.todayDay} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: 'hoje', position: 'top', fontSize: 10, fill: '#f59e0b' }} />}
             {visiblePrevs.has(2) && <Line type="monotone" dataKey="prev3" name={data.prevMonths[2]?.label} stroke={PREV_COLORS[2]} strokeWidth={1.5} dot={false} />}
             {visiblePrevs.has(1) && <Line type="monotone" dataKey="prev2" name={data.prevMonths[1]?.label} stroke={PREV_COLORS[1]} strokeWidth={1.5} dot={false} />}
             {visiblePrevs.has(0) && <Line type="monotone" dataKey="prev1" name={data.prevMonths[0]?.label} stroke={PREV_COLORS[0]} strokeWidth={2} dot={false} />}
@@ -257,7 +282,7 @@ export default function ForecastSection() {
 
       {/* Premissas */}
       <div className="text-xs text-gray-500 bg-violet-50 border border-violet-100 rounded-lg p-3">
-        <strong>Premissas:</strong> <em>Creche</em> = soma da última mensalidade (realizada ou programada) de cada cão ativo, posicionada no dia de cobrança mais frequente do histórico. <em>Hotel, Pacotes e Serviços</em> = valor do mês anterior × (1 + crescimento médio dos últimos 3 meses), distribuídos no mês seguindo o padrão diário do mês anterior.
+        <strong>Premissas:</strong> <em>Creche</em> = soma da última mensalidade (realizada ou programada) de cada cão ativo, posicionada no dia de cobrança mais frequente do histórico. <em>Hotel</em> = valor do mês anterior × (1 + crescimento médio dos últimos 3 meses). <em>Pacotes e Serviços</em> = valor do mês anterior (crescimento nulo). Distribuição diária segue o padrão do mês anterior.
       </div>
     </div>
   )
