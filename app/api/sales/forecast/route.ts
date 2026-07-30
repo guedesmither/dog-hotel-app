@@ -1,0 +1,204 @@
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+
+const MONTH_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+
+function monthKey(y: number, m0: number) {
+  return `${y}-${String(m0 + 1).padStart(2, '0')}`
+}
+function shiftMonth(y: number, m0: number, delta: number) {
+  const total = y * 12 + m0 + delta
+  return { y: Math.floor(total / 12), m0: ((total % 12) + 12) % 12 }
+}
+function labelOf(k: string) {
+  const [y, m] = k.split('-')
+  return `${MONTH_PT[Number(m) - 1]}/${y.slice(2)}`
+}
+const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
+const round2 = (v: number) => Math.round(v * 100) / 100
+
+type Cat = 'HOTEL' | 'PACOTE' | 'SERVICOS'
+const catOf = (saleType: string): Cat =>
+  saleType === 'HOTEL' ? 'HOTEL' : saleType === 'PACOTE' ? 'PACOTE' : 'SERVICOS'
+
+export async function GET() {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const role = (session.user as { role?: string }).role
+  if (role === 'TUTOR') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+
+  const now = new Date()
+  const year = now.getFullYear()
+  const m0 = now.getMonth()
+  const curKey = monthKey(year, m0)
+  const daysInMonth = new Date(year, m0 + 1, 0).getDate()
+  const todayDay = now.getDate()
+
+  // prev[0] = mês passado, prev[1] = m-2, prev[2] = m-3
+  const prev = [1, 2, 3].map(d => shiftMonth(year, m0, -d))
+  const startWindow = new Date(prev[2].y, prev[2].m0, 1)
+  const endWindow = new Date(year, m0 + 1, 0, 23, 59, 59, 999)
+
+  const [dogs, windowSales] = await Promise.all([
+    prisma.dog.findMany({
+      where: { isActive: true, isBolsista: false, dogStatus: 'CRECHE' },
+      select: {
+        id: true, name: true, ownerName: true,
+        sales: {
+          where: { saleType: 'MENSAL', paymentStatus: { not: 'CANCELADO' }, isExempt: false },
+          select: { saleDate: true, finalPrice: true, paymentStatus: true },
+          orderBy: { saleDate: 'asc' },
+        },
+      },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.sales.findMany({
+      where: {
+        saleDate: { gte: startWindow, lte: endWindow },
+        paymentStatus: { not: 'CANCELADO' },
+        isExempt: false,
+      },
+      select: { saleDate: true, saleType: true, finalPrice: true },
+    }),
+  ])
+
+  // ── Creche (MENSAL): projeta última mensalidade de cada cão no dia típico de cobrança ──
+  const staleThreshold = new Date(now.getTime() - 75 * 24 * 3600 * 1000)
+  const crecheDaily = new Array(daysInMonth + 1).fill(0)
+  const crecheDogs: any[] = []
+  const staleDogs: any[] = []
+  let crecheTotal = 0
+
+  for (const dog of dogs) {
+    const mensalSales = dog.sales
+    if (mensalSales.length === 0) continue
+    const last = mensalSales[mensalSales.length - 1]
+    const lastDate = new Date(last.saleDate)
+    if (lastDate < staleThreshold) {
+      staleDogs.push({ id: dog.id, name: dog.name, ownerName: dog.ownerName, lastSaleDate: lastDate.toISOString().slice(0, 10), amount: last.finalPrice })
+      continue
+    }
+    // Dia típico de cobrança: dia do mês mais frequente nas vendas MENSAL (desempate: mais recente)
+    const dayCount = new Map<number, { count: number; lastIdx: number }>()
+    mensalSales.forEach((s, idx) => {
+      const d = new Date(s.saleDate).getDate()
+      const cur = dayCount.get(d) || { count: 0, lastIdx: -1 }
+      dayCount.set(d, { count: cur.count + 1, lastIdx: idx })
+    })
+    let billingDay = lastDate.getDate()
+    let best = { count: -1, lastIdx: -1 }
+    for (const [d, v] of Array.from(dayCount)) {
+      if (v.count > best.count || (v.count === best.count && v.lastIdx > best.lastIdx)) {
+        best = v
+        billingDay = d
+      }
+    }
+    const day = Math.min(billingDay, daysInMonth)
+    crecheDaily[day] += last.finalPrice
+    crecheTotal += last.finalPrice
+    crecheDogs.push({
+      id: dog.id, name: dog.name, ownerName: dog.ownerName,
+      amount: last.finalPrice, billingDay: day,
+      lastSaleDate: lastDate.toISOString().slice(0, 10),
+      paymentStatus: last.paymentStatus,
+    })
+  }
+  crecheDogs.sort((a, b) => b.amount - a.amount)
+
+  // ── Agregação das vendas da janela (m-3 … mês atual) ──
+  const monthTotals: Record<Cat, number[]> = { HOTEL: [0, 0, 0], PACOTE: [0, 0, 0], SERVICOS: [0, 0, 0] } // idx 0=m-1, 1=m-2, 2=m-3
+  const lastMonthDaily: Record<Cat, number[]> = { HOTEL: new Array(32).fill(0), PACOTE: new Array(32).fill(0), SERVICOS: new Array(32).fill(0) }
+  const actualDailyCur = new Array(daysInMonth + 1).fill(0)
+  const prevDaily: number[][] = prev.map(p => new Array(new Date(p.y, p.m0 + 1, 0).getDate() + 1).fill(0))
+
+  for (const s of windowSales) {
+    const d = new Date(s.saleDate)
+    const key = monthKey(d.getFullYear(), d.getMonth())
+    const day = d.getDate()
+    if (key === curKey) {
+      actualDailyCur[day] += s.finalPrice
+      continue
+    }
+    const pIdx = prev.findIndex(p => monthKey(p.y, p.m0) === key)
+    if (pIdx < 0) continue
+    prevDaily[pIdx][day] += s.finalPrice
+    const cat = catOf(s.saleType)
+    monthTotals[cat][pIdx] += s.finalPrice
+    if (pIdx === 0) lastMonthDaily[cat][day] += s.finalPrice
+  }
+
+  // ── Hotel / Pacotes / Serviços: último mês × (1 + crescimento médio dos últimos 3 meses) ──
+  function forecastCat(cat: Cat) {
+    const [m1, m2, m3] = monthTotals[cat]
+    const growths: number[] = []
+    if (m2 > 0) growths.push((m1 - m2) / m2)
+    if (m3 > 0) growths.push((m2 - m3) / m3)
+    const avgGrowth = growths.length ? growths.reduce((a, b) => a + b, 0) / growths.length : 0
+    const g = clamp(avgGrowth, -0.5, 1)
+    const forecast = Math.max(0, m1 * (1 + g))
+    // Distribuição diária segue o padrão do mês passado; se vazio, distribui uniformemente
+    const daily = new Array(daysInMonth + 1).fill(0)
+    const patternTotal = lastMonthDaily[cat].reduce((a, b) => a + b, 0)
+    for (let d = 1; d <= daysInMonth; d++) {
+      daily[d] = patternTotal > 0 ? forecast * (lastMonthDaily[cat][d] || 0) / patternTotal : forecast / daysInMonth
+    }
+    return { lastMonth: round2(m1), avgGrowthPct: round2(avgGrowth * 100), forecast: round2(forecast), daily }
+  }
+
+  const hotel = forecastCat('HOTEL')
+  const pacote = forecastCat('PACOTE')
+  const servicos = forecastCat('SERVICOS')
+
+  // ── Série acumulada diária (forecast vs atual vs meses anteriores) ──
+  const prevCums = prevDaily.map(arr => {
+    let c = 0
+    return arr.map(v => (c += v))
+  })
+  const chart: any[] = []
+  let cumF = 0
+  let cumA = 0
+  for (let d = 1; d <= daysInMonth; d++) {
+    cumF += crecheDaily[d] + hotel.daily[d] + pacote.daily[d] + servicos.daily[d]
+    cumA += actualDailyCur[d]
+    chart.push({
+      day: d,
+      forecast: round2(cumF),
+      atual: d <= todayDay ? round2(cumA) : null,
+      prev1: d < prevCums[0].length ? round2(prevCums[0][d]) : null,
+      prev2: d < prevCums[1].length ? round2(prevCums[1][d]) : null,
+      prev3: d < prevCums[2].length ? round2(prevCums[2][d]) : null,
+    })
+  }
+
+  const prevMonths = prev.map((p, i) => ({
+    key: monthKey(p.y, p.m0),
+    label: labelOf(monthKey(p.y, p.m0)),
+    total: round2(prevDaily[i].reduce((a, b) => a + b, 0)),
+  }))
+
+  return NextResponse.json({
+    month: curKey,
+    monthLabel: labelOf(curKey),
+    daysInMonth,
+    todayDay,
+    totals: {
+      creche: round2(crecheTotal),
+      hotel: hotel.forecast,
+      pacote: pacote.forecast,
+      servicos: servicos.forecast,
+      total: round2(crecheTotal + hotel.forecast + pacote.forecast + servicos.forecast),
+    },
+    atualTotal: round2(actualDailyCur.reduce((a, b) => a + b, 0)),
+    categories: {
+      hotel: { lastMonth: hotel.lastMonth, avgGrowthPct: hotel.avgGrowthPct, forecast: hotel.forecast },
+      pacote: { lastMonth: pacote.lastMonth, avgGrowthPct: pacote.avgGrowthPct, forecast: pacote.forecast },
+      servicos: { lastMonth: servicos.lastMonth, avgGrowthPct: servicos.avgGrowthPct, forecast: servicos.forecast },
+    },
+    prevMonths,
+    chart,
+    crecheDogs,
+    staleDogs,
+  })
+}

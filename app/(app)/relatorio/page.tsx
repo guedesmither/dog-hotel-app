@@ -2,13 +2,14 @@
 
 import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { RefreshCw, TrendingUp, DollarSign, Users, Package, Tag, Award, BarChart2, Calendar, Building2, FileSpreadsheet, LayoutGrid } from 'lucide-react'
+import { RefreshCw, TrendingUp, DollarSign, Users, Package, Tag, Award, BarChart2, Calendar, Building2, FileSpreadsheet, LayoutGrid, Rocket } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DiarioSection from './sections/DiarioSection'
 import FrequenciaSection from './sections/FrequenciaSection'
 import ExecutivoSection from './sections/ExecutivoSection'
 import DreSection from './sections/DreSection'
 import InvestimentoSection from './sections/InvestimentoSection'
+import ForecastSection from './sections/ForecastSection'
 
 const R$ = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, style: 'currency', currency: 'BRL' })
 const pct = (v: number, total: number) => total > 0 ? Math.round((v / total) * 100) : 0
@@ -49,7 +50,7 @@ function fmtDay(d: string) {
 }
 
 type Tab = 'resumo' | 'periodo' | 'caes' | 'produtos' | 'tutores' | 'vendasPorCao'
-type Section = 'financeiro' | 'diario' | 'frequencia' | 'executivo' | 'dre' | 'investimento'
+type Section = 'financeiro' | 'diario' | 'frequencia' | 'executivo' | 'dre' | 'investimento' | 'forecast'
 
 function Bar({ value, max, color = 'bg-amber-400' }: { value: number; max: number; color?: string }) {
   return (
@@ -117,6 +118,7 @@ function RelatorioContent() {
 
   const sections: { key: Section; label: string; icon: any }[] = [
     { key: 'financeiro',  label: 'Financeiro',  icon: LayoutGrid },
+    { key: 'forecast',    label: 'Forecast',     icon: Rocket },
     { key: 'diario',      label: 'Diário',       icon: Calendar },
     { key: 'frequencia',  label: 'Frequência',   icon: Users },
     { key: 'executivo',   label: 'Executivo',    icon: Building2 },
@@ -151,6 +153,7 @@ function RelatorioContent() {
       {section === 'executivo' && <ExecutivoSection />}
       {section === 'dre' && <DreSection />}
       {section === 'investimento' && <InvestimentoSection />}
+      {section === 'forecast' && <ForecastSection />}
 
       {section === 'financeiro' && (
       <>
