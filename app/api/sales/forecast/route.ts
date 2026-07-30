@@ -205,9 +205,9 @@ export async function GET(req: NextRequest) {
     },
     atualTotal: actualLimitDay > 0 ? round2(actualDailyCur.reduce((a, b) => a + b, 0)) : 0,
     categories: {
-      hotel: { lastMonth: hotel.lastMonth, avgGrowthPct: hotel.avgGrowthPct, forecast: hotel.forecast },
-      pacote: { lastMonth: pacote.lastMonth, avgGrowthPct: pacote.avgGrowthPct, forecast: pacote.forecast },
-      servicos: { lastMonth: servicos.lastMonth, avgGrowthPct: servicos.avgGrowthPct, forecast: servicos.forecast },
+      hotel: { lastMonth: hotel.lastMonth, avgGrowthPct: hotel.avgGrowthPct, forecast: hotel.forecast, daily: hotel.daily },
+      pacote: { lastMonth: pacote.lastMonth, avgGrowthPct: pacote.avgGrowthPct, forecast: pacote.forecast, daily: pacote.daily },
+      servicos: { lastMonth: servicos.lastMonth, avgGrowthPct: servicos.avgGrowthPct, forecast: servicos.forecast, daily: servicos.daily },
     },
     prevMonths,
     chart,

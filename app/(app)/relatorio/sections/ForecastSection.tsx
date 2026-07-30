@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { TrendingUp, TrendingDown, RefreshCw, Dog, Building2, Package, Sparkles, CalendarDays, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { TrendingUp, TrendingDown, RefreshCw, Dog, Building2, Package, Sparkles, CalendarDays, AlertTriangle, ChevronLeft, ChevronRight, Handshake } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine
@@ -25,9 +25,9 @@ interface ForecastData {
   totals: { creche: number; hotel: number; pacote: number; servicos: number; total: number }
   atualTotal: number
   categories: {
-    hotel: { lastMonth: number; avgGrowthPct: number; forecast: number }
-    pacote: { lastMonth: number; avgGrowthPct: number; forecast: number }
-    servicos: { lastMonth: number; avgGrowthPct: number; forecast: number }
+    hotel: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[] }
+    pacote: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[] }
+    servicos: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[] }
   }
   prevMonths: { key: string; label: string; total: number }[]
   chart: { day: number; forecast: number; atual: number | null; prev1: number | null; prev2: number | null; prev3: number | null }[]
@@ -74,6 +74,60 @@ export default function ForecastSection() {
 
   const currentMonthKey = new Date().toISOString().slice(0, 7)
   const isFutureMonth = targetMonth > currentMonthKey
+
+  // ── Cenário Consensus: ajustes manuais de crescimento e valor da creche ──
+  const [consensusMode, setConsensusMode] = useState(false)
+  const [crecheOverrides, setCrecheOverrides] = useState<Record<string, number>>({})
+  const [growthInputs, setGrowthInputs] = useState<{ hotel: string; pacote: string; servicos: string }>({ hotel: '', pacote: '', servicos: '' })
+
+  function resetConsensus() {
+    setCrecheOverrides({})
+    setGrowthInputs({ hotel: '', pacote: '', servicos: '' })
+  }
+
+  const consensus = useMemo(() => {
+    if (!data || !consensusMode) return null
+    const dim = data.daysInMonth
+    const daily = new Array(dim + 1).fill(0)
+
+    // Creche com overrides por cão
+    let crecheTotal = 0
+    for (const d of data.crecheDogs) {
+      const v = crecheOverrides[d.id] ?? d.amount
+      daily[Math.min(d.billingDay, dim)] += v
+      crecheTotal += v
+    }
+
+    // Categorias com % informada (vazio = mantém a base)
+    const catTotals: Record<'hotel' | 'pacote' | 'servicos', number> = { hotel: 0, pacote: 0, servicos: 0 }
+    for (const key of ['hotel', 'pacote', 'servicos'] as const) {
+      const cat = data.categories[key]
+      const gStr = growthInputs[key].trim().replace(',', '.')
+      const g = gStr === '' ? null : Number(gStr)
+      const baseTotal = cat.forecast
+      const newTotal = g !== null && !isNaN(g) ? Math.max(0, cat.lastMonth * (1 + g / 100)) : baseTotal
+      catTotals[key] = newTotal
+      if (baseTotal > 0) {
+        const scale = newTotal / baseTotal
+        for (let d = 1; d <= dim; d++) daily[d] += (cat.daily[d] || 0) * scale
+      } else if (newTotal > 0) {
+        for (let d = 1; d <= dim; d++) daily[d] += newTotal / dim
+      }
+    }
+
+    let cum = 0
+    const chart = new Array(dim)
+    for (let d = 1; d <= dim; d++) {
+      cum += daily[d]
+      chart[d - 1] = Math.round(cum * 100) / 100
+    }
+    return { chart, total: crecheTotal + catTotals.hotel + catTotals.pacote + catTotals.servicos, crecheTotal, catTotals }
+  }, [data, consensusMode, crecheOverrides, growthInputs])
+
+  const chartRows = useMemo(() => {
+    if (!data) return []
+    return data.chart.map((row, i) => ({ ...row, consensus: consensus ? consensus.chart[i] : null }))
+  }, [data, consensus])
 
   function togglePrev(idx: number) {
     setVisiblePrevs(prev => {
@@ -123,17 +177,66 @@ export default function ForecastSection() {
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
+          <button onClick={() => setConsensusMode(v => !v)}
+            className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-lg border transition-all ${
+              consensusMode ? 'bg-orange-500 text-white border-orange-500 shadow-sm' : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50'
+            }`}>
+            <Handshake className="w-4 h-4" /> Consensus
+          </button>
           <button onClick={() => load()} disabled={loading} className="btn-secondary flex items-center gap-1.5 text-sm">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
           </button>
         </div>
       </div>
 
+      {/* Painel Cenário Consensus */}
+      {consensusMode && consensus && (
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5">
+          <div className="flex items-start justify-between flex-wrap gap-3">
+            <div>
+              <h3 className="font-bold text-orange-800 flex items-center gap-2"><Handshake className="w-4 h-4" /> Cenário Consensus</h3>
+              <p className="text-xs text-orange-600 mt-0.5">Ajuste o crescimento das modalidades aqui e o valor da creche de cada cão na tabela abaixo.</p>
+            </div>
+            <button onClick={resetConsensus} className="text-xs font-medium text-orange-700 hover:text-orange-900 bg-white border border-orange-200 rounded-lg px-3 py-1.5 transition-all">
+              Limpar ajustes
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+            {([
+              { key: 'hotel', label: 'Hotel', base: data.categories.hotel },
+              { key: 'pacote', label: 'Pacotes', base: data.categories.pacote },
+              { key: 'servicos', label: 'Serviços & Avulsos', base: data.categories.servicos },
+            ] as const).map(c => (
+              <div key={c.key} className="bg-white border border-orange-200 rounded-xl p-3">
+                <label className="text-xs font-semibold text-gray-600">{c.label} — crescimento</label>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <input
+                    type="text" inputMode="decimal"
+                    value={growthInputs[c.key]}
+                    placeholder={`${c.base.avgGrowthPct}`}
+                    onChange={e => setGrowthInputs(prev => ({ ...prev, [c.key]: e.target.value }))}
+                    className="w-20 text-sm font-semibold text-gray-800 rounded-lg border border-gray-200 px-2 py-1 outline-none focus:ring-2 focus:ring-orange-300"
+                  />
+                  <span className="text-xs text-gray-400">%</span>
+                  <span className="ml-auto text-sm font-bold text-orange-700">{R$(consensus.catTotals[c.key])}</span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">base {c.base.avgGrowthPct >= 0 ? '+' : ''}{c.base.avgGrowthPct.toFixed(1)}% · mês anterior {R$(c.base.lastMonth)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="rounded-2xl border p-4 bg-violet-50 border-violet-200 text-violet-700 col-span-2 md:col-span-1">
-          <div className="text-xs font-semibold uppercase tracking-wide opacity-70 mb-1">Forecast Total</div>
-          <div className="text-2xl font-extrabold leading-none">{R$(t.total)}</div>
+          <div className="text-xs font-semibold uppercase tracking-wide opacity-70 mb-1">{consensus ? 'Consensus Total' : 'Forecast Total'}</div>
+          <div className="text-2xl font-extrabold leading-none">{R$(consensus ? consensus.total : t.total)}</div>
+          {consensus && (
+            <div className={`text-xs font-semibold mt-1 ${consensus.total >= t.total ? 'text-emerald-600' : 'text-red-500'}`}>
+              {consensus.total >= t.total ? '+' : ''}{R$(consensus.total - t.total)} vs base
+            </div>
+          )}
           {data.atualTotal > 0 && (
             <div className="text-xs opacity-60 mt-1.5">
               {isFutureMonth ? 'já faturado' : 'realizado até hoje'}: {R$(data.atualTotal)}
@@ -196,7 +299,7 @@ export default function ForecastSection() {
           </div>
         </div>
         <ResponsiveContainer width="100%" height={320}>
-          <LineChart data={data.chart} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+          <LineChart data={chartRows} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={{ stroke: '#e2e8f0' }}
               interval={Math.floor(data.daysInMonth / 15)} />
@@ -213,6 +316,7 @@ export default function ForecastSection() {
             {visiblePrevs.has(0) && <Line type="monotone" dataKey="prev1" name={data.prevMonths[0]?.label} stroke={PREV_COLORS[0]} strokeWidth={2} dot={false} />}
             <Line type="monotone" dataKey="atual" name={`Realizado ${data.monthLabel}`} stroke="#10b981" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} connectNulls={false} />
             <Line type="monotone" dataKey="forecast" name={`Forecast ${data.monthLabel}`} stroke="#7c3aed" strokeWidth={2.5} strokeDasharray="6 3" dot={false} activeDot={{ r: 5 }} />
+            {consensus && <Line type="monotone" dataKey="consensus" name="🤝 Consensus" stroke="#f97316" strokeWidth={3} dot={false} activeDot={{ r: 5 }} connectNulls={false} />}
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -235,7 +339,8 @@ export default function ForecastSection() {
                 <th className="px-3 py-2 text-center">Dia cobrança</th>
                 <th className="px-3 py-2 text-center">Última venda</th>
                 <th className="px-3 py-2 text-center">Status</th>
-                <th className="px-6 py-2 text-right">Valor projetado</th>
+                <th className="px-3 py-2 text-right">Valor projetado</th>
+                {consensusMode && <th className="px-6 py-2 text-right text-orange-500">Consensus</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -252,11 +357,28 @@ export default function ForecastSection() {
                       ? <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_STYLE[d.paymentStatus] || 'bg-gray-100 text-gray-500'}`}>{d.paymentStatus}</span>
                       : <span className="text-xs text-gray-300">—</span>}
                   </td>
-                  <td className="px-6 py-2 text-right font-semibold text-amber-700">{R$(d.amount)}</td>
+                  <td className="px-3 py-2 text-right font-semibold text-amber-700">{R$(d.amount)}</td>
+                  {consensusMode && (
+                    <td className="px-6 py-1.5 text-right">
+                      <input
+                        type="number" min={0} step="0.01"
+                        value={crecheOverrides[d.id] ?? d.amount}
+                        onChange={e => {
+                          const v = parseFloat(e.target.value)
+                          setCrecheOverrides(prev => ({ ...prev, [d.id]: isNaN(v) ? d.amount : Math.max(0, v) }))
+                        }}
+                        className={`w-24 text-right text-sm font-semibold rounded-lg border px-2 py-1 outline-none focus:ring-2 focus:ring-orange-300 ${
+                          crecheOverrides[d.id] != null && crecheOverrides[d.id] !== d.amount
+                            ? 'border-orange-400 bg-orange-50 text-orange-700'
+                            : 'border-gray-200 text-gray-700'
+                        }`}
+                      />
+                    </td>
+                  )}
                 </tr>
               ))}
               {data.crecheDogs.length === 0 && (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-400 italic">Nenhum mensalista ativo com venda recente.</td></tr>
+                <tr><td colSpan={consensusMode ? 7 : 6} className="px-6 py-8 text-center text-sm text-gray-400 italic">Nenhum mensalista ativo com venda recente.</td></tr>
               )}
             </tbody>
           </table>
