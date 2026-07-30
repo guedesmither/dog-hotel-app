@@ -26,9 +26,10 @@ interface ForecastData {
   totals: { creche: number; hotel: number; pacote: number; servicos: number; total: number }
   atualTotal: number
   categories: {
-    hotel: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[] }
-    pacote: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[] }
-    servicos: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[] }
+    creche: { forecast: number; atual: number; delta: number }
+    hotel: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[]; atual: number; delta: number }
+    pacote: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[]; atual: number; delta: number }
+    servicos: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[]; atual: number; delta: number }
   }
   prevMonths: { key: string; label: string; total: number }[]
   chart: { day: number; forecast: number; atual: number | null; prev1: number | null; prev2: number | null; prev3: number | null }[]
@@ -159,10 +160,10 @@ export default function ForecastSection() {
 
   const t = data.totals
   const cats = [
-    { key: 'creche', label: 'Creche (mensalistas)', value: t.creche, icon: Dog, color: 'text-amber-600 bg-amber-100', bar: 'bg-amber-400', detail: `${data.crecheDogs.length} cães projetados` },
-    { key: 'hotel', label: 'Hotel', value: t.hotel, icon: Building2, color: 'text-blue-600 bg-blue-100', bar: 'bg-blue-400', growth: data.categories.hotel.avgGrowthPct, detail: `mês anterior: ${R$(data.categories.hotel.lastMonth)}` },
-    { key: 'pacote', label: 'Pacotes', value: t.pacote, icon: Package, color: 'text-emerald-600 bg-emerald-100', bar: 'bg-emerald-400', growth: data.categories.pacote.avgGrowthPct, detail: `mês anterior: ${R$(data.categories.pacote.lastMonth)}` },
-    { key: 'servicos', label: 'Serviços & Avulsos', value: t.servicos, icon: Sparkles, color: 'text-violet-600 bg-violet-100', bar: 'bg-violet-400', growth: data.categories.servicos.avgGrowthPct, detail: `mês anterior: ${R$(data.categories.servicos.lastMonth)}` },
+    { key: 'creche', label: 'Creche (mensalistas)', value: consensus ? consensus.crecheTotal : t.creche, icon: Dog, color: 'text-amber-600 bg-amber-100', bar: 'bg-amber-400', detail: `${data.crecheDogs.length} cães projetados`, atual: data.categories.creche.atual, delta: consensus ? data.categories.creche.atual - consensus.crecheTotal : data.categories.creche.delta },
+    { key: 'hotel', label: 'Hotel', value: consensus ? consensus.catTotals.hotel : t.hotel, icon: Building2, color: 'text-blue-600 bg-blue-100', bar: 'bg-blue-400', growth: data.categories.hotel.avgGrowthPct, detail: `mês anterior: ${R$(data.categories.hotel.lastMonth)}`, atual: data.categories.hotel.atual, delta: consensus ? data.categories.hotel.atual - consensus.catTotals.hotel : data.categories.hotel.delta },
+    { key: 'pacote', label: 'Pacotes', value: consensus ? consensus.catTotals.pacote : t.pacote, icon: Package, color: 'text-emerald-600 bg-emerald-100', bar: 'bg-emerald-400', growth: data.categories.pacote.avgGrowthPct, detail: `mês anterior: ${R$(data.categories.pacote.lastMonth)}`, atual: data.categories.pacote.atual, delta: consensus ? data.categories.pacote.atual - consensus.catTotals.pacote : data.categories.pacote.delta },
+    { key: 'servicos', label: 'Serviços & Avulsos', value: consensus ? consensus.catTotals.servicos : t.servicos, icon: Sparkles, color: 'text-violet-600 bg-violet-100', bar: 'bg-violet-400', growth: data.categories.servicos.avgGrowthPct, detail: `mês anterior: ${R$(data.categories.servicos.lastMonth)}`, atual: data.categories.servicos.atual, delta: consensus ? data.categories.servicos.atual - consensus.catTotals.servicos : data.categories.servicos.delta },
   ]
 
   return (
@@ -267,6 +268,12 @@ export default function ForecastSection() {
                 </span>
               )}
               <span className="truncate">{c.detail}</span>
+            </div>
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+              <span className="text-[11px] text-gray-400">{isFutureMonth ? 'já faturado' : 'realizado'}: <strong className="text-gray-600">{R$(c.atual)}</strong></span>
+              <span className={`text-[11px] font-semibold ${c.delta >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                {c.delta >= 0 ? '+' : ''}{R$(c.delta)}
+              </span>
             </div>
           </div>
         ))}

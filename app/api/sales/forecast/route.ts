@@ -20,9 +20,13 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
 const round2 = (v: number) => Math.round(v * 100) / 100
 
 type Cat = 'HOTEL' | 'PACOTE' | 'SERVICOS'
-// MENSAL não entra nas categorias — a creche é projetada cão a cão, evitando dupla contagem
+type CatAll = Cat | 'CRECHE'
+// MENSAL não entra nas categorias de crescimento — a creche é projetada cão a cão, evitando dupla contagem
 const catOf = (saleType: string): Cat | null =>
   saleType === 'HOTEL' ? 'HOTEL' : saleType === 'PACOTE' ? 'PACOTE' : saleType === 'MENSAL' ? null : 'SERVICOS'
+// Usado apenas para apurar o realizado (inclui MENSAL como CRECHE)
+const catAllOf = (saleType: string): CatAll =>
+  saleType === 'HOTEL' ? 'HOTEL' : saleType === 'PACOTE' ? 'PACOTE' : saleType === 'MENSAL' ? 'CRECHE' : 'SERVICOS'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -129,6 +133,7 @@ export async function GET(req: NextRequest) {
   const monthTotals: Record<Cat, number[]> = { HOTEL: [0, 0, 0], PACOTE: [0, 0, 0], SERVICOS: [0, 0, 0] } // idx 0=m-1, 1=m-2, 2=m-3
   const lastMonthDaily: Record<Cat, number[]> = { HOTEL: new Array(32).fill(0), PACOTE: new Array(32).fill(0), SERVICOS: new Array(32).fill(0) }
   const actualDailyCur = new Array(daysInMonth + 1).fill(0)
+  const actualByCat: Record<CatAll, number> = { CRECHE: 0, HOTEL: 0, PACOTE: 0, SERVICOS: 0 }
   const prevDaily: number[][] = prev.map(p => new Array(new Date(p.y, p.m0 + 1, 0).getDate() + 1).fill(0))
 
   for (const s of windowSales) {
@@ -137,6 +142,7 @@ export async function GET(req: NextRequest) {
     const day = d.getDate()
     if (key === curKey) {
       actualDailyCur[day] += s.finalPrice
+      actualByCat[catAllOf(s.saleType)] += s.finalPrice
       continue
     }
     const pIdx = prev.findIndex(p => monthKey(p.y, p.m0) === key)
@@ -219,9 +225,10 @@ export async function GET(req: NextRequest) {
     },
     atualTotal: actualLimitDay > 0 ? round2(actualDailyCur.reduce((a, b) => a + b, 0)) : 0,
     categories: {
-      hotel: { lastMonth: hotel.lastMonth, avgGrowthPct: hotel.avgGrowthPct, forecast: hotel.forecast, daily: hotel.daily },
-      pacote: { lastMonth: pacote.lastMonth, avgGrowthPct: pacote.avgGrowthPct, forecast: pacote.forecast, daily: pacote.daily },
-      servicos: { lastMonth: servicos.lastMonth, avgGrowthPct: servicos.avgGrowthPct, forecast: servicos.forecast, daily: servicos.daily },
+      creche: { forecast: round2(crecheTotal), atual: round2(actualByCat.CRECHE), delta: round2(actualByCat.CRECHE - crecheTotal) },
+      hotel: { lastMonth: hotel.lastMonth, avgGrowthPct: hotel.avgGrowthPct, forecast: hotel.forecast, daily: hotel.daily, atual: round2(actualByCat.HOTEL), delta: round2(actualByCat.HOTEL - hotel.forecast) },
+      pacote: { lastMonth: pacote.lastMonth, avgGrowthPct: pacote.avgGrowthPct, forecast: pacote.forecast, daily: pacote.daily, atual: round2(actualByCat.PACOTE), delta: round2(actualByCat.PACOTE - pacote.forecast) },
+      servicos: { lastMonth: servicos.lastMonth, avgGrowthPct: servicos.avgGrowthPct, forecast: servicos.forecast, daily: servicos.daily, atual: round2(actualByCat.SERVICOS), delta: round2(actualByCat.SERVICOS - servicos.forecast) },
     },
     prevMonths,
     chart,
