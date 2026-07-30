@@ -987,16 +987,13 @@ export async function DELETE(req: NextRequest) {
     })
 
     if (entry && entry.packageId) {
-      // Return the day to the package
-      const updatedPkg = await prisma.package.update({
-        where: { id: entry.packageId },
-        data: { remainingDays: { increment: 1 } },
-      })
-      // Reverte a baixa automática se o pacote voltou a ter dias restantes
-      if (updatedPkg.remainingDays > 0 && !updatedPkg.isActive) {
+      // Return the day to the package (nunca excede totalDays, evita duplo crédito em race conditions)
+      const pkg = await prisma.package.findUnique({ where: { id: entry.packageId } })
+      if (pkg) {
+        const restoredDays = Math.min(pkg.remainingDays + 1, pkg.totalDays)
         await prisma.package.update({
           where: { id: entry.packageId },
-          data: { isActive: true },
+          data: { remainingDays: restoredDays, isActive: restoredDays > 0 ? true : pkg.isActive },
         })
       }
     }
