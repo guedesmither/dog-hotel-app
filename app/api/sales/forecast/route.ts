@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
         paymentStatus: { not: 'CANCELADO' },
         isExempt: false,
       },
-      select: { saleDate: true, saleType: true, finalPrice: true },
+      select: { saleDate: true, saleType: true, finalPrice: true, dogId: true, paymentStatus: true },
     }),
   ])
 
@@ -160,6 +160,21 @@ export async function GET(req: NextRequest) {
     if (!cat) continue
     monthTotals[cat][pIdx] += s.finalPrice
     if (pIdx === 0) lastMonthDaily[cat][day] += s.finalPrice
+  }
+
+  // ── Creche projetada no realizado+programado: mensalistas sem venda no mês entram como programado ──
+  const dogsWithMensalThisMonth = new Set<string>()
+  for (const s of windowSales) {
+    if (s.saleType === 'MENSAL' && monthKey(new Date(s.saleDate).getFullYear(), new Date(s.saleDate).getMonth()) === curKey) {
+      if (s.dogId) dogsWithMensalThisMonth.add(s.dogId)
+    }
+  }
+  let crecheProjectedScheduled = 0
+  for (const cd of crecheDogs) {
+    if (dogsWithMensalThisMonth.has(cd.id)) continue
+    scheduledDailyCur[cd.billingDay] += cd.amount
+    scheduledByCat.CRECHE += cd.amount
+    crecheProjectedScheduled += cd.amount
   }
 
   // ── Hotel / Pacotes / Serviços: último mês × (1 + crescimento médio dos últimos 3 meses) ──
