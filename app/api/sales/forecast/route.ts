@@ -132,8 +132,11 @@ export async function GET(req: NextRequest) {
   // ── Agregação das vendas da janela (m-3 … mês atual) ──
   const monthTotals: Record<Cat, number[]> = { HOTEL: [0, 0, 0], PACOTE: [0, 0, 0], SERVICOS: [0, 0, 0] } // idx 0=m-1, 1=m-2, 2=m-3
   const lastMonthDaily: Record<Cat, number[]> = { HOTEL: new Array(32).fill(0), PACOTE: new Array(32).fill(0), SERVICOS: new Array(32).fill(0) }
-  const actualDailyCur = new Array(daysInMonth + 1).fill(0)
+  const actualDailyCur = new Array(daysInMonth + 1).fill(0)  // realizado (PAGO + PENDENTE)
+  const scheduledDailyCur = new Array(daysInMonth + 1).fill(0) // programado (AGENDADO + PROGRAMADA)
   const actualByCat: Record<CatAll, number> = { CRECHE: 0, HOTEL: 0, PACOTE: 0, SERVICOS: 0 }
+  const scheduledByCat: Record<CatAll, number> = { CRECHE: 0, HOTEL: 0, PACOTE: 0, SERVICOS: 0 }
+  const SCHEDULED = new Set(['AGENDADO', 'PROGRAMADA'])
   const prevDaily: number[][] = prev.map(p => new Array(new Date(p.y, p.m0 + 1, 0).getDate() + 1).fill(0))
 
   for (const s of windowSales) {
@@ -141,8 +144,13 @@ export async function GET(req: NextRequest) {
     const key = monthKey(d.getFullYear(), d.getMonth())
     const day = d.getDate()
     if (key === curKey) {
-      actualDailyCur[day] += s.finalPrice
-      actualByCat[catAllOf(s.saleType)] += s.finalPrice
+      if (SCHEDULED.has(s.paymentStatus || '')) {
+        scheduledDailyCur[day] += s.finalPrice
+        scheduledByCat[catAllOf(s.saleType)] += s.finalPrice
+      } else {
+        actualDailyCur[day] += s.finalPrice
+        actualByCat[catAllOf(s.saleType)] += s.finalPrice
+      }
       continue
     }
     const pIdx = prev.findIndex(p => monthKey(p.y, p.m0) === key)
@@ -185,13 +193,16 @@ export async function GET(req: NextRequest) {
   const chart: any[] = []
   let cumF = 0
   let cumA = 0
+  let cumRP = 0
   for (let d = 1; d <= daysInMonth; d++) {
     cumF += crecheDaily[d] + hotel.daily[d] + pacote.daily[d] + servicos.daily[d]
     cumA += actualDailyCur[d]
+    cumRP += actualDailyCur[d] + scheduledDailyCur[d]
     chart.push({
       day: d,
       forecast: round2(cumF),
       atual: d <= actualLimitDay ? round2(cumA) : null,
+      realizadoProg: round2(cumRP),
       prev1: d < prevCums[0].length ? round2(prevCums[0][d]) : null,
       prev2: d < prevCums[1].length ? round2(prevCums[1][d]) : null,
       prev3: d < prevCums[2].length ? round2(prevCums[2][d]) : null,
@@ -224,11 +235,13 @@ export async function GET(req: NextRequest) {
       total: round2(crecheTotal + hotel.forecast + pacote.forecast + servicos.forecast),
     },
     atualTotal: actualLimitDay > 0 ? round2(actualDailyCur.reduce((a, b) => a + b, 0)) : 0,
+    programadoTotal: round2(scheduledDailyCur.reduce((a, b) => a + b, 0)),
+    realizadoProgTotal: round2(actualDailyCur.reduce((a, b) => a + b, 0) + scheduledDailyCur.reduce((a, b) => a + b, 0)),
     categories: {
-      creche: { forecast: round2(crecheTotal), atual: round2(actualByCat.CRECHE), delta: round2(actualByCat.CRECHE - crecheTotal) },
-      hotel: { lastMonth: hotel.lastMonth, avgGrowthPct: hotel.avgGrowthPct, forecast: hotel.forecast, daily: hotel.daily, atual: round2(actualByCat.HOTEL), delta: round2(actualByCat.HOTEL - hotel.forecast) },
-      pacote: { lastMonth: pacote.lastMonth, avgGrowthPct: pacote.avgGrowthPct, forecast: pacote.forecast, daily: pacote.daily, atual: round2(actualByCat.PACOTE), delta: round2(actualByCat.PACOTE - pacote.forecast) },
-      servicos: { lastMonth: servicos.lastMonth, avgGrowthPct: servicos.avgGrowthPct, forecast: servicos.forecast, daily: servicos.daily, atual: round2(actualByCat.SERVICOS), delta: round2(actualByCat.SERVICOS - servicos.forecast) },
+      creche: { forecast: round2(crecheTotal), atual: round2(actualByCat.CRECHE), programado: round2(scheduledByCat.CRECHE), delta: round2(actualByCat.CRECHE - crecheTotal) },
+      hotel: { lastMonth: hotel.lastMonth, avgGrowthPct: hotel.avgGrowthPct, forecast: hotel.forecast, daily: hotel.daily, atual: round2(actualByCat.HOTEL), programado: round2(scheduledByCat.HOTEL), delta: round2(actualByCat.HOTEL - hotel.forecast) },
+      pacote: { lastMonth: pacote.lastMonth, avgGrowthPct: pacote.avgGrowthPct, forecast: pacote.forecast, daily: pacote.daily, atual: round2(actualByCat.PACOTE), programado: round2(scheduledByCat.PACOTE), delta: round2(actualByCat.PACOTE - pacote.forecast) },
+      servicos: { lastMonth: servicos.lastMonth, avgGrowthPct: servicos.avgGrowthPct, forecast: servicos.forecast, daily: servicos.daily, atual: round2(actualByCat.SERVICOS), programado: round2(scheduledByCat.SERVICOS), delta: round2(actualByCat.SERVICOS - servicos.forecast) },
     },
     prevMonths,
     chart,

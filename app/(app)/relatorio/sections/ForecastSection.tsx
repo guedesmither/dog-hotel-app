@@ -25,14 +25,16 @@ interface ForecastData {
   todayDay: number | null
   totals: { creche: number; hotel: number; pacote: number; servicos: number; total: number }
   atualTotal: number
+  programadoTotal: number
+  realizadoProgTotal: number
   categories: {
-    creche: { forecast: number; atual: number; delta: number }
-    hotel: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[]; atual: number; delta: number }
-    pacote: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[]; atual: number; delta: number }
-    servicos: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[]; atual: number; delta: number }
+    creche: { forecast: number; atual: number; programado: number; delta: number }
+    hotel: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[]; atual: number; programado: number; delta: number }
+    pacote: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[]; atual: number; programado: number; delta: number }
+    servicos: { lastMonth: number; avgGrowthPct: number; forecast: number; daily: number[]; atual: number; programado: number; delta: number }
   }
   prevMonths: { key: string; label: string; total: number }[]
-  chart: { day: number; forecast: number; atual: number | null; prev1: number | null; prev2: number | null; prev3: number | null }[]
+  chart: { day: number; forecast: number; atual: number | null; realizadoProg: number; prev1: number | null; prev2: number | null; prev3: number | null }[]
   crecheDogs: CrecheDog[]
   staleDogs: { id: string; name: string; ownerName: string; lastSaleDate: string; amount: number }[]
   otherDogs: { id: string; name: string; ownerName: string }[]
@@ -198,10 +200,10 @@ export default function ForecastSection() {
 
   const t = data.totals
   const cats = [
-    { key: 'creche', label: 'Creche (mensalistas)', value: consensus ? consensus.crecheTotal : t.creche, icon: Dog, color: 'text-amber-600 bg-amber-100', bar: 'bg-amber-400', detail: `${data.crecheDogs.length} cães projetados`, atual: data.categories.creche.atual, delta: consensus ? data.categories.creche.atual - consensus.crecheTotal : data.categories.creche.delta },
-    { key: 'hotel', label: 'Hotel', value: consensus ? consensus.catTotals.hotel : t.hotel, icon: Building2, color: 'text-blue-600 bg-blue-100', bar: 'bg-blue-400', growth: data.categories.hotel.avgGrowthPct, detail: `mês anterior: ${R$(data.categories.hotel.lastMonth)}`, atual: data.categories.hotel.atual, delta: consensus ? data.categories.hotel.atual - consensus.catTotals.hotel : data.categories.hotel.delta },
-    { key: 'pacote', label: 'Pacotes', value: consensus ? consensus.catTotals.pacote : t.pacote, icon: Package, color: 'text-emerald-600 bg-emerald-100', bar: 'bg-emerald-400', growth: data.categories.pacote.avgGrowthPct, detail: `mês anterior: ${R$(data.categories.pacote.lastMonth)}`, atual: data.categories.pacote.atual, delta: consensus ? data.categories.pacote.atual - consensus.catTotals.pacote : data.categories.pacote.delta },
-    { key: 'servicos', label: 'Serviços & Avulsos', value: consensus ? consensus.catTotals.servicos : t.servicos, icon: Sparkles, color: 'text-violet-600 bg-violet-100', bar: 'bg-violet-400', growth: data.categories.servicos.avgGrowthPct, detail: `mês anterior: ${R$(data.categories.servicos.lastMonth)}`, atual: data.categories.servicos.atual, delta: consensus ? data.categories.servicos.atual - consensus.catTotals.servicos : data.categories.servicos.delta },
+    { key: 'creche', label: 'Creche (mensalistas)', value: consensus ? consensus.crecheTotal : t.creche, icon: Dog, color: 'text-amber-600 bg-amber-100', bar: 'bg-amber-400', detail: `${data.crecheDogs.length} cães projetados`, atual: data.categories.creche.atual, programado: data.categories.creche.programado, delta: consensus ? data.categories.creche.atual - consensus.crecheTotal : data.categories.creche.delta },
+    { key: 'hotel', label: 'Hotel', value: consensus ? consensus.catTotals.hotel : t.hotel, icon: Building2, color: 'text-blue-600 bg-blue-100', bar: 'bg-blue-400', growth: data.categories.hotel.avgGrowthPct, detail: `mês anterior: ${R$(data.categories.hotel.lastMonth)}`, atual: data.categories.hotel.atual, programado: data.categories.hotel.programado, delta: consensus ? data.categories.hotel.atual - consensus.catTotals.hotel : data.categories.hotel.delta },
+    { key: 'pacote', label: 'Pacotes', value: consensus ? consensus.catTotals.pacote : t.pacote, icon: Package, color: 'text-emerald-600 bg-emerald-100', bar: 'bg-emerald-400', growth: data.categories.pacote.avgGrowthPct, detail: `mês anterior: ${R$(data.categories.pacote.lastMonth)}`, atual: data.categories.pacote.atual, programado: data.categories.pacote.programado, delta: consensus ? data.categories.pacote.atual - consensus.catTotals.pacote : data.categories.pacote.delta },
+    { key: 'servicos', label: 'Serviços & Avulsos', value: consensus ? consensus.catTotals.servicos : t.servicos, icon: Sparkles, color: 'text-violet-600 bg-violet-100', bar: 'bg-violet-400', growth: data.categories.servicos.avgGrowthPct, detail: `mês anterior: ${R$(data.categories.servicos.lastMonth)}`, atual: data.categories.servicos.atual, programado: data.categories.servicos.programado, delta: consensus ? data.categories.servicos.atual - consensus.catTotals.servicos : data.categories.servicos.delta },
   ]
 
   return (
@@ -307,6 +309,11 @@ export default function ForecastSection() {
               {isFutureMonth ? 'já faturado' : 'realizado até hoje'}: {R$(data.atualTotal)}
             </div>
           )}
+          {data.programadoTotal > 0 && (
+            <div className="text-xs opacity-60 mt-0.5">
+              + programado: {R$(data.programadoTotal)} · <span className="font-semibold">realizado + programado: {R$(data.realizadoProgTotal)}</span>
+            </div>
+          )}
         </div>
         {cats.map(c => (
           <div key={c.key} className="rounded-2xl border border-gray-200 bg-white p-4">
@@ -330,6 +337,11 @@ export default function ForecastSection() {
                 {c.delta >= 0 ? '+' : ''}{R$(c.delta)}
               </span>
             </div>
+            {c.programado > 0 && (
+              <div className="text-[11px] text-cyan-600 mt-1">
+                + programado: <strong>{R$(c.programado)}</strong> · <span className="font-semibold">real. + prog.: {R$(c.atual + c.programado)}</span>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -386,6 +398,7 @@ export default function ForecastSection() {
             {visiblePrevs.has(1) && <Line type="monotone" dataKey="prev2" name={data.prevMonths[1]?.label} stroke={PREV_COLORS[1]} strokeWidth={1.5} dot={false} />}
             {visiblePrevs.has(0) && <Line type="monotone" dataKey="prev1" name={data.prevMonths[0]?.label} stroke={PREV_COLORS[0]} strokeWidth={2} dot={false} />}
             <Line type="monotone" dataKey="atual" name={`Realizado ${data.monthLabel}`} stroke="#10b981" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} connectNulls={false} />
+            <Line type="monotone" dataKey="realizadoProg" name={`Realizado + Programado ${data.monthLabel}`} stroke="#06b6d4" strokeWidth={2} strokeDasharray="4 2" dot={false} activeDot={{ r: 4 }} connectNulls />
             <Line type="monotone" dataKey="forecast" name={`Forecast ${data.monthLabel}`} stroke="#7c3aed" strokeWidth={2.5} strokeDasharray="6 3" dot={false} activeDot={{ r: 5 }} />
             {consensus && <Line type="monotone" dataKey="consensus" name="🤝 Consensus" stroke="#f97316" strokeWidth={3} dot={false} activeDot={{ r: 5 }} connectNulls={false} />}
           </LineChart>
