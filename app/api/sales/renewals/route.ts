@@ -16,6 +16,10 @@ export async function GET(req: NextRequest) {
   const horizon = new Date(today)
   horizon.setDate(horizon.getDate() + days)
 
+  // Find dismissed sale IDs to exclude
+  const dismissed = await prisma.renewalDismissal.findMany({ select: { saleId: true } })
+  const dismissedIds = new Set(dismissed.map(d => d.saleId))
+
   // Find active MENSAL sales whose endDate is within horizon or already past
   // and have no renewal already created (no MENSAL sale starting after their endDate for same dog+product)
   const expiringSales = await prisma.sales.findMany({
@@ -23,6 +27,7 @@ export async function GET(req: NextRequest) {
       saleType: 'MENSAL',
       endDate: { lte: horizon },
       paymentStatus: { not: 'CANCELADO' },
+      id: { notIn: Array.from(dismissedIds) },
     },
     include: {
       dog: { select: { id: true, name: true, photoUrl: true, ownerName: true } },
@@ -158,4 +163,27 @@ export async function POST(req: NextRequest) {
   }))
 
   return NextResponse.json({ created: created.filter(Boolean).length })
+}
+
+// DELETE /api/sales/renewals — permanently dismiss a renewal from the panel
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+
+  const role = (session.user as { role: string }).role
+  if (role === 'TUTOR' || role === 'MONITOR') {
+    return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+  }
+
+  const { searchParams } = new URL(req.url)
+  const saleId = searchParams.get('saleId')
+  if (!saleId) return NextResponse.json({ error: 'saleId obrigatório' }, { status: 400 })
+
+  await prisma.renewalDismissal.upsert({
+    where: { saleId },
+    create: { saleId },
+    update: {},
+  })
+
+  return NextResponse.json({ ok: true })
 }

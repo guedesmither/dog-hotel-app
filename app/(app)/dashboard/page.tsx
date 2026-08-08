@@ -96,7 +96,7 @@ export default function DashboardPage() {
 
   async function loadRenewals() {
     try {
-      const res = await fetch('/api/sales/renewals?days=10')
+      const res = await fetch('/api/sales/renewals?days=31')
       if (res.ok) setRenewals(await res.json())
     } catch {}
   }
@@ -1094,16 +1094,22 @@ export default function DashboardPage() {
                           {isEditing ? 'Cancelar' : '✏️'}
                         </button>
                         <button
-                          onClick={() => {
-                            const s = new Set(dismissedRenewals)
-                            s.add(r.id)
-                            setDismissedRenewals(s)
-                            const sel = new Set(selectedRenewals)
-                            sel.delete(r.id)
-                            setSelectedRenewals(sel)
+                          onClick={async () => {
+                            try {
+                              await fetch(`/api/sales/renewals?saleId=${r.id}`, { method: 'DELETE' })
+                              const s = new Set(dismissedRenewals)
+                              s.add(r.id)
+                              setDismissedRenewals(s)
+                              const sel = new Set(selectedRenewals)
+                              sel.delete(r.id)
+                              setSelectedRenewals(sel)
+                              toast.success('Mensalidade dispensada permanentemente')
+                            } catch {
+                              toast.error('Erro ao dispensar')
+                            }
                           }}
                           className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 font-medium"
-                          title="Ignorar este alerta"
+                          title="Dispensar permanentemente"
                         >
                           ✕
                         </button>
