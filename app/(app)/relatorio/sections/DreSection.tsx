@@ -74,6 +74,15 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
+const INAUGURATION_DATE = new Date('2026-02-07T12:00:00Z')
+
+function computedPeriod(dateStr: string): string {
+  const d = new Date(dateStr)
+  return d < INAUGURATION_DATE
+    ? 'PRE_INAUGURACAO'
+    : `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
 function periodLabel(p: string) {
   if (p === 'PRE_INAUGURACAO') return 'Pré-Inauguração'
   const [y, m] = p.split('-')
@@ -188,7 +197,9 @@ export default function DreSection() {
   const selectAll = () => { setSelectedPeriods([]); setOpenDrill(null) }
   const isAll = selectedPeriods.length === 0
 
-  const finPeriods = Array.from(new Set(entries.map(e => e.period))).sort()
+  const entriesWithPeriod = entries.map(e => ({ ...e, period: computedPeriod(e.date) }))
+
+  const finPeriods = Array.from(new Set(entriesWithPeriod.map(e => e.period))).sort()
   const salesPeriods = salesByMonth.map(s => s.month).sort()
   const allPeriods = Array.from(new Set([...finPeriods, ...salesPeriods])).sort()
   const selectablePeriods = allPeriods.filter(p => p !== 'PRE_INAUGURACAO')
@@ -196,8 +207,8 @@ export default function DreSection() {
   const activePeriods = isAll ? selectablePeriods : selectedPeriods
 
   const filteredEntries = isAll
-    ? entries.filter(e => e.period !== 'PRE_INAUGURACAO')
-    : entries.filter(e => selectedPeriods.includes(e.period))
+    ? entriesWithPeriod.filter(e => e.period !== 'PRE_INAUGURACAO')
+    : entriesWithPeriod.filter(e => selectedPeriods.includes(e.period))
 
   const totalReceita = salesByMonth
     .filter(m => activePeriods.includes(m.month))
@@ -230,9 +241,9 @@ export default function DreSection() {
   const totalEntradaCaixa = entradaCaixaEntries.reduce((s, e) => s + e.amount, 0)
 
   // Módulo sócios — sempre acumulado total (independente do filtro de período)
-  const allSeba = entries.filter(e => e.account === 'SEBÁ')
-  const allVe = entries.filter(e => e.account === 'VÊ')
-  const allNice = entries.filter(e => e.account === 'NICE')
+  const allSeba = entriesWithPeriod.filter(e => e.account === 'SEBÁ')
+  const allVe = entriesWithPeriod.filter(e => e.account === 'VÊ')
+  const allNice = entriesWithPeriod.filter(e => e.account === 'NICE')
   const sebaGastos = allSeba.filter(e => e.type === 'S').reduce((s, e) => s + e.amount, 0)
   const veGastos = allVe.filter(e => e.type === 'S').reduce((s, e) => s + e.amount, 0)
   const niceAportes = allNice.filter(e => e.type === 'E' && e.category === 'APORTE NICE').reduce((s, e) => s + e.amount, 0)
@@ -241,7 +252,7 @@ export default function DreSection() {
   const sebaInvestido = Math.max(0, sebaGastos - niceAportes)
   const veInvestido = veGastos
   // Prolabore: ver por fornecedor para separar Sebá x Vê
-  const allProlabore = entries.filter(e => e.type === 'S' && e.category === 'PROLABORE')
+  const allProlabore = entriesWithPeriod.filter(e => e.type === 'S' && e.category === 'PROLABORE')
   const sebaRecuperado = allProlabore
     .filter(e => !e.supplier || e.supplier.toUpperCase().includes('SEBÁ') || e.supplier.toUpperCase().includes('SEBA') || e.supplier.toUpperCase().includes('SEBASTIA') || e.supplier.toUpperCase().includes('RETIRADA'))
     .reduce((s, e) => s + e.amount, 0)
@@ -267,7 +278,7 @@ export default function DreSection() {
   // Dados mensais para comparação
   const monthlyDreData = useMemo(() => {
     return activePeriods.map(period => {
-      const finEntriesForPeriod = entries.filter(e => e.period === period)
+      const finEntriesForPeriod = entriesWithPeriod.filter(e => e.period === period)
       const salesForPeriod = salesByMonth.find(m => m.month === period)
       const receita = salesForPeriod?.net || 0
       const byCat: Record<string, number> = {}
@@ -294,7 +305,7 @@ export default function DreSection() {
         resultadoLiquido,
       }
     })
-  }, [selectablePeriods, entries, salesByMonth])
+  }, [selectablePeriods, entriesWithPeriod, salesByMonth])
 
   const periodRangeLabel = isAll
     ? 'Acumulado (todos os meses)'
