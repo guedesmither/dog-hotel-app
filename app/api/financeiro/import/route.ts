@@ -8,7 +8,7 @@ const INAUGURATION_DATE = new Date('2026-02-07')
 function calcPeriod(date: Date) {
   return date < INAUGURATION_DATE
     ? 'PRE_INAUGURACAO'
-    : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    : `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
 function parseBRL(v: string): number {
