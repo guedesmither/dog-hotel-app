@@ -400,7 +400,7 @@ async function replicateFromPreviousWeek(date: string, targetDateObj: Date, adde
   for (const entry of previousEntries) {
     if (!entry.dog || !entry.dog.isActive) continue
 
-    // Skip if already in roster for target date (seedDate may have added it)
+    // Skip if already in roster for target date
     const existing = await prisma.dailyRoster.findFirst({
       where: { dogId: entry.dogId, date },
     })
@@ -408,118 +408,15 @@ async function replicateFromPreviousWeek(date: string, targetDateObj: Date, adde
 
     const dog = entry.dog
 
+    // CRECHE: only check day of week — the user already validated everything else
+    // when they adjusted the agenda
     if (entry.type === 'CRECHE') {
       if ((dog.serviceType || '').toUpperCase() !== 'CRECHE') continue
       if (!isDayScheduled(dog.scheduledDays, targetDateObj.getDay())) continue
-
-      if (dog.isBolsista) {
-        await upsertRosterEntry(entry.dogId, date, 'CRECHE', 'AUTO', added)
-        continue
-      }
-
-      const activeSales = await prisma.sales.findMany({
-        where: {
-          dogId: entry.dogId,
-          OR: [
-            { saleType: 'MENSAL' },
-            { items: { some: { product: { category: 'CRECHE' } } } },
-          ],
-          paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
-          manualBaixa: false,
-        },
-        include: { items: { include: { product: true } } },
-      })
-
-      for (const sale of activeSales) {
-        if (!isCrecheSale(sale)) continue
-        const period = calcMensalPeriod(sale)
-        if (!period) continue
-        if (targetDateObj < period.start || targetDateObj > period.end) continue
-
-        const cap = await calcMensalAllowed(sale, dog, date)
-        if (cap.allowed !== Infinity && cap.used >= cap.allowed) continue
-
-        await upsertRosterEntry(entry.dogId, date, 'CRECHE', 'AUTO', added)
-        break
-      }
-    } else if (entry.type === 'HOTEL') {
-      const activeSales = await prisma.sales.findMany({
-        where: {
-          dogId: entry.dogId,
-          saleType: 'HOTEL',
-          paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
-          manualBaixa: false,
-        },
-        include: { items: { include: { product: true } } },
-      })
-
-      let hasValidHotel = false
-      for (const sale of activeSales) {
-        const period = calcHotelPeriod(sale)
-        if (!period) continue
-        if (targetDateObj >= period.start && targetDateObj <= period.end) {
-          hasValidHotel = true
-          break
-        }
-      }
-
-      if (!hasValidHotel) {
-        const stays = await prisma.stay.findMany({
-          where: {
-            dogId: entry.dogId,
-            isScheduled: true,
-            scheduledCheckIn: { not: null },
-            scheduledCheckOut: { not: null },
-          },
-        })
-        for (const stay of stays) {
-          const start = new Date(stay.scheduledCheckIn!)
-          start.setHours(0, 0, 0, 0)
-          const end = new Date(stay.scheduledCheckOut!)
-          end.setHours(23, 59, 59, 999)
-          if (targetDateObj >= start && targetDateObj <= end) {
-            hasValidHotel = true
-            break
-          }
-        }
-      }
-
-      if (hasValidHotel) {
-        await upsertRosterEntry(entry.dogId, date, 'HOTEL', 'AUTO', added)
-      }
-    } else if (entry.type === 'AVULSO' || entry.type === 'PACOTE') {
-      const activeSales = await prisma.sales.findMany({
-        where: {
-          dogId: entry.dogId,
-          saleType: { in: ['AVULSO', 'PACOTE'] },
-          paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
-          manualBaixa: false,
-        },
-        include: { items: { include: { product: true } } },
-      })
-
-      for (const sale of activeSales) {
-        const period = sale.saleType === 'AVULSO' ? calcAvulsoPeriod(sale) : calcMensalPeriod(sale)
-        if (!period) continue
-        if (targetDateObj < period.start || targetDateObj > period.end) continue
-
-        const purchasedDays = countPurchasedAvulsoDays(sale)
-        if (purchasedDays === 0) continue
-
-        const used = await prisma.dailyRoster.count({
-          where: {
-            dogId: entry.dogId,
-            type: entry.type,
-            date: { gte: period.start.toISOString().split('T')[0], lte: period.end.toISOString().split('T')[0] },
-          },
-        })
-
-        if (used < purchasedDays) {
-          await upsertRosterEntry(entry.dogId, date, entry.type, 'AUTO', added)
-          break
-        }
-      }
     }
+
+    // Copy the entry as-is — agenda is the source of truth (Rule #1)
+    await upsertRosterEntry(entry.dogId, date, entry.type, 'AUTO', added)
   }
 }
 
@@ -527,11 +424,13 @@ export async function seedDate(date: string): Promise<{ added: string[] }> {
   const added: string[] = []
   const targetDateObj = new Date(date + 'T12:00:00Z')
 
+  // Rule #1: replicate from previous week's adjusted agenda first
+  await replicateFromPreviousWeek(date, targetDateObj, added)
+
+  // Fallback: seed from cadastro/vendas for dogs NOT in the previous week's roster
   await seedBolsistas(date, targetDateObj, added)
   await seedMensalCreche(date, targetDateObj, added)
   await seedHotel(date, targetDateObj, added)
-  // Replicate entries from the previous week (AVULSO, PACOTE, and any missed dogs)
-  await replicateFromPreviousWeek(date, targetDateObj, added)
 
   // Mark this date as seeded so it's never re-seeded after manual clears
   await prisma.dailyRosterSeed.upsert({
@@ -571,13 +470,8 @@ export async function refreshDay(date: string): Promise<{ added: string[]; remov
   // Clear seed so seedDate runs fresh
   await prisma.dailyRosterSeed.deleteMany({ where: { date } })
 
-  // Re-run base seeding (bolsistas, creche, hotel)
+  // Re-run seeding (replication from previous week + cadastro fallback)
   await seedDate(date)
-
-  // Replicate from previous week (now handled inside seedDate, but refreshDay
-  // may still pick up entries that seedDate missed if previous week had manual entries)
-  const targetDateObj = new Date(date + 'T12:00:00Z')
-  await replicateFromPreviousWeek(date, targetDateObj, added)
 
   console.log(`[refreshDay ${date}] result: added=${added.length} removed=${removed.count}`)
   return { added, removed: removed.count }
