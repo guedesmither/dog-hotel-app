@@ -307,11 +307,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Calculate basePrice (gross) from items total
+    const itemsTotal = (items || []).reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0)
+    const basePrice = itemsTotal || finalPrice || 0
+
     const sale = await prisma.sales.create({
       data: {
         saleDate: saleDate ? new Date(saleDate) : new Date(),
         finalPrice: finalPrice || 0,
-        basePrice: finalPrice || 0, // basePrice equals finalPrice initially
+        basePrice,
         discount: discount || 0,
         isExempt: isExempt || false,
         amountReceived: (paymentStatus === 'PENDENTE' || paymentStatus === 'PROGRAMADA') ? null : (amountReceived ?? finalPrice ?? 0),
