@@ -227,6 +227,20 @@ export default function DashboardPage() {
         })
         .catch(() => {})
     }
+    // Auto-cleanup report photos older than 7 days (runs daily)
+    if (u?.role === 'ADMIN') {
+      const lastCleanup = localStorage.getItem('lastPhotoCleanup')
+      const today = new Date().toISOString().split('T')[0]
+      if (lastCleanup !== today) {
+        fetch('/api/reports/cleanup-photos', { method: 'DELETE' })
+          .then(r => r.json())
+          .then(data => {
+            if (data.deleted > 0) console.log(`Old report photos cleaned: ${data.deleted}`)
+            localStorage.setItem('lastPhotoCleanup', today)
+          })
+          .catch(() => {})
+      }
+    }
   }, [session, router])
 
   const [expiredReplacements, setExpiredReplacements] = useState<ReplacementItem[]>([])
