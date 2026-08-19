@@ -217,6 +217,16 @@ export default function DashboardPage() {
       if (u.tutorDogId) router.replace(`/dogs/${u.tutorDogId}`)
       return
     }
+    // Auto-compress photos once for admin (reduces bandwidth)
+    if (u?.role === 'ADMIN' && !localStorage.getItem('photosCompressed')) {
+      fetch('/api/admin/compress-photos', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.compressed > 0) console.log(`Photos compressed: ${data.compressed}, saved ${data.totalSavedMB}MB`)
+          localStorage.setItem('photosCompressed', '1')
+        })
+        .catch(() => {})
+    }
   }, [session, router])
 
   const [expiredReplacements, setExpiredReplacements] = useState<ReplacementItem[]>([])
