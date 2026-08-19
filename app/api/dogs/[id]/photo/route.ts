@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import sharp from 'sharp'
 
 export async function POST(
   req: NextRequest,
@@ -18,9 +19,11 @@ export async function POST(
   }
 
   const bytes = await file.arrayBuffer()
-  const base64 = Buffer.from(bytes).toString('base64')
-  const mimeType = file.type || 'image/jpeg'
-  const photoUrl = `data:${mimeType};base64,${base64}`
+  const compressed = await sharp(Buffer.from(bytes))
+    .resize(300, 300, { fit: 'cover', position: 'attention' })
+    .jpeg({ quality: 80 })
+    .toBuffer()
+  const photoUrl = `data:image/jpeg;base64,${compressed.toString('base64')}`
 
   const dog = await prisma.dog.update({
     where: { id: params.id },
