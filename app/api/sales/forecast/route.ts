@@ -169,11 +169,12 @@ export async function GET(req: NextRequest) {
       if (s.dogId) dogsWithMensalThisMonth.add(s.dogId)
     }
   }
+  // Creche projetada NÃO entra no realizado+programado — é forecast, não venda real
+  const projectedDailyCur = new Array(daysInMonth + 1).fill(0)
   let crecheProjectedScheduled = 0
   for (const cd of crecheDogs) {
     if (dogsWithMensalThisMonth.has(cd.id)) continue
-    scheduledDailyCur[cd.billingDay] += cd.amount
-    scheduledByCat.CRECHE += cd.amount
+    projectedDailyCur[cd.billingDay] += cd.amount
     crecheProjectedScheduled += cd.amount
   }
 
@@ -252,6 +253,7 @@ export async function GET(req: NextRequest) {
     atualTotal: actualLimitDay > 0 ? round2(actualDailyCur.reduce((a, b) => a + b, 0)) : 0,
     programadoTotal: round2(scheduledDailyCur.reduce((a, b) => a + b, 0)),
     realizadoProgTotal: round2(actualDailyCur.reduce((a, b) => a + b, 0) + scheduledDailyCur.reduce((a, b) => a + b, 0)),
+    crecheProjected: round2(crecheProjectedScheduled),
     categories: {
       creche: { forecast: round2(crecheTotal), atual: round2(actualByCat.CRECHE), programado: round2(scheduledByCat.CRECHE), delta: round2(actualByCat.CRECHE - crecheTotal) },
       hotel: { lastMonth: hotel.lastMonth, avgGrowthPct: hotel.avgGrowthPct, forecast: hotel.forecast, daily: hotel.daily, atual: round2(actualByCat.HOTEL), programado: round2(scheduledByCat.HOTEL), delta: round2(actualByCat.HOTEL - hotel.forecast) },

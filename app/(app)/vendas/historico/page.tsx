@@ -407,7 +407,7 @@ function HistoricoContent() {
             <div className="text-center bg-gray-50 rounded-lg p-3">
               <p className="text-xs text-gray-500 font-medium">Total Geral</p>
               <p className="text-lg font-bold text-gray-800">
-                R$ {sales.reduce((sum, sale) => sum + sale.finalPrice, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {sales.filter(s => s.paymentStatus !== 'CANCELADO' && !s.isExempt).reduce((sum, sale) => sum + sale.finalPrice, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
             <div className="text-center bg-green-50 rounded-lg p-3">
