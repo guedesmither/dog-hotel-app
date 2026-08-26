@@ -282,6 +282,7 @@ async function seedAvulso(date: string, targetDateObj: Date, added: string[]) {
     include: {
       dog: true,
       items: { include: { product: true } },
+      package: true,
     },
   })
 
@@ -289,6 +290,12 @@ async function seedAvulso(date: string, targetDateObj: Date, added: string[]) {
     if (!sale.dogId || !sale.dog) continue
     const dog = sale.dog
     if (!dog.isActive) continue
+
+    // If sale has a linked package, validate it's not expired
+    if (sale.package) {
+      if (!sale.package.isActive || sale.package.remainingDays <= 0) continue
+      if (new Date(sale.package.expiryDate) < targetDateObj) continue
+    }
 
     const period = calcAvulsoPeriod(sale)
     if (!period) continue
@@ -408,14 +415,77 @@ async function replicateFromPreviousWeek(date: string, targetDateObj: Date, adde
 
     const dog = entry.dog
 
-    // CRECHE: only check day of week — the user already validated everything else
-    // when they adjusted the agenda
+    // HOTEL: never replicate from previous week — hotel is period-based (stay dates)
+    if (entry.type === 'HOTEL') continue
+
+    // BANHO: never replicate — bath is a one-time service
+    if (entry.type === 'BANHO') continue
+
     if (entry.type === 'CRECHE') {
       if ((dog.serviceType || '').toUpperCase() !== 'CRECHE') continue
       if (!isDayScheduled(dog.scheduledDays, targetDateObj.getDay())) continue
+
+      // Validate there's still an active creche sale covering this date
+      if (!dog.isBolsista) {
+        const activeSales = await prisma.sales.findMany({
+          where: {
+            dogId: entry.dogId,
+            OR: [
+              { saleType: 'MENSAL' },
+              { items: { some: { product: { category: 'CRECHE' } } } },
+            ],
+            paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+            manualBaixa: false,
+          },
+          include: { items: { include: { product: true } } },
+        })
+
+        const hasValidSale = activeSales.some(sale => {
+          if (!isCrecheSale(sale)) return false
+          const period = calcMensalPeriod(sale)
+          if (!period) return false
+          return targetDateObj >= period.start && targetDateObj <= period.end
+        })
+
+        if (!hasValidSale) continue
+      }
     }
 
-    // Copy the entry as-is — agenda is the source of truth (Rule #1)
+    // AVULSO/PACOTE: validate there's still an active sale with remaining days
+    if (entry.type === 'AVULSO' || entry.type === 'PACOTE') {
+      const activeSales = await prisma.sales.findMany({
+        where: {
+          dogId: entry.dogId,
+          saleType: { in: ['AVULSO', 'PACOTE'] },
+          paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+          manualBaixa: false,
+        },
+        include: { items: { include: { product: true } } },
+      })
+
+      let hasValidSale = false
+      for (const sale of activeSales) {
+        const period = sale.saleType === 'AVULSO' ? calcAvulsoPeriod(sale) : calcMensalPeriod(sale)
+        if (!period) continue
+        if (targetDateObj < period.start || targetDateObj > period.end) continue
+
+        const purchasedDays = countPurchasedAvulsoDays(sale)
+        if (purchasedDays === 0) { hasValidSale = true; break }
+
+        const used = await prisma.dailyRoster.count({
+          where: {
+            dogId: entry.dogId,
+            type: entry.type,
+            date: { gte: period.start.toISOString().split('T')[0], lte: period.end.toISOString().split('T')[0] },
+          },
+        })
+        if (used < purchasedDays) { hasValidSale = true; break }
+      }
+
+      if (!hasValidSale) continue
+    }
+
+    // Copy the entry — agenda is the source of truth (Rule #1)
     await upsertRosterEntry(entry.dogId, date, entry.type, 'AUTO', added)
   }
 }

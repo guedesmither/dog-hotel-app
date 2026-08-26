@@ -418,6 +418,55 @@ export async function POST(req: NextRequest) {
       update: { hasBanho },
       create: { dogId, date, hasBanho, source: 'MANUAL', type: 'CRECHE' },
     })
+
+    // Auto-baixa: when marking banho, find uncompleted BANHO/SERVICO sale and complete it
+    if (hasBanho === true) {
+      const banhoSale = await prisma.sales.findFirst({
+        where: {
+          dogId,
+          saleType: { in: ['AVULSO', 'PRODUTO', 'SERVICO'] },
+          paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+          manualBaixa: false,
+          items: { some: { product: { category: { in: ['SERVICO', 'BANHO'] } } } },
+        },
+        orderBy: { saleDate: 'asc' },
+      })
+
+      if (banhoSale) {
+        await prisma.sales.update({
+          where: { id: banhoSale.id },
+          data: { manualBaixa: true, manualBaixaDate: new Date(), serviceDate: new Date(date + 'T12:00:00') },
+        })
+      } else {
+        // No uncompleted bath sale found — block the toggle
+        await prisma.dailyRoster.update({
+          where: { dogId_date: { dogId, date } },
+          data: { hasBanho: false },
+        })
+        return NextResponse.json({
+          error: 'Não há venda de banho não baixada para este cão',
+          dogName: '',
+        }, { status: 403 })
+      }
+    } else {
+      // Reverting banho: find the sale that was auto-completed for this date and revert it
+      const completedBanhoSale = await prisma.sales.findFirst({
+        where: {
+          dogId,
+          manualBaixa: true,
+          serviceDate: new Date(date + 'T12:00:00'),
+          items: { some: { product: { category: { in: ['SERVICO', 'BANHO'] } } } },
+        },
+      })
+
+      if (completedBanhoSale) {
+        await prisma.sales.update({
+          where: { id: completedBanhoSale.id },
+          data: { manualBaixa: false, manualBaixaDate: null, serviceDate: null },
+        })
+      }
+    }
+
     return NextResponse.json({ success: true })
   }
 
@@ -497,10 +546,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Cão não encontrado' }, { status: 404 })
     }
 
-    // ── BANHO: standalone walk-in bath, no sale required — always eligible ──
+    // ── BANHO: standalone walk-in bath — requires uncompleted BANHO/SERVICO sale ──
     if (entryType === 'BANHO') {
-      // Fall through directly to upsert below
-      console.log(`[DEBUG] Dog ${dogId} entryType BANHO - skipping eligibility checks`)
+      const banhoSale = await prisma.sales.findFirst({
+        where: {
+          dogId,
+          paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+          manualBaixa: false,
+          items: { some: { product: { category: { in: ['SERVICO', 'BANHO'] } } } },
+        },
+        orderBy: { saleDate: 'asc' },
+      })
+
+      if (!banhoSale) {
+        return NextResponse.json({
+          error: 'Não há venda de banho não baixada para este cão',
+          dogName: dog?.name || '',
+        }, { status: 403 })
+      }
+
+      // Auto-baixa the bath sale
+      await prisma.sales.update({
+        where: { id: banhoSale.id },
+        data: { manualBaixa: true, manualBaixaDate: new Date(), serviceDate: new Date(date + 'T12:00:00') },
+      })
     } else
     // ── BOLSISTA: always eligible, skip all checks ──────────────────────────
     if (dog.dogStatus === 'BOLSISTA' || dog.isBolsista === true) {
@@ -907,6 +976,34 @@ export async function POST(req: NextRequest) {
     } // end else (not BOLSISTA)
   }
 
+  // Before upserting, check if there's an existing entry with a different type — revert its auto-baixa
+  const existingEntry = await prisma.dailyRoster.findFirst({ where: { dogId, date } })
+  if (existingEntry && existingEntry.type !== entryType) {
+    const serviceDate = new Date(date + 'T12:00:00')
+    if (existingEntry.type === 'AVULSO') {
+      const completedSale = await prisma.sales.findFirst({
+        where: { dogId, saleType: 'AVULSO', manualBaixa: true, serviceDate },
+      })
+      if (completedSale) {
+        await prisma.sales.update({
+          where: { id: completedSale.id },
+          data: { manualBaixa: false, manualBaixaDate: null, serviceDate: null },
+        })
+      }
+    }
+    if (existingEntry.type === 'BANHO' || (existingEntry.hasBanho && entryType !== 'BANHO')) {
+      const completedBanhoSale = await prisma.sales.findFirst({
+        where: { dogId, manualBaixa: true, serviceDate, items: { some: { product: { category: { in: ['SERVICO', 'BANHO'] } } } } },
+      })
+      if (completedBanhoSale) {
+        await prisma.sales.update({
+          where: { id: completedBanhoSale.id },
+          data: { manualBaixa: false, manualBaixaDate: null, serviceDate: null },
+        })
+      }
+    }
+  }
+
   const updateData: any = { source: 'MANUAL', type: entryType }
   if (isPernoite !== undefined) updateData.isPernoite = isPernoite
   if (hasBanho !== undefined) updateData.hasBanho = hasBanho
@@ -932,6 +1029,26 @@ export async function POST(req: NextRequest) {
     create: { dogId, date, source: 'MANUAL', type: entryType, isPernoite: isPernoite || false, packageId },
     select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, dog: { select: { id: true, name: true, breed: true, ownerName: true, photoUrl: true, serviceType: true, scheduledDays: true, monthlyStartDay: true } } } as any,
   })
+
+  // Auto-baixa for AVULSO: find uncompleted AVULSO sale and mark it as completed
+  if (entryType === 'AVULSO') {
+    const avulsoSale = await prisma.sales.findFirst({
+      where: {
+        dogId,
+        saleType: 'AVULSO',
+        paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+        manualBaixa: false,
+      },
+      orderBy: { saleDate: 'asc' },
+    })
+
+    if (avulsoSale) {
+      await prisma.sales.update({
+        where: { id: avulsoSale.id },
+        data: { manualBaixa: true, manualBaixaDate: new Date(), serviceDate: new Date(date + 'T12:00:00') },
+      })
+    }
+  }
 
   return NextResponse.json(entry, { status: 201 })
 }
@@ -995,6 +1112,47 @@ export async function DELETE(req: NextRequest) {
           where: { id: entry.packageId },
           data: { remainingDays: restoredDays, isActive: restoredDays > 0 ? true : pkg.isActive },
         })
+      }
+    }
+
+    // Revert auto-baixa for AVULSO/BANHO when removing from roster
+    if (entry && (entry.type === 'AVULSO' || entry.type === 'BANHO' || entry.hasBanho)) {
+      const serviceDate = new Date(date + 'T12:00:00')
+
+      if (entry.type === 'AVULSO') {
+        // Revert AVULSO sale
+        const completedSale = await prisma.sales.findFirst({
+          where: {
+            dogId,
+            saleType: 'AVULSO',
+            manualBaixa: true,
+            serviceDate,
+          },
+        })
+        if (completedSale) {
+          await prisma.sales.update({
+            where: { id: completedSale.id },
+            data: { manualBaixa: false, manualBaixaDate: null, serviceDate: null },
+          })
+        }
+      }
+
+      if (entry.type === 'BANHO' || entry.hasBanho) {
+        // Revert BANHO/SERVICO sale
+        const completedBanhoSale = await prisma.sales.findFirst({
+          where: {
+            dogId,
+            manualBaixa: true,
+            serviceDate,
+            items: { some: { product: { category: { in: ['SERVICO', 'BANHO'] } } } },
+          },
+        })
+        if (completedBanhoSale) {
+          await prisma.sales.update({
+            where: { id: completedBanhoSale.id },
+            data: { manualBaixa: false, manualBaixaDate: null, serviceDate: null },
+          })
+        }
       }
     }
 
