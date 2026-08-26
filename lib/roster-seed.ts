@@ -236,27 +236,22 @@ async function seedBolsistas(date: string, targetDateObj: Date, added: string[])
 }
 
 async function seedMensalCreche(date: string, targetDateObj: Date, added: string[]) {
-  // Fallback: only seed dogs that have NO roster entries in the previous week at all
-  // (i.e. first time being scheduled). Dogs already in the previous week are handled
-  // by replicateFromPreviousWeek — the adjusted agenda is the source of truth (Rule #1).
+  // Fallback: only seed dogs that were NOT in the previous week's SAME DAY.
+  // Dogs that were on this day last week are handled by replicateFromPreviousWeek.
+  // Dogs that were on a different day last week should still be eligible here
+  // (e.g. Betina was on Monday but has Wednesday in cadastro — she should be seeded on Wednesday).
   const previousDate = new Date(date + 'T12:00:00Z')
   previousDate.setDate(previousDate.getDate() - 7)
-  const prevWeekStart = new Date(previousDate)
-  prevWeekStart.setDate(prevWeekStart.getDate() - prevWeekStart.getDay() + 1) // Monday of prev week
-  const prevWeekEnd = new Date(prevWeekStart)
-  prevWeekEnd.setDate(prevWeekEnd.getDate() + 6) // Sunday of prev week
+  const prevSameDayStr = previousDate.toISOString().split('T')[0]
 
-  const prevWeekEntries = await prisma.dailyRoster.findMany({
+  const prevSameDayEntries = await prisma.dailyRoster.findMany({
     where: {
-      date: {
-        gte: prevWeekStart.toISOString().split('T')[0],
-        lte: prevWeekEnd.toISOString().split('T')[0],
-      },
+      date: prevSameDayStr,
       type: 'CRECHE',
     },
     select: { dogId: true },
   })
-  const dogsInPrevWeek = new Set(prevWeekEntries.map(e => e.dogId))
+  const dogsInPrevSameDay = new Set(prevSameDayEntries.map(e => e.dogId))
 
   const mensalSales = await prisma.sales.findMany({
     where: {
@@ -280,8 +275,8 @@ async function seedMensalCreche(date: string, targetDateObj: Date, added: string
     const dog = sale.dog
     if (!dog.isActive || (dog.serviceType || '').toUpperCase() !== 'CRECHE') continue
 
-    // Skip dogs that were in the previous week's roster — they're managed by replication
-    if (dogsInPrevWeek.has(dog.id)) continue
+    // Skip dogs that were in the previous week's same day — they're managed by replication
+    if (dogsInPrevSameDay.has(dog.id)) continue
 
     // First time: must have scheduledDays in cadastro, and this day must be scheduled
     if (!dog.scheduledDays || dog.scheduledDays.trim() === '') continue
