@@ -366,7 +366,7 @@ export async function GET(req: NextRequest) {
     const entries = await prisma.dailyRoster.findMany({
       where: { date: { in: dates } },
       select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, guestName: true, dog: { select: dogSelect } } as any,
-      orderBy: [{ date: 'asc' }, { dog: { name: 'asc' } }],
+      orderBy: [{ date: 'asc' }, { dogId: 'asc' }],
     })
 
     // Also return all active dogs for the pool
@@ -386,7 +386,7 @@ export async function GET(req: NextRequest) {
     const entries = await prisma.dailyRoster.findMany({
       where: { date },
       select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, guestName: true, dog: { select: dogSelect } } as any,
-      orderBy: { dog: { name: 'asc' } },
+      orderBy: [{ dogId: 'asc' }],
     })
 
     return NextResponse.json(entries)
