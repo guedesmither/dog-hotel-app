@@ -153,6 +153,7 @@ export async function GET() {
     for (const entry of attendance) {
       const month = entry.date.slice(0, 7)
       if (!presentDogsByMonth.has(month)) presentDogsByMonth.set(month, new Set())
+      if (!entry.dogId) continue
       presentDogsByMonth.get(month)!.add(entry.dogId)
       if (isCrecheService(dogDetails.get(entry.dogId)?.serviceType || null)) {
         if (!presentCrecheDogsByMonth.has(month)) presentCrecheDogsByMonth.set(month, new Set())

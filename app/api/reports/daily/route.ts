@@ -103,7 +103,7 @@ export async function GET(req: NextRequest) {
       const report = reportsByDate[entry.date]
       if (!report) continue
       report.totalDogs++
-      if (entry.dog.isBolsista) report.bolsistaDogs++
+      if (entry.dog?.isBolsista) report.bolsistaDogs++
       else report.nonBolsistaDogs++
     }
 

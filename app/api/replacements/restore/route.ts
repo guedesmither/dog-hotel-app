@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
   // Find dog by name
   const dog = await prisma.dog.findFirst({
-    where: { name: { contains: dogName, mode: 'insensitive' } },
+    where: { name: { contains: dogName } },
     select: { id: true, name: true }
   })
 

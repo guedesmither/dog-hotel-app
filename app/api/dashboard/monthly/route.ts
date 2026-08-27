@@ -89,8 +89,8 @@ export async function GET(req: NextRequest) {
   })
 
   type DogRow = (typeof dogs)[number]
-  type RosterEntry = { dogId: string; date: string; present: boolean | null }
-  type TodayRosterEntry = { dogId: string; present: boolean | null }
+  type RosterEntry = { dogId: string | null; date: string; present: boolean | null }
+  type TodayRosterEntry = { dogId: string | null; present: boolean | null }
   type StayEntry = { id: string; checkIn: Date; active: boolean; dogId: string }
 
   // Filter dogs with actual activity (scheduled days, active stay, or roster entries)

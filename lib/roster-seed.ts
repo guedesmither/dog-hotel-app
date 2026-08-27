@@ -510,6 +510,7 @@ async function replicateFromPreviousWeek(date: string, targetDateObj: Date, adde
     }
 
     // Copy the entry — agenda is the source of truth (Rule #1)
+    if (!entry.dogId) continue
     await upsertRosterEntry(entry.dogId, date, entry.type, 'AUTO', added)
   }
 }

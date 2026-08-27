@@ -12,6 +12,7 @@ export async function GET() {
     where: { type: 'REPOSICAO' }
   })
   for (const entry of reposicaoEntries) {
+    if (!entry.dogId) continue
     const result = await prisma.replacement.deleteMany({
       where: { dogId: entry.dogId, absentDate: entry.date, status: 'PENDING' }
     })
