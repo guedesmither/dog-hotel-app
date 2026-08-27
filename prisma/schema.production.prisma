@@ -182,8 +182,8 @@ model PendingDogChange {
 
 model DailyRoster {
   id              String   @id @default(cuid())
-  dogId           String
-  dog             Dog      @relation(fields: [dogId], references: [id])
+  dogId           String?
+  dog             Dog?     @relation(fields: [dogId], references: [id])
   date            String
   source          String   @default("AUTO")
   type            String   @default("CRECHE") // CRECHE, AVULSO, HOTEL
@@ -193,6 +193,7 @@ model DailyRoster {
   hasBanho        Boolean  @default(false) // Bath service scheduled for this day
   packageId       String?  // If using a package
   package         Package? @relation(fields: [packageId], references: [id])
+  guestName       String?  // For ADAPTACAO entries (no dog registration)
   createdAt       DateTime @default(now())
 
   @@unique([dogId, date])
