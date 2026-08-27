@@ -365,7 +365,7 @@ export async function GET(req: NextRequest) {
 
     const entries = await prisma.dailyRoster.findMany({
       where: { date: { in: dates } },
-      select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, dog: { select: dogSelect } } as any,
+      select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, guestName: true, dog: { select: dogSelect } } as any,
       orderBy: [{ date: 'asc' }, { dog: { name: 'asc' } }],
     })
 
@@ -385,7 +385,7 @@ export async function GET(req: NextRequest) {
 
     const entries = await prisma.dailyRoster.findMany({
       where: { date },
-      select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, dog: { select: dogSelect } } as any,
+      select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, guestName: true, dog: { select: dogSelect } } as any,
       orderBy: { dog: { name: 'asc' } },
     })
 
@@ -407,8 +407,27 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { dogId, date, type, isPernoite, packageId, hasBanho } = body
+  const { dogId, date, type, isPernoite, packageId, hasBanho, guestName } = body
   const entryType = type || 'CRECHE'
+
+  // ── ADAPTACAO: guest dog without registration — no sale checks needed ──
+  if (guestName && !dogId) {
+    const entry = await prisma.dailyRoster.create({
+      data: {
+        date,
+        source: 'MANUAL',
+        type: entryType,
+        guestName: guestName.trim(),
+        isPernoite: isPernoite || false,
+      },
+      select: {
+        id: true, dogId: true, date: true, source: true, type: true,
+        present: true, isPernoite: true, hasBanho: true, packageId: true,
+        guestName: true, dog: { select: { id: true, name: true, breed: true, ownerName: true, photoUrl: true, serviceType: true, scheduledDays: true, monthlyStartDay: true } },
+      } as any,
+    })
+    return NextResponse.json(entry, { status: 201 })
+  }
 
   // Toggle-only update (hasBanho or isPernoite without adding to roster)
   if (hasBanho !== undefined && !type && !packageId) {
@@ -1069,6 +1088,7 @@ export async function DELETE(req: NextRequest) {
   const from = searchParams.get('from')
   const to = searchParams.get('to')
   const reset = searchParams.get('reset')
+  const entryId = searchParams.get('entryId')
 
   if (reset === 'future') {
     // Kept for backwards compat but should not be used in UI anymore
@@ -1095,6 +1115,12 @@ export async function DELETE(req: NextRequest) {
       removed: result.removed,
       added: result.added,
     })
+  }
+
+  // Delete by entryId (for adaptação entries that have no dogId)
+  if (entryId) {
+    await prisma.dailyRoster.deleteMany({ where: { id: entryId } })
+    return NextResponse.json({ success: true })
   }
 
   if (dogId && date) {

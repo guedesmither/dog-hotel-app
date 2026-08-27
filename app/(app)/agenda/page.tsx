@@ -21,7 +21,7 @@ interface RosterDog {
 
 interface RosterEntry {
   id: string
-  dogId: string
+  dogId: string | null
   date: string
   source: string
   type: string
@@ -29,7 +29,8 @@ interface RosterEntry {
   isPernoite: boolean
   hasBanho: boolean
   packageId: string | null
-  dog: RosterDog
+  guestName: string | null
+  dog: RosterDog | null
 }
 
 interface WeekData {
@@ -93,6 +94,8 @@ export default function AgendaPage() {
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set())
   const [addSearch, setAddSearch] = useState('')
   const [suggestedDogSales, setSuggestedDogSales] = useState<Map<string, string[]>>(new Map())
+  const [showAdaptacao, setShowAdaptacao] = useState(false)
+  const [adaptacaoName, setAdaptacaoName] = useState('')
 
   const weekStartStr = toDateStr(weekStart)
 
@@ -162,29 +165,51 @@ export default function AgendaPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dogId, date, type, packageId }),
       })
-      
       if (!res.ok) {
         const errorData = await res.json()
         setError({ message: errorData.error || 'Erro ao adicionar cão à agenda', details: errorData.reason || errorData.details })
         setShowError(true)
         setPendingAddDog(null)
+      } else {
+        setError(null)
+        setShowError(false)
+        setPendingAddDog(null)
         setAddingToDate(null)
         setDogPackages(null)
-        return
+        await reload()
       }
-      
-      setError(null)
-      setShowError(false)
-      setPendingAddDog(null)
-      setAddingToDate(null)
-      setDogPackages(null)
-      await reload()
     } catch (err) {
       setError({ message: 'Erro ao adicionar cão à agenda', details: err instanceof Error ? err.message : String(err) })
       setShowError(true)
       setPendingAddDog(null)
       setAddingToDate(null)
       setDogPackages(null)
+    }
+  }
+
+  async function addAdaptacao(date: string, name: string) {
+    try {
+      const res = await fetch('/api/roster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, guestName: name, type: 'CRECHE' }),
+      })
+      if (!res.ok) {
+        const errorData = await res.json()
+        setError({ message: errorData.error || 'Erro ao adicionar adaptação', details: errorData.reason || errorData.details })
+        setShowError(true)
+        return
+      }
+      
+      setError(null)
+      setShowError(false)
+      setShowAdaptacao(false)
+      setAdaptacaoName('')
+      setAddingToDate(null)
+      await reload()
+    } catch (err) {
+      setError({ message: 'Erro ao adicionar adaptação', details: err instanceof Error ? err.message : String(err) })
+      setShowError(true)
     }
   }
 
@@ -276,8 +301,12 @@ export default function AgendaPage() {
     }
   }
 
-  async function removeDog(dogId: string, date: string) {
-    await fetch(`/api/roster?dogId=${dogId}&date=${date}`, { method: 'DELETE' })
+  async function removeDog(dogId: string | null, date: string, entryId?: string) {
+    if (entryId) {
+      await fetch(`/api/roster?entryId=${entryId}`, { method: 'DELETE' })
+    } else if (dogId) {
+      await fetch(`/api/roster?dogId=${dogId}&date=${date}`, { method: 'DELETE' })
+    }
     await reload()
   }
 
@@ -403,7 +432,15 @@ export default function AgendaPage() {
   }
 
   function isBolsista(entry: RosterEntry) {
-    return entry.dog.dogStatus === 'BOLSISTA'
+    return entry.dog?.dogStatus === 'BOLSISTA'
+  }
+
+  function entryName(entry: RosterEntry) {
+    return entry.dog?.name || entry.guestName || '—'
+  }
+
+  function entryPhoto(entry: RosterEntry) {
+    return entry.dog?.photoUrl || null
   }
 
   const today = toDateStr(new Date())
@@ -452,7 +489,7 @@ export default function AgendaPage() {
     
     // Ordenar alfabeticamente dentro de cada segmento
     const sortByName = (a: RosterEntry, b: RosterEntry) => 
-      a.dog.name.localeCompare(b.dog.name, 'pt-BR')
+      entryName(a).localeCompare(entryName(b), 'pt-BR')
     
     banho.sort(sortByName)
     undetermined.sort(sortByName)
@@ -847,21 +884,28 @@ export default function AgendaPage() {
                             }`}
                           >
                             <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[8px]">
-                              {entry.dog.photoUrl
-                                ? <img src={entry.dog.photoUrl} alt={entry.dog.name} className="w-full h-full object-cover" />
-                                : entry.dog.name[0].toUpperCase()}
+                              {entryPhoto(entry)
+                                ? <img src={entryPhoto(entry)!} alt={entryName(entry)} className="w-full h-full object-cover" />
+                                : entryName(entry)[0].toUpperCase()}
                             </div>
-                            <Link href={`/dogs/${entry.dogId}`}
-                              className="flex-1 min-w-0"
-                              onClick={e => e.stopPropagation()}>
-                              <p className={`text-xs font-semibold truncate leading-tight ${banhoDado ? 'text-cyan-800' : 'text-gray-800'}`}>
-                                {entry.dog.name}
-                                {banhoDado && <span className="ml-1 text-[9px] font-medium text-cyan-600">· banho dado ✓</span>}
-                              </p>
-                            </Link>
+                            {entry.dog ? (
+                              <Link href={`/dogs/${entry.dogId}`} className="flex-1 min-w-0" onClick={e => e.stopPropagation()}>
+                                <p className={`text-xs font-semibold truncate leading-tight ${banhoDado ? 'text-cyan-800' : 'text-gray-800'}`}>
+                                  {entryName(entry)}
+                                  {banhoDado && <span className="ml-1 text-[9px] font-medium text-cyan-600">· banho dado ✓</span>}
+                                </p>
+                              </Link>
+                            ) : (
+                              <span className="flex-1 min-w-0">
+                                <p className={`text-xs font-semibold truncate leading-tight ${banhoDado ? 'text-cyan-800' : 'text-gray-800'}`}>
+                                  {entryName(entry)}
+                                  {banhoDado && <span className="ml-1 text-[9px] font-medium text-cyan-600">· banho dado ✓</span>}
+                                </p>
+                              </span>
+                            )}
                             {!isFuture && (
                               <button
-                                onClick={() => markPresent(entry.dogId, date, 'BANHO')}
+                                onClick={() => markPresent(entry.dogId || '', date, 'BANHO')}
                                 disabled={isToggling || banhoDado}
                                 title={banhoDado ? 'Banho confirmado' : 'Confirmar banho dado'}
                                 className={`p-0.5 rounded shrink-0 transition-all ${
@@ -875,7 +919,7 @@ export default function AgendaPage() {
                             )}
                             <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
                               <button
-                                onClick={() => removeDog(entry.dogId, date)}
+                                onClick={() => removeDog(entry.dogId, date, entry.id)}
                                 className="p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
                                 title="Remover do dia"
                               >
@@ -919,16 +963,16 @@ export default function AgendaPage() {
                                 className={`group flex items-center gap-1.5 border border-gray-100 border-l-[3px] ${borderColor} rounded-md px-2 py-1.5 hover:shadow-sm transition-all bg-yellow-50/60`}
                               >
                                 <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[8px]">
-                                  {entry.dog.photoUrl
-                                    ? <img src={entry.dog.photoUrl} alt={entry.dog.name} className="w-full h-full object-cover" />
-                                    : entry.dog.name[0].toUpperCase()}
+                                  {entryPhoto(entry)
+                                    ? <img src={entryPhoto(entry)!} alt={entryName(entry)} className="w-full h-full object-cover" />
+                                    : entryName(entry)[0].toUpperCase()}
                                 </div>
                                 <Link href={`/dogs/${entry.dogId}`}
                                   className="flex-1 min-w-0"
                                   onClick={e => e.stopPropagation()}>
                                   <p className={`text-xs font-semibold truncate leading-tight ${
                                     p === false ? 'text-red-600 line-through' : 'text-gray-800'
-                                  }`}>{entry.dog.name}</p>
+                                  }`}>{entryName(entry)}</p>
                                 </Link>
                                 <div className="flex items-center gap-0.5 shrink-0">
                                   {isBolsista(entry) && <span className="text-[9px]" title="Bolsista">🎓</span>}
@@ -938,7 +982,7 @@ export default function AgendaPage() {
                                 {!isFuture && (
                                   <div className="flex gap-0.5">
                                     <button
-                                      onClick={() => markPresent(entry.dogId, date, entry.type)}
+                                      onClick={() => markPresent(entry.dogId || '', date, entry.type)}
                                       disabled={isToggling || p === true}
                                       title="Marcar presente"
                                       className={`p-0.5 rounded shrink-0 transition-all ${
@@ -950,7 +994,7 @@ export default function AgendaPage() {
                                       <Check className="w-3 h-3" />
                                     </button>
                                     <button
-                                      onClick={() => markAbsent(entry.dogId, date, entry.type)}
+                                      onClick={() => markAbsent(entry.dogId || '', date, entry.type)}
                                       disabled={isToggling || p === false}
                                       title="Marcar falta"
                                       className={`p-0.5 rounded shrink-0 transition-all ${
@@ -965,7 +1009,7 @@ export default function AgendaPage() {
                                 )}
                                 <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
                                   <button
-                                    onClick={() => toggleBanho(entry.dogId, date, entry.hasBanho)}
+                                    onClick={() => toggleBanho(entry.dogId || '', date, entry.hasBanho)}
                                     className={`p-0.5 rounded transition-all ${
                                       entry.hasBanho ? 'text-cyan-600 hover:bg-cyan-100' : 'text-gray-400 hover:text-cyan-500 hover:bg-cyan-50'
                                     }`}
@@ -975,7 +1019,7 @@ export default function AgendaPage() {
                                   </button>
                                   {entry.type === 'CRECHE' && (
                                     <button
-                                      onClick={() => togglePernoite(entry.dogId, date, entry.isPernoite)}
+                                      onClick={() => togglePernoite(entry.dogId || '', date, entry.isPernoite)}
                                       className={`p-0.5 rounded transition-all ${
                                         entry.isPernoite ? 'text-purple-600 hover:bg-purple-100' : 'text-gray-400 hover:text-purple-500 hover:bg-purple-50'
                                       }`}
@@ -992,7 +1036,7 @@ export default function AgendaPage() {
                                     ⚙️
                                   </button>
                                   <button
-                                    onClick={() => removeDog(entry.dogId, date)}
+                                    onClick={() => removeDog(entry.dogId, date, entry.id)}
                                     className="p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
                                     title="Remover do dia"
                                   >
@@ -1009,7 +1053,7 @@ export default function AgendaPage() {
                                       { type: 'REPOSICAO', icon: '🔄', bg: 'hover:bg-purple-100' },
                                       { type: 'BANHO', icon: '🛁', bg: 'hover:bg-cyan-100' },
                                     ].map(({ type, icon, bg }) => (
-                                      <button key={type} onClick={e => { e.stopPropagation(); changeType(entry.dogId, date, type) }}
+                                      <button key={type} onClick={e => { e.stopPropagation(); changeType(entry.dogId || '', date, type) }}
                                         className={`text-xs px-1.5 py-1 rounded ${bg} transition-colors`}
                                         title={type}
                                       >{icon}</button>
@@ -1055,14 +1099,14 @@ export default function AgendaPage() {
                                 className={`group flex items-center gap-1.5 border border-gray-100 border-l-[3px] ${borderColor} rounded-md px-2 py-1.5 hover:shadow-sm transition-all bg-green-50/60`}
                               >
                                 <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[8px]">
-                                  {entry.dog.photoUrl
-                                    ? <img src={entry.dog.photoUrl} alt={entry.dog.name} className="w-full h-full object-cover" />
-                                    : entry.dog.name[0].toUpperCase()}
+                                  {entryPhoto(entry)
+                                    ? <img src={entryPhoto(entry)!} alt={entryName(entry)} className="w-full h-full object-cover" />
+                                    : entryName(entry)[0].toUpperCase()}
                                 </div>
                                 <Link href={`/dogs/${entry.dogId}`}
                                   className="flex-1 min-w-0"
                                   onClick={e => e.stopPropagation()}>
-                                  <p className="text-xs font-semibold truncate leading-tight text-gray-800">{entry.dog.name}</p>
+                                  <p className="text-xs font-semibold truncate leading-tight text-gray-800">{entryName(entry)}</p>
                                 </Link>
                                 <div className="flex items-center gap-0.5 shrink-0">
                                   {isBolsista(entry) && <span className="text-[9px]" title="Bolsista">🎓</span>}
@@ -1071,7 +1115,7 @@ export default function AgendaPage() {
                                 </div>
                                 <div className="flex gap-0.5">
                                   <button
-                                    onClick={() => markPresent(entry.dogId, date, entry.type)}
+                                    onClick={() => markPresent(entry.dogId || '', date, entry.type)}
                                     disabled={isToggling || p === true}
                                     title="Marcar presente"
                                     className="p-0.5 rounded shrink-0 transition-all text-green-600 bg-green-100 cursor-default"
@@ -1079,7 +1123,7 @@ export default function AgendaPage() {
                                     <Check className="w-3 h-3" />
                                   </button>
                                   <button
-                                    onClick={() => markAbsent(entry.dogId, date, entry.type)}
+                                    onClick={() => markAbsent(entry.dogId || '', date, entry.type)}
                                     disabled={isToggling || p === false}
                                     title="Marcar falta"
                                     className="p-0.5 rounded shrink-0 transition-all text-gray-400 hover:text-red-500 hover:bg-red-100"
@@ -1089,7 +1133,7 @@ export default function AgendaPage() {
                                 </div>
                                 <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
                                   <button
-                                    onClick={() => toggleBanho(entry.dogId, date, entry.hasBanho)}
+                                    onClick={() => toggleBanho(entry.dogId || '', date, entry.hasBanho)}
                                     className={`p-0.5 rounded transition-all ${
                                       entry.hasBanho ? 'text-cyan-600 hover:bg-cyan-100' : 'text-gray-400 hover:text-cyan-500 hover:bg-cyan-50'
                                     }`}
@@ -1099,7 +1143,7 @@ export default function AgendaPage() {
                                   </button>
                                   {entry.type === 'CRECHE' && (
                                     <button
-                                      onClick={() => togglePernoite(entry.dogId, date, entry.isPernoite)}
+                                      onClick={() => togglePernoite(entry.dogId || '', date, entry.isPernoite)}
                                       className={`p-0.5 rounded transition-all ${
                                         entry.isPernoite ? 'text-purple-600 hover:bg-purple-100' : 'text-gray-400 hover:text-purple-500 hover:bg-purple-50'
                                       }`}
@@ -1116,7 +1160,7 @@ export default function AgendaPage() {
                                     ⚙️
                                   </button>
                                   <button
-                                    onClick={() => removeDog(entry.dogId, date)}
+                                    onClick={() => removeDog(entry.dogId, date, entry.id)}
                                     className="p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
                                     title="Remover do dia"
                                   >
@@ -1133,7 +1177,7 @@ export default function AgendaPage() {
                                       { type: 'REPOSICAO', icon: '🔄', bg: 'hover:bg-purple-100' },
                                       { type: 'BANHO', icon: '🛁', bg: 'hover:bg-cyan-100' },
                                     ].map(({ type, icon, bg }) => (
-                                      <button key={type} onClick={e => { e.stopPropagation(); changeType(entry.dogId, date, type) }}
+                                      <button key={type} onClick={e => { e.stopPropagation(); changeType(entry.dogId || '', date, type) }}
                                         className={`text-xs px-1.5 py-1 rounded ${bg} transition-colors`}
                                         title={type}
                                       >{icon}</button>
@@ -1178,14 +1222,14 @@ export default function AgendaPage() {
                                 className={`group flex items-center gap-1.5 border border-gray-100 border-l-[3px] ${borderColor} rounded-md px-2 py-1.5 hover:shadow-sm transition-all bg-red-50/60`}
                               >
                                 <div className="w-5 h-5 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[8px]">
-                                  {entry.dog.photoUrl
-                                    ? <img src={entry.dog.photoUrl} alt={entry.dog.name} className="w-full h-full object-cover" />
-                                    : entry.dog.name[0].toUpperCase()}
+                                  {entryPhoto(entry)
+                                    ? <img src={entryPhoto(entry)!} alt={entryName(entry)} className="w-full h-full object-cover" />
+                                    : entryName(entry)[0].toUpperCase()}
                                 </div>
                                 <Link href={`/dogs/${entry.dogId}`}
                                   className="flex-1 min-w-0"
                                   onClick={e => e.stopPropagation()}>
-                                  <p className="text-xs font-semibold truncate leading-tight text-red-600 line-through">{entry.dog.name}</p>
+                                  <p className="text-xs font-semibold truncate leading-tight text-red-600 line-through">{entryName(entry)}</p>
                                 </Link>
                                 <div className="flex items-center gap-0.5 shrink-0">
                                   {isBolsista(entry) && <span className="text-[9px]" title="Bolsista">🎓</span>}
@@ -1194,7 +1238,7 @@ export default function AgendaPage() {
                                 </div>
                                 <div className="flex gap-0.5">
                                   <button
-                                    onClick={() => markPresent(entry.dogId, date, entry.type)}
+                                    onClick={() => markPresent(entry.dogId || '', date, entry.type)}
                                     disabled={isToggling || p === true}
                                     title="Marcar presente"
                                     className="p-0.5 rounded shrink-0 transition-all text-gray-400 hover:text-green-600 hover:bg-green-100"
@@ -1202,7 +1246,7 @@ export default function AgendaPage() {
                                     <Check className="w-3 h-3" />
                                   </button>
                                   <button
-                                    onClick={() => markAbsent(entry.dogId, date, entry.type)}
+                                    onClick={() => markAbsent(entry.dogId || '', date, entry.type)}
                                     disabled={isToggling || p === false}
                                     title="Marcar falta"
                                     className="p-0.5 rounded shrink-0 transition-all text-red-500 bg-red-100 cursor-default"
@@ -1212,7 +1256,7 @@ export default function AgendaPage() {
                                 </div>
                                 <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
                                   <button
-                                    onClick={() => toggleBanho(entry.dogId, date, entry.hasBanho)}
+                                    onClick={() => toggleBanho(entry.dogId || '', date, entry.hasBanho)}
                                     className={`p-0.5 rounded transition-all ${
                                       entry.hasBanho ? 'text-cyan-600 hover:bg-cyan-100' : 'text-gray-400 hover:text-cyan-500 hover:bg-cyan-50'
                                     }`}
@@ -1222,7 +1266,7 @@ export default function AgendaPage() {
                                   </button>
                                   {entry.type === 'CRECHE' && (
                                     <button
-                                      onClick={() => togglePernoite(entry.dogId, date, entry.isPernoite)}
+                                      onClick={() => togglePernoite(entry.dogId || '', date, entry.isPernoite)}
                                       className={`p-0.5 rounded transition-all ${
                                         entry.isPernoite ? 'text-purple-600 hover:bg-purple-100' : 'text-gray-400 hover:text-purple-500 hover:bg-purple-50'
                                       }`}
@@ -1239,7 +1283,7 @@ export default function AgendaPage() {
                                     ⚙️
                                   </button>
                                   <button
-                                    onClick={() => removeDog(entry.dogId, date)}
+                                    onClick={() => removeDog(entry.dogId, date, entry.id)}
                                     className="p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
                                     title="Remover do dia"
                                   >
@@ -1256,7 +1300,7 @@ export default function AgendaPage() {
                                       { type: 'REPOSICAO', icon: '🔄', bg: 'hover:bg-purple-100' },
                                       { type: 'BANHO', icon: '🛁', bg: 'hover:bg-cyan-100' },
                                     ].map(({ type, icon, bg }) => (
-                                      <button key={type} onClick={e => { e.stopPropagation(); changeType(entry.dogId, date, type) }}
+                                      <button key={type} onClick={e => { e.stopPropagation(); changeType(entry.dogId || '', date, type) }}
                                         className={`text-xs px-1.5 py-1 rounded ${bg} transition-colors`}
                                         title={type}
                                       >{icon}</button>
@@ -1394,6 +1438,42 @@ export default function AgendaPage() {
                               )
                             })}
                           </div>
+                          {/* Adaptação: cão sem cadastro */}
+                          <div className="pt-1.5 mt-1 border-t border-gray-100">
+                            {showAdaptacao ? (
+                              <div className="flex gap-1">
+                                <input
+                                  type="text"
+                                  placeholder="Nome do cão..."
+                                  value={adaptacaoName}
+                                  onChange={e => setAdaptacaoName(e.target.value)}
+                                  onKeyDown={e => { if (e.key === 'Enter' && adaptacaoName.trim()) addAdaptacao(date, adaptacaoName.trim()) }}
+                                  className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => adaptacaoName.trim() && addAdaptacao(date, adaptacaoName.trim())}
+                                  disabled={!adaptacaoName.trim()}
+                                  className="px-2 py-1 text-xs bg-indigo-500 hover:bg-indigo-600 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => { setShowAdaptacao(false); setAdaptacaoName('') }}
+                                  className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-500 rounded transition-colors"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setShowAdaptacao(true)}
+                                className="w-full flex items-center justify-center gap-1.5 px-2 py-1 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded transition-colors"
+                              >
+                                🐕 Adaptação (sem cadastro)
+                              </button>
+                            )}
+                          </div>
                         </>
                       )}
                     </div>
@@ -1404,6 +1484,8 @@ export default function AgendaPage() {
                         setAddSearch('')
                         setPendingAddDog(null)
                         setDogPackages(null)
+                        setShowAdaptacao(false)
+                        setAdaptacaoName('')
                         loadSuggestedDogs(date)
                       }}
                       className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors"
