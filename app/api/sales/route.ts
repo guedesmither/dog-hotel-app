@@ -313,7 +313,7 @@ export async function POST(req: NextRequest) {
 
     const sale = await prisma.sales.create({
       data: {
-        saleDate: saleDate ? new Date(saleDate) : new Date(),
+        saleDate: saleDate ? new Date(saleDate + 'T12:00:00') : new Date(),
         finalPrice: finalPrice || 0,
         basePrice,
         discount: discount || 0,
@@ -326,8 +326,8 @@ export async function POST(req: NextRequest) {
         notes: notes || null,
         dogId: dogId || null,
         saleType: saleType,
-        startDate: saleStartDate ? new Date(saleStartDate) : null,
-        endDate: saleEndDate ? new Date(saleEndDate) : null,
+        startDate: saleStartDate ? new Date(saleStartDate + 'T12:00:00') : null,
+        endDate: saleEndDate ? new Date(saleEndDate + 'T12:00:00') : null,
         items: {
           create: items.map((item: any) => ({
             productId: item.productId,
@@ -371,7 +371,7 @@ export async function POST(req: NextRequest) {
             packageType: `AVULSO_${totalDays}`,
             totalDays,
             remainingDays: totalDays,
-            purchaseDate: saleDate ? new Date(saleDate) : new Date(),
+            purchaseDate: saleDate ? new Date(saleDate + 'T12:00:00') : new Date(),
             expiryDate,
             pricePaid: finalPrice || 0,
             isActive: true,
@@ -396,16 +396,16 @@ export async function POST(req: NextRequest) {
             dogId,
             active: false,
             isScheduled: true,
-            scheduledCheckIn: new Date(saleStartDate),
-            scheduledCheckOut: saleEndDate ? new Date(saleEndDate) : new Date(saleStartDate),
+            scheduledCheckIn: new Date(saleStartDate + 'T12:00:00'),
+            scheduledCheckOut: saleEndDate ? new Date(saleEndDate + 'T12:00:00') : new Date(saleStartDate + 'T12:00:00'),
             notes: `Agendamento criado automaticamente a partir da venda #${sale.id.slice(-6)}`,
           },
         })
         console.log('Stay criado automaticamente para venda HOTEL:', sale.id)
 
         // Auto-lançar o cão na agenda para cada dia do período de hotel
-        const start = new Date(saleStartDate)
-        const end = saleEndDate ? new Date(saleEndDate) : new Date(saleStartDate)
+        const start = new Date(saleStartDate + 'T12:00:00')
+        const end = saleEndDate ? new Date(saleEndDate + 'T12:00:00') : new Date(saleStartDate + 'T12:00:00')
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           const dateStr = d.toISOString().split('T')[0]
           await prisma.dailyRoster.upsert({
@@ -423,8 +423,8 @@ export async function POST(req: NextRequest) {
     // Auto-reseed agenda for MENSAL sales to add dog to all valid dates
     if (saleType === 'MENSAL' && dogId) {
       try {
-        const start = saleStartDate ? new Date(saleStartDate) : new Date(saleDate || new Date())
-        let end = saleEndDate ? new Date(saleEndDate) : null
+        const start = saleStartDate ? new Date(saleStartDate + 'T12:00:00') : new Date(saleDate ? saleDate + 'T12:00:00' : new Date())
+        let end = saleEndDate ? new Date(saleEndDate + 'T12:00:00') : null
         if (!end) {
           end = new Date(start)
           const dm = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate()
