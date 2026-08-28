@@ -252,7 +252,7 @@ function VendasContent() {
       } else {
         const errorData = await res.json()
         console.error('Erro na resposta:', errorData)
-        toast.error(`Erro ao registrar venda: ${errorData.error || 'Erro desconhecido'}`)
+        toast.error(`Erro ao registrar venda: ${errorData.error || 'Erro desconhecido'}${errorData.details ? ' — ' + errorData.details : ''}`)
       }
     } catch (error) {
       console.error('Erro ao registrar venda:', error)
