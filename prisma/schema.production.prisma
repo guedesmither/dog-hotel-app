@@ -87,6 +87,7 @@ model Dog {
   priceHistory        DogPriceHistory[]
   packages            Package[]
   sales               Sales[]
+  whatsappConversations WhatsAppConversation[] @relation("WhatsAppDog")
 }
 
 model Stay {
@@ -361,5 +362,32 @@ model DogPriceHistory {
   discountValue   Float    @default(0)
   finalPrice      Float    // Calculated: agreedPrice - discounts
   notes           String?
+  createdAt       DateTime @default(now())
+}
+
+// WhatsApp messaging
+model WhatsAppConversation {
+  id              String   @id @default(cuid())
+  phoneNumber     String   @unique // E.164 format: 5511999999999
+  contactName     String?  // Name from phone book or manual
+  dogId           String?  // Linked dog if phone matches ownerPhone
+  dog             Dog?     @relation("WhatsAppDog", fields: [dogId], references: [id])
+  autoReply       Boolean  @default(true) // Toggle AI auto-reply per conversation
+  lastMessageAt   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  messages        WhatsAppMessage[]
+}
+
+model WhatsAppMessage {
+  id              String   @id @default(cuid())
+  conversationId  String
+  conversation    WhatsAppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction       String   // INBOUND or OUTBOUND
+  source          String   @default("HUMAN") // HUMAN, AI, SYSTEM
+  text            String
+  waMessageId     String?  // WhatsApp message ID for status tracking
+  status          String   @default("SENT") // SENT, DELIVERED, READ, FAILED
+  aiSuggestion    String?  // Gemini suggested response (for manual mode)
   createdAt       DateTime @default(now())
 }
