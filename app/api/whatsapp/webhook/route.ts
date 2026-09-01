@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
         data: { lastMessageAt: new Date() },
       })
 
-      if (conv.autoReply) {
+      // Auto-reply disabled by default — only respond if manually enabled per conversation
+      if (conv.autoReply === true) {
         try {
           const history = await buildConversationHistory(conv.id)
           const dogContext = buildDogContext(conv.dog as any)
@@ -137,7 +138,7 @@ export async function POST(req: NextRequest) {
         data: { lastMessageAt: new Date() },
       })
 
-      if (conv.autoReply) {
+      if (conv.autoReply === true) {
         try {
           const history = await buildConversationHistory(conv.id)
           const dogContext = buildDogContext(conv.dog as any)

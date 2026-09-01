@@ -130,7 +130,7 @@ export async function findOrCreateConversation(phoneNumber: string) {
         phoneNumber: normalized,
         contactName: dog?.ownerName || null,
         dogId: dog?.id || null,
-        autoReply: true,
+        autoReply: false,
       },
       include: { dog: { select: { id: true, name: true, ownerName: true, ownerPhone: true } } },
     })
