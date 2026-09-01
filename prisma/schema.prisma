@@ -372,7 +372,7 @@ model WhatsAppConversation {
   contactName     String?  // Name from phone book or manual
   dogId           String?  // Linked dog if phone matches ownerPhone
   dog             Dog?     @relation("WhatsAppDog", fields: [dogId], references: [id])
-  autoReply       Boolean  @default(true) // Toggle AI auto-reply per conversation
+  autoReply       Boolean  @default(false) // Toggle AI auto-reply per conversation
   lastMessageAt   DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

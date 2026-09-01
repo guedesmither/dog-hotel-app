@@ -1,0 +1,6 @@
+const { PrismaClient } = require('@prisma/client')
+const p = new PrismaClient()
+p.whatsAppConversation.updateMany({ where: { autoReply: true }, data: { autoReply: false } })
+  .then(r => console.log('Updated:', r.count, 'conversations'))
+  .catch(e => console.error(e))
+  .finally(() => p.$disconnect())
