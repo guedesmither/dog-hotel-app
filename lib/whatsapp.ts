@@ -18,7 +18,7 @@ export function getZapiClientToken(): string {
 function baseUrl(): string {
   const instanceId = getInstanceId()
   const token = getToken()
-  return `https://api.z-api.io/instance/${instanceId}/token/${token}`
+  return `https://api.z-api.io/instances/${instanceId}/token/${token}`
 }
 
 /**
@@ -35,7 +35,10 @@ export async function sendWhatsAppMessage(to: string, text: string): Promise<{ i
   try {
     const res = await fetch(`${baseUrl()}/send-text`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Client-Token': getZapiClientToken(),
+      },
       body: JSON.stringify({ phone: to, message: text }),
     })
 
@@ -97,7 +100,12 @@ export async function findOrCreateConversation(phoneNumber: string) {
  */
 export async function getQRCode(): Promise<{ qrCode: string; connected: boolean } | null> {
   try {
-    const res = await fetch(`${baseUrl()}/qr-code`)
+    const res = await fetch(`${baseUrl()}/qrcode`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Client-Token': getZapiClientToken(),
+      },
+    })
     if (!res.ok) return null
     const data = await res.json()
     return { qrCode: data.qrcode || data.value || '', connected: false }
@@ -112,11 +120,16 @@ export async function getQRCode(): Promise<{ qrCode: string; connected: boolean 
  */
 export async function getInstanceStatus(): Promise<{ connected: boolean; phone?: string } | null> {
   try {
-    const res = await fetch(`${baseUrl()}/instance`)
+    const res = await fetch(`${baseUrl()}/status`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Client-Token': getZapiClientToken(),
+      },
+    })
     if (!res.ok) return null
     const data = await res.json()
     return {
-      connected: data.connected || data.status === 'CONNECTED',
+      connected: data.connected || false,
       phone: data.phone,
     }
   } catch (err) {
