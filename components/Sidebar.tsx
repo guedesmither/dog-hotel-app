@@ -27,6 +27,7 @@ import {
   BarChart3,
   Calendar,
   MessageCircle,
+  Send,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn, ROLE_LABELS } from '@/lib/utils'
@@ -112,6 +113,12 @@ const navSections: NavSection[] = [
         href: '/mensagens',
         label: 'Mensagens',
         icon: <MessageCircle className="w-5 h-5" />,
+        roles: ['ADMIN', 'MANAGER'],
+      },
+      {
+        href: '/mensagens/resumo',
+        label: 'Resumo Diário',
+        icon: <Send className="w-5 h-5" />,
         roles: ['ADMIN', 'MANAGER'],
       },
     ],
