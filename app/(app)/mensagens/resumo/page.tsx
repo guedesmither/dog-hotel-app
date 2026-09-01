@@ -52,6 +52,7 @@ export default function DailySummaryPage() {
   const [summaries, setSummaries] = useState<DogSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [generatingId, setGeneratingId] = useState<string | null>(null)
   const [sendingId, setSendingId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
@@ -101,6 +102,28 @@ export default function DailySummaryPage() {
       setError('Erro ao gerar rascunhos')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  async function generateSingleDraft(summary: DogSummary) {
+    setGeneratingId(summary.dogId)
+    setError(null)
+    try {
+      const res = await fetch('/api/whatsapp/daily-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, dogIds: [summary.dogId] }),
+      })
+      if (res.ok) {
+        await loadSummaries()
+      } else {
+        const err = await res.json()
+        setError(err.error || 'Erro ao gerar rascunho')
+      }
+    } catch {
+      setError('Erro ao gerar rascunho')
+    } finally {
+      setGeneratingId(null)
     }
   }
 
@@ -370,6 +393,14 @@ export default function DailySummaryPage() {
                           Editar
                         </button>
                         <button
+                          onClick={() => generateSingleDraft(summary)}
+                          disabled={generatingId === summary.dogId}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50"
+                        >
+                          {generatingId === summary.dogId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                          Gerar
+                        </button>
+                        <button
                           onClick={() => fileInputRefs.current[summary.dogId]?.click()}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
                         >
@@ -391,9 +422,19 @@ export default function DailySummaryPage() {
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-400 italic">
-                    Sem rascunho. Clique em "Gerar rascunhos" para criar.
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-400 italic">
+                      Sem rascunho ainda.
+                    </p>
+                    <button
+                      onClick={() => generateSingleDraft(summary)}
+                      disabled={generatingId === summary.dogId}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50"
+                    >
+                      {generatingId === summary.dogId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      Gerar relatório
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
