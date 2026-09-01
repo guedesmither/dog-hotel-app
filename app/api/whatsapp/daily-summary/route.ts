@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { sendWhatsAppMessage, normalizePhone } from '@/lib/whatsapp'
+import { sendWhatsAppMessage, sendWhatsAppImage, normalizePhone } from '@/lib/whatsapp'
 import { getGeminiApiKey } from '@/lib/gemini'
 
 export const dynamic = 'force-dynamic'
@@ -230,7 +230,7 @@ export async function PATCH(req: NextRequest) {
   if (role === 'TUTOR') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
 
   const body = await req.json()
-  const { date, dogId, reportId } = body
+  const { date, dogId, reportId, image } = body as { date: string; dogId: string; reportId: string; image?: string }
 
   if (!date || !dogId || !reportId) {
     return NextResponse.json({ error: 'Parâmetros obrigatórios: date, dogId, reportId' }, { status: 400 })
@@ -262,8 +262,10 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Telefone do tutor não encontrado' }, { status: 400 })
   }
 
-  // Send via WhatsApp
-  const sendResult = await sendWhatsAppMessage(phone, message)
+  // Send via WhatsApp (image with caption or text only)
+  const sendResult = image
+    ? await sendWhatsAppImage(phone, image, message)
+    : await sendWhatsAppMessage(phone, message)
 
   if (!sendResult) {
     return NextResponse.json({ error: 'Erro ao enviar mensagem' }, { status: 500 })
@@ -347,20 +349,22 @@ function buildReportPrompt(
 
 A mensagem deve ser:
 - Em português brasileiro
-- Breve e carinhosa (3-6 frases)
-- Personalizada com as informações do dia
+- Carinhosa e personalizada (4-8 frases)
+- OBRIGATORIAMENTE incluir informações sobre alimentação (o que comeu, se comeu bem, recusou, etc)
+- OBRIGATORIAMENTE incluir informações sobre medicação se houver (se foi aplicada, se recusou, etc)
+- Incluir o humor e as atividades do dia
 - Usar 1-2 emojis
 - Não mencionar valores financeiros
 - Terminar se colocando à disposição
 
 Dados do dia de ${dog.name}:
 ${moodText ? `- Humor: ${moodText}` : ''}
-${mealsText.length > 0 ? `- Alimentação:\n${mealsText.map(m => `  ${m}`).join('\n')}` : ''}
+${mealsText.length > 0 ? `- Alimentação:\n${mealsText.map(m => `  ${m}`).join('\n')}` : '- Alimentação: sem registros'}
 ${activitiesText ? `- Atividades: ${activitiesText}` : ''}
 ${medText ? `- ${medText}` : ''}
 ${report.generalNotes ? `- Observações: ${report.generalNotes}` : ''}
 ${report.checkInNotes ? `- Notas de entrada: ${report.checkInNotes}` : ''}
-${report.photos.length > 0 ? `- ${report.photos.length} foto(s) enviada(s)` : ''}
+${report.photos.length > 0 ? `- ${report.photos.length} foto(s) tirada(s) durante o dia` : ''}
 
-Escreva apenas a mensagem, pronta para enviar no WhatsApp.${profileInstruction}`
+IMPORTANTE: Sempre mencione como foi a alimentação do cão, mesmo que tenha recusado ou não tenha comido. Se houve medicação, sempre mencione se foi aplicada ou não. Escreva apenas a mensagem, pronta para enviar no WhatsApp.${profileInstruction}`
 }

@@ -57,6 +57,50 @@ export async function sendWhatsAppMessage(to: string, text: string): Promise<{ i
 }
 
 /**
+ * Send an image with caption via Z-API
+ * image: URL or base64 string (data:image/...)
+ */
+export async function sendWhatsAppImage(
+  to: string,
+  image: string,
+  caption?: string
+): Promise<{ id: string } | null> {
+  const instanceId = getInstanceId()
+  const token = getToken()
+  if (!instanceId || !token) {
+    console.error('[whatsapp] Missing ZAPI_INSTANCE_ID or ZAPI_TOKEN')
+    return null
+  }
+
+  try {
+    const res = await fetch(`${baseUrl()}/send-image`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Client-Token': getZapiClientToken(),
+      },
+      body: JSON.stringify({
+        phone: to,
+        image,
+        caption: caption || '',
+      }),
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      console.error('[whatsapp] Z-API send-image failed:', err)
+      return null
+    }
+
+    const data = await res.json()
+    return { id: data.messageId || data.id || '' }
+  } catch (err) {
+    console.error('[whatsapp] Send image error:', err)
+    return null
+  }
+}
+
+/**
  * Normalize phone to E.164 (digits only, with country code)
  */
 export function normalizePhone(phone: string): string {
