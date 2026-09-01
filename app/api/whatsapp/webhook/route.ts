@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getZapiClientToken, findOrCreateConversation, sendWhatsAppMessage } from '@/lib/whatsapp'
-import { generateGeminiResponse, buildConversationHistory, buildDogContext } from '@/lib/gemini'
+import { getZapiClientToken, findOrCreateConversation } from '@/lib/whatsapp'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,37 +62,6 @@ export async function POST(req: NextRequest) {
         data: { lastMessageAt: new Date() },
       })
 
-      // Auto-reply disabled by default — only respond if manually enabled per conversation
-      if (conv.autoReply === true) {
-        try {
-          const history = await buildConversationHistory(conv.id)
-          const dogContext = buildDogContext(conv.dog as any)
-          const geminiResult = await generateGeminiResponse(history, dogContext)
-
-          if (geminiResult?.text) {
-            const sendResult = await sendWhatsAppMessage(from, geminiResult.text)
-
-            await prisma.whatsAppMessage.create({
-              data: {
-                conversationId: conv.id,
-                direction: 'OUTBOUND',
-                source: 'AI',
-                text: geminiResult.text,
-                waMessageId: sendResult?.id || null,
-                status: sendResult ? 'SENT' : 'FAILED',
-              },
-            })
-
-            await prisma.whatsAppConversation.update({
-              where: { id: conv.id },
-              data: { lastMessageAt: new Date() },
-            })
-          }
-        } catch (aiErr) {
-          console.error('[webhook] AI auto-reply error:', aiErr)
-        }
-      }
-
       return NextResponse.json({ status: 'ok' })
     }
 
@@ -137,31 +105,6 @@ export async function POST(req: NextRequest) {
         where: { id: conv.id },
         data: { lastMessageAt: new Date() },
       })
-
-      if (conv.autoReply === true) {
-        try {
-          const history = await buildConversationHistory(conv.id)
-          const dogContext = buildDogContext(conv.dog as any)
-          const geminiResult = await generateGeminiResponse(history, dogContext)
-
-          if (geminiResult?.text) {
-            const sendResult = await sendWhatsAppMessage(from, geminiResult.text)
-
-            await prisma.whatsAppMessage.create({
-              data: {
-                conversationId: conv.id,
-                direction: 'OUTBOUND',
-                source: 'AI',
-                text: geminiResult.text,
-                waMessageId: sendResult?.id || null,
-                status: sendResult ? 'SENT' : 'FAILED',
-              },
-            })
-          }
-        } catch (aiErr) {
-          console.error('[webhook] AI auto-reply error:', aiErr)
-        }
-      }
 
       return NextResponse.json({ status: 'ok' })
     }
