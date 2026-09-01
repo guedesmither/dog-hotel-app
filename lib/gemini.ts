@@ -7,7 +7,7 @@ export function getGeminiApiKey(): string {
   return process.env.GEMINI_API_KEY || ''
 }
 
-const SYSTEM_PROMPT = `Você é a assistente virtual do Dog Hotel, um hotel e creche para cães.
+const DEFAULT_SYSTEM_PROMPT = `Você é a assistente virtual do Dog Hotel, um hotel e creche para cães.
 Você responde mensagens dos tutores (donos dos cães) de forma simpática, profissional e breve.
 
 Regras:
@@ -21,6 +21,20 @@ Regras:
 - Para emergências ou questões urgentes, oriente a ligar para o hotel
 
 Você pode ter acesso ao contexto do cão (nome, raça, status na agenda) se disponível.`
+
+/**
+ * Get the attendant profile from the database (if set)
+ */
+async function getAttendantProfile(): Promise<string | null> {
+  try {
+    const setting = await prisma.appSetting.findUnique({
+      where: { key: 'whatsapp_attendant_profile' },
+    })
+    return setting?.value || null
+  } catch {
+    return null
+  }
+}
 
 interface GeminiResponse {
   text: string
@@ -40,9 +54,13 @@ export async function generateGeminiResponse(
     return null
   }
 
+  // Use attendant profile from DB if available, otherwise use default
+  const attendantProfile = await getAttendantProfile()
+  const systemPrompt = attendantProfile || DEFAULT_SYSTEM_PROMPT
+
   const systemInstruction = dogContext
-    ? `${SYSTEM_PROMPT}\n\nContexto do cão: ${dogContext}`
-    : SYSTEM_PROMPT
+    ? `${systemPrompt}\n\nContexto do cão: ${dogContext}`
+    : systemPrompt
 
   const contents = conversationHistory.map(msg => ({
     role: msg.role,

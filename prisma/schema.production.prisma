@@ -391,3 +391,10 @@ model WhatsAppMessage {
   aiSuggestion    String?  // Gemini suggested response (for manual mode)
   createdAt       DateTime @default(now())
 }
+
+// App settings (key-value store)
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

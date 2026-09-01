@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Send, Bot, User, Sparkles, Power, Phone, Dog as DogIcon, QrCode, AlertCircle } from 'lucide-react'
+import { Send, Bot, User, Sparkles, Power, Phone, Dog as DogIcon, QrCode, AlertCircle, Settings, X, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface WhatsAppMessage {
@@ -60,6 +60,10 @@ export default function MensagensPage() {
   const [suggestion, setSuggestion] = useState<string | null>(null)
   const [showMobileChat, setShowMobileChat] = useState(false)
   const [waStatus, setWaStatus] = useState<{ configured: boolean; connected: boolean; qrCode?: string | null; phone?: string; message?: string } | null>(null)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [profileText, setProfileText] = useState('')
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileSaving, setProfileSaving] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const loadConversations = useCallback(async () => {
@@ -93,6 +97,50 @@ export default function MensagensPage() {
   useEffect(() => {
     fetch('/api/whatsapp/status').then(r => r.json()).then(setWaStatus).catch(() => {})
   }, [])
+
+  async function loadProfile() {
+    try {
+      const res = await fetch('/api/whatsapp/profile')
+      if (res.ok) {
+        const data = await res.json()
+        setProfileText(data.profile || '')
+      }
+    } catch {}
+  }
+
+  async function generateProfile() {
+    setProfileLoading(true)
+    try {
+      const res = await fetch('/api/whatsapp/profile', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setProfileText(data.profile || '')
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Erro ao gerar perfil')
+      }
+    } catch {
+      alert('Erro ao gerar perfil')
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
+  async function saveProfile() {
+    setProfileSaving(true)
+    try {
+      await fetch('/api/whatsapp/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: profileText }),
+      })
+      setShowProfileModal(false)
+    } catch {
+      alert('Erro ao salvar perfil')
+    } finally {
+      setProfileSaving(false)
+    }
+  }
 
   useEffect(() => {
     if (selectedConv) {
@@ -194,10 +242,19 @@ export default function MensagensPage() {
         showMobileChat && selectedConv ? 'hidden md:flex' : 'flex'
       )}>
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-          <h2 className="font-bold text-gray-800 flex items-center gap-2">
-            <Phone className="w-4 h-4 text-green-600" />
-            Mensagens
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-gray-800 flex items-center gap-2">
+              <Phone className="w-4 h-4 text-green-600" />
+              Mensagens
+            </h2>
+            <button
+              onClick={() => { loadProfile(); setShowProfileModal(true) }}
+              className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors text-gray-500"
+              title="Perfil de atendimento da IA"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
           <p className="text-xs text-gray-500 mt-0.5">WhatsApp · Gemini AI</p>
         </div>
 
@@ -404,6 +461,62 @@ export default function MensagensPage() {
         )}
       </div>
     </div>
+
+      {/* Profile Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowProfileModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <Bot className="w-5 h-5 text-green-600" />
+                Perfil de Atendimento da IA
+              </h3>
+              <button onClick={() => setShowProfileModal(false)} className="p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto flex-1">
+              <p className="text-sm text-gray-500 mb-3">
+                O Gemini usa este perfil como instrucao de sistema ao responder mensagens automaticamente.
+                Voce pode gerar automaticamente a partir do historico de mensagens ou editar manualmente.
+              </p>
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={generateProfile}
+                  disabled={profileLoading}
+                  className="flex items-center gap-2 px-3 py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                >
+                  {profileLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  Gerar a partir do historico
+                </button>
+              </div>
+              <textarea
+                value={profileText}
+                onChange={e => setProfileText(e.target.value)}
+                rows={15}
+                placeholder="Descreva aqui como o atendente deve responder: tom de voz, regras, procedimentos, limites, etc."
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none font-mono"
+              />
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-3 border-t border-gray-200">
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={saveProfile}
+                disabled={profileSaving}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+              >
+                {profileSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Salvar perfil
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
