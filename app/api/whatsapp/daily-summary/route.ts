@@ -7,7 +7,7 @@ import { getGeminiApiKey } from '@/lib/gemini'
 
 export const dynamic = 'force-dynamic'
 
-const GEMINI_MODEL = 'gemini-3.6-flash'
+const GEMINI_MODEL = 'gemini-2.5-flash'
 
 interface DogSummary {
   dogId: string
@@ -170,11 +170,19 @@ export async function POST(req: NextRequest) {
       if (res.ok) {
         const data = await res.json()
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-        drafts[report.dogId] = text.trim()
+        if (text.trim()) {
+          drafts[report.dogId] = text.trim()
+        } else {
+          console.error('[daily-summary] Gemini returned empty text for', report.dog.name, JSON.stringify(data))
+          drafts[report.dogId] = `Olá ${report.dog.ownerName}! O ${report.dog.name} teve um bom dia hoje. Em breve enviaremos mais detalhes. 🐾`
+        }
       } else {
+        const errText = await res.text()
+        console.error('[daily-summary] Gemini API error for', report.dog.name, errText)
         drafts[report.dogId] = `Olá ${report.dog.ownerName}! O ${report.dog.name} teve um bom dia hoje. Em breve enviaremos mais detalhes. 🐾`
       }
-    } catch {
+    } catch (err) {
+      console.error('[daily-summary] Gemini fetch error for', report.dog.name, err)
       drafts[report.dogId] = `Olá ${report.dog.ownerName}! O ${report.dog.name} teve um bom dia hoje. Em breve enviaremos mais detalhes. 🐾`
     }
   }
