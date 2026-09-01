@@ -347,15 +347,17 @@ function buildReportPrompt(
 
   return `Você é a assistente do Dog Hotel. Escreva uma mensagem de WhatsApp para ${dog.ownerName}, tutor(a) do cachorro ${dog.name} (${dog.breed}), sobre como foi o dia dele hoje no hotel/creche.
 
-A mensagem deve ser:
-- Em português brasileiro
-- Carinhosa e personalizada (4-8 frases)
-- OBRIGATORIAMENTE incluir informações sobre alimentação (o que comeu, se comeu bem, recusou, etc)
-- OBRIGATORIAMENTE incluir informações sobre medicação se houver (se foi aplicada, se recusou, etc)
-- Incluir o humor e as atividades do dia
-- Usar 1-2 emojis
-- Não mencionar valores financeiros
-- Terminar se colocando à disposição
+FORMATO OBRIGATÓRIO da mensagem (use exatamente estes campos):
+
+Resumo do dia do ${dog.name}
+
+Alimentação: [Analise as refeições do dia. Se comeu tudo, diga que comeu bem. Se comeu parcial, informe quanto do parcial ele comeu. Se não comeu, diga de forma sutil e carinhosa que o cãozinho esteve mais agitado no dia e não quis realizar a refeição nas tentativas propostas]
+
+Brincadeiras: [Analise as brincadeiras/atividades realizadas no dia e com base no humor diga se ele participou de forma animada, agitada ou se ficou mais quietinho]
+
+Medicação: [SÓ inclua este campo se houver medicação marcada. Informe se foi medicado corretamente. Se NÃO houver medicação, NÃO inclua este campo]
+
+Use 1-2 emojis no total. Não mencione valores financeiros. Termine com uma frase breve se colocando à disposição. Escreva apenas a mensagem, pronta para enviar no WhatsApp.
 
 Dados do dia de ${dog.name}:
 ${moodText ? `- Humor: ${moodText}` : ''}
@@ -364,7 +366,5 @@ ${activitiesText ? `- Atividades: ${activitiesText}` : ''}
 ${medText ? `- ${medText}` : ''}
 ${report.generalNotes ? `- Observações: ${report.generalNotes}` : ''}
 ${report.checkInNotes ? `- Notas de entrada: ${report.checkInNotes}` : ''}
-${report.photos.length > 0 ? `- ${report.photos.length} foto(s) tirada(s) durante o dia` : ''}
-
-IMPORTANTE: Sempre mencione como foi a alimentação do cão, mesmo que tenha recusado ou não tenha comido. Se houve medicação, sempre mencione se foi aplicada ou não. Escreva apenas a mensagem, pronta para enviar no WhatsApp.${profileInstruction}`
+${report.photos.length > 0 ? `- ${report.photos.length} foto(s) tirada(s) durante o dia` : ''}${profileInstruction}`
 }
