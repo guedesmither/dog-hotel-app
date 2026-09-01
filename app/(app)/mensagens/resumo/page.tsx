@@ -93,6 +93,10 @@ export default function DailySummaryPage() {
         body: JSON.stringify({ date }),
       })
       if (res.ok) {
+        const data = await res.json()
+        if (data.debug && data.debug.length > 0) {
+          setError('Debug: ' + data.debug.join(' | '))
+        }
         await loadSummaries()
       } else {
         const err = await res.json()
@@ -115,6 +119,10 @@ export default function DailySummaryPage() {
         body: JSON.stringify({ date, dogIds: [summary.dogId] }),
       })
       if (res.ok) {
+        const data = await res.json()
+        if (data.debug && data.debug.length > 0) {
+          setError('Debug: ' + data.debug.join(' | '))
+        }
         await loadSummaries()
       } else {
         const err = await res.json()

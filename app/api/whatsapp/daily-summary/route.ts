@@ -141,6 +141,7 @@ export async function POST(req: NextRequest) {
 
   // Generate drafts for each dog
   const drafts: Record<string, string> = {}
+  const debugErrors: string[] = []
 
   for (const report of reports) {
     if (report.absent) {
@@ -173,16 +174,22 @@ export async function POST(req: NextRequest) {
         if (text.trim()) {
           drafts[report.dogId] = text.trim()
         } else {
-          console.error('[daily-summary] Gemini returned empty text for', report.dog.name, JSON.stringify(data))
+          const dbg = `[empty] ${report.dog.name}: ${JSON.stringify(data).substring(0, 300)}`
+          console.error('[daily-summary]', dbg)
+          debugErrors.push(dbg)
           drafts[report.dogId] = `Olá ${report.dog.ownerName}! O ${report.dog.name} teve um bom dia hoje. Em breve enviaremos mais detalhes. 🐾`
         }
       } else {
         const errText = await res.text()
-        console.error('[daily-summary] Gemini API error for', report.dog.name, errText)
+        const dbg = `[api-error ${res.status}] ${report.dog.name}: ${errText.substring(0, 300)}`
+        console.error('[daily-summary]', dbg)
+        debugErrors.push(dbg)
         drafts[report.dogId] = `Olá ${report.dog.ownerName}! O ${report.dog.name} teve um bom dia hoje. Em breve enviaremos mais detalhes. 🐾`
       }
-    } catch (err) {
-      console.error('[daily-summary] Gemini fetch error for', report.dog.name, err)
+    } catch (err: any) {
+      const dbg = `[fetch-error] ${report.dog.name}: ${err?.message || String(err)}`
+      console.error('[daily-summary]', dbg)
+      debugErrors.push(dbg)
       drafts[report.dogId] = `Olá ${report.dog.ownerName}! O ${report.dog.name} teve um bom dia hoje. Em breve enviaremos mais detalhes. 🐾`
     }
   }
@@ -194,7 +201,7 @@ export async function POST(req: NextRequest) {
     create: { key: `daily_drafts_${date}`, value: JSON.stringify(drafts) },
   })
 
-  return NextResponse.json({ date, drafts, count: Object.keys(drafts).length })
+  return NextResponse.json({ date, drafts, count: Object.keys(drafts).length, debug: debugErrors.length > 0 ? debugErrors : undefined })
 }
 
 // PUT /api/whatsapp/daily-summary
