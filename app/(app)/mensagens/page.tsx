@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Send, Bot, User, Sparkles, Power, Phone, Dog as DogIcon } from 'lucide-react'
+import { Send, Bot, User, Sparkles, Power, Phone, Dog as DogIcon, QrCode, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface WhatsAppMessage {
@@ -59,6 +59,7 @@ export default function MensagensPage() {
   const [suggesting, setSuggesting] = useState(false)
   const [suggestion, setSuggestion] = useState<string | null>(null)
   const [showMobileChat, setShowMobileChat] = useState(false)
+  const [waStatus, setWaStatus] = useState<{ configured: boolean; connected: boolean; qrCode?: string | null; phone?: string; message?: string } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const loadConversations = useCallback(async () => {
@@ -88,6 +89,10 @@ export default function MensagensPage() {
     const interval = setInterval(loadConversations, 10000) // Poll every 10s
     return () => clearInterval(interval)
   }, [loadConversations])
+
+  useEffect(() => {
+    fetch('/api/whatsapp/status').then(r => r.json()).then(setWaStatus).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (selectedConv) {
@@ -158,7 +163,31 @@ export default function MensagensPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3rem)] md:h-[calc(100vh-2rem)] bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-3rem)] md:h-[calc(100vh-2rem)] gap-2">
+      {/* Connection status banner */}
+      {waStatus && !waStatus.configured && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>Z-API não configurada. Adicione ZAPI_INSTANCE_ID e ZAPI_TOKEN nas variáveis de ambiente.</span>
+        </div>
+      )}
+      {waStatus && waStatus.configured && !waStatus.connected && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+          <QrCode className="w-4 h-4 shrink-0" />
+          <span>WhatsApp não conectado. Escaneie o QR code no painel da Z-API para conectar.</span>
+          {waStatus.qrCode && (
+            <img src={waStatus.qrCode} alt="QR Code" className="w-16 h-16 rounded border border-blue-200" />
+          )}
+        </div>
+      )}
+      {waStatus && waStatus.connected && (
+        <div className="flex items-center gap-2 px-4 py-1.5 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
+          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          WhatsApp conectado{waStatus.phone ? ` · ${waStatus.phone}` : ''}
+        </div>
+      )}
+
+    <div className="flex flex-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {/* Conversation list */}
       <div className={cn(
         'w-full md:w-80 border-r border-gray-200 flex flex-col',
@@ -374,6 +403,7 @@ export default function MensagensPage() {
           </>
         )}
       </div>
+    </div>
     </div>
   )
 }

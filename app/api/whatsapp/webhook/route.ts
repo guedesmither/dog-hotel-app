@@ -1,122 +1,105 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getVerifyToken, findOrCreateConversation, sendWhatsAppMessage, markMessageRead } from '@/lib/whatsapp'
+import { getZapiClientToken, findOrCreateConversation, sendWhatsAppMessage } from '@/lib/whatsapp'
 import { generateGeminiResponse, buildConversationHistory, buildDogContext } from '@/lib/gemini'
 
 export const dynamic = 'force-dynamic'
 
-// GET — Meta webhook verification
+// GET — Z-API webhook validation
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const mode = searchParams.get('hub.mode')
-  const token = searchParams.get('hub.verify_token')
-  const challenge = searchParams.get('hub.challenge')
+  const token = searchParams.get('token')
+  const clientToken = getZapiClientToken()
 
-  if (mode === 'subscribe' && token === getVerifyToken()) {
-    return NextResponse.json(Number(challenge))
+  if (clientToken && token !== clientToken) {
+    return NextResponse.json({ error: 'Invalid token' }, { status: 403 })
   }
 
-  return NextResponse.json({ error: 'Invalid verification' }, { status: 403 })
+  return NextResponse.json({ status: 'ok' })
 }
 
-// POST — Receive incoming messages from Meta
+// POST — Receive incoming messages from Z-API webhook
+// Z-API sends: { phone, message, messageId, type, ... }
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
+    const event = body.event || body.type
 
-    // Meta sends status updates and message notifications
-    if (body.object !== 'whatsapp_business_account') {
-      return NextResponse.json({ status: 'ignored' })
-    }
+    // Handle incoming message
+    if (event === 'message-received' || (body.phone && body.message && !body.status)) {
+      const from = body.phone || ''
+      const text = body.message?.text || body.text || body.message || ''
+      const waMessageId = body.messageId || body.id || ''
 
-    const entries = body.entry || []
-    for (const entry of entries) {
-      const changes = entry.changes || []
-      for (const change of changes) {
-        const value = change.value
-        if (!value) continue
+      if (!from || !text) return NextResponse.json({ status: 'ignored' })
 
-        // Handle incoming messages
-        const messages = value.messages || []
-        for (const msg of messages) {
-          if (msg.type !== 'text') continue
+      const conv = await findOrCreateConversation(from)
 
-          const from = msg.from // E.164 phone
-          const text = msg.text?.body || ''
-          const waMessageId = msg.id
+      await prisma.whatsAppMessage.create({
+        data: {
+          conversationId: conv.id,
+          direction: 'INBOUND',
+          source: 'HUMAN',
+          text,
+          waMessageId,
+          status: 'DELIVERED',
+        },
+      })
 
-          if (!from || !text) continue
+      await prisma.whatsAppConversation.update({
+        where: { id: conv.id },
+        data: { lastMessageAt: new Date() },
+      })
 
-          // Find or create conversation
-          const conv = await findOrCreateConversation(from)
+      if (conv.autoReply) {
+        try {
+          const history = await buildConversationHistory(conv.id)
+          const dogContext = buildDogContext(conv.dog as any)
+          const geminiResult = await generateGeminiResponse(history, dogContext)
 
-          // Store inbound message
-          await prisma.whatsAppMessage.create({
-            data: {
-              conversationId: conv.id,
-              direction: 'INBOUND',
-              source: 'HUMAN',
-              text,
-              waMessageId,
-              status: 'DELIVERED',
-            },
-          })
+          if (geminiResult?.text) {
+            const sendResult = await sendWhatsAppMessage(from, geminiResult.text)
 
-          // Update conversation timestamp
-          await prisma.whatsAppConversation.update({
-            where: { id: conv.id },
-            data: { lastMessageAt: new Date() },
-          })
+            await prisma.whatsAppMessage.create({
+              data: {
+                conversationId: conv.id,
+                direction: 'OUTBOUND',
+                source: 'AI',
+                text: geminiResult.text,
+                waMessageId: sendResult?.id || null,
+                status: sendResult ? 'SENT' : 'FAILED',
+              },
+            })
 
-          // Mark as read
-          await markMessageRead(waMessageId)
-
-          // Auto-reply with Gemini if enabled
-          if (conv.autoReply) {
-            try {
-              const history = await buildConversationHistory(conv.id)
-              const dogContext = buildDogContext(conv.dog as any)
-              const geminiResult = await generateGeminiResponse(history, dogContext)
-
-              if (geminiResult?.text) {
-                // Send via WhatsApp
-                const sendResult = await sendWhatsAppMessage(from, geminiResult.text)
-
-                // Store outbound message
-                await prisma.whatsAppMessage.create({
-                  data: {
-                    conversationId: conv.id,
-                    direction: 'OUTBOUND',
-                    source: 'AI',
-                    text: geminiResult.text,
-                    waMessageId: sendResult?.id || null,
-                    status: sendResult ? 'SENT' : 'FAILED',
-                  },
-                })
-              }
-            } catch (aiErr) {
-              console.error('[webhook] AI auto-reply error:', aiErr)
-            }
-          }
-        }
-
-        // Handle message status updates
-        const statuses = value.statuses || []
-        for (const status of statuses) {
-          const waId = status.id
-          const statusValue = status.status // sent, delivered, read, failed
-
-          if (waId && statusValue) {
-            await prisma.whatsAppMessage.updateMany({
-              where: { waMessageId: waId },
-              data: { status: statusValue.toUpperCase() },
+            await prisma.whatsAppConversation.update({
+              where: { id: conv.id },
+              data: { lastMessageAt: new Date() },
             })
           }
+        } catch (aiErr) {
+          console.error('[webhook] AI auto-reply error:', aiErr)
         }
       }
+
+      return NextResponse.json({ status: 'ok' })
     }
 
-    return NextResponse.json({ status: 'ok' })
+    // Handle message status update
+    if (event === 'message-status' || body.status) {
+      const waId = body.messageId || body.id || ''
+      const statusValue = body.status || ''
+
+      if (waId && statusValue) {
+        await prisma.whatsAppMessage.updateMany({
+          where: { waMessageId: waId },
+          data: { status: statusValue.toUpperCase() },
+        })
+      }
+
+      return NextResponse.json({ status: 'ok' })
+    }
+
+    return NextResponse.json({ status: 'ignored' })
   } catch (err) {
     console.error('[webhook] Error:', err)
     return NextResponse.json({ error: 'Webhook error' }, { status: 500 })

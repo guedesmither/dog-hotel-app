@@ -1,27 +1,29 @@
-# WhatsApp Cloud API (Meta) - Setup Instructions
+# WhatsApp + Gemini AI - Setup Instructions
 
 ## Environment Variables
 
 Add these to your `.env` file (and Vercel environment variables):
 
 ```
-WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id_here
-META_ACCESS_TOKEN=your_permanent_access_token_here
-WHATSAPP_VERIFY_TOKEN=dog_hotel_verify_2024
+ZAPI_INSTANCE_ID=your_instance_id_here
+ZAPI_TOKEN=your_token_here
+ZAPI_CLIENT_TOKEN=your_client_token_here
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 ## Setup Steps
 
-### 1. Meta WhatsApp Cloud API
-1. Go to https://developers.facebook.com/apps/ and create a new app
-2. Add WhatsApp product to the app
-3. Get the **Phone Number ID** from the WhatsApp settings page
-4. Generate a **permanent access token** (System User token)
-5. Configure the webhook:
+### 1. Z-API (WhatsApp)
+1. Acesse https://z-api.com e crie uma conta
+2. Crie uma nova instância (telefone)
+3. Escaneie o QR code com seu WhatsApp (Configurações → Aparelhos conectados)
+4. No painel da instância, copie:
+   - **Instance ID** → `ZAPI_INSTANCE_ID`
+   - **Token** → `ZAPI_TOKEN`
+   - **Client Token** (em Configurações) → `ZAPI_CLIENT_TOKEN`
+5. Configure o webhook na Z-API:
    - URL: `https://yourdomain.com/api/whatsapp/webhook`
-   - Verify token: `dog_hotel_verify_2024` (or whatever you set in WHATSAPP_VERIFY_TOKEN)
-   - Subscribe to: `messages` and `message_status`
+   - Eventos: `message-received`, `message-status`
 
 ### 2. Google Gemini API
 1. Go to https://aistudio.google.com/apikey
@@ -34,3 +36,4 @@ GEMINI_API_KEY=your_gemini_api_key_here
 - **Manual mode**: Human can send messages at any time
 - **AI suggestions**: Click the sparkle icon to get a Gemini-suggested response without sending
 - **Conversation linking**: Automatically matches phone numbers to dog owners
+- **Status banner**: Shows QR code and connection status at the top of the messages page
