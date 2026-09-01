@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.7,
-              maxOutputTokens: 500,
+              maxOutputTokens: 1024,
               topP: 0.9,
             },
           }),
