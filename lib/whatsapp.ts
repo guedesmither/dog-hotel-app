@@ -18,7 +18,7 @@ export function getZapiClientToken(): string {
 function baseUrl(): string {
   const instanceId = getInstanceId()
   const token = getToken()
-  return `https://api.z-api.com/instance/${instanceId}/token/${token}`
+  return `https://api.z-api.io/instance/${instanceId}/token/${token}`
 }
 
 /**
