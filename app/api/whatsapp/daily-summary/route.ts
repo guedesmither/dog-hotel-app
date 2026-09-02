@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
       ...(dogIds ? { dogId: { in: dogIds } } : {}),
     },
     include: {
-      dog: { select: { id: true, name: true, breed: true, ownerName: true, ownerPhone: true, createdAt: true } },
+      dog: { select: { id: true, name: true, breed: true, ownerName: true, ownerPhone: true, createdAt: true, sex: true } },
       activities: true,
       photos: true,
     },
@@ -412,6 +412,12 @@ function buildReportPrompt(
   // First name only
   const firstName = dog.ownerName.split(' ')[0]
 
+  // Pronouns based on sex
+  const isFemale = dog.sex === 'FEMEA' || dog.sex === 'F' || dog.sex === 'Fêmea'
+  const pronoun = isFemale ? 'ela' : 'ele'
+  const article = isFemale ? 'a' : 'o'
+  const articleUpper = isFemale ? 'A' : 'O'
+
   // Check if dog is new (created within last 30 days)
   const dogCreatedAt = new Date(dog.createdAt)
   const daysSinceCreated = Math.floor((Date.now() - dogCreatedAt.getTime()) / (1000 * 60 * 60 * 24))
@@ -455,20 +461,20 @@ function buildReportPrompt(
   const brHour = parseInt(brTime)
   const greeting = brHour < 12 ? 'bom dia' : brHour < 18 ? 'boa tarde' : 'boa noite'
 
-  return `Você é a assistente do Dog Hotel AU-Ê Petcare em Osasco/SP. Escreva uma mensagem curta e natural de WhatsApp em PORTUGUÊS DO BRASIL para ${dog.ownerName}, tutor(a) do cachorro ${dog.name} (${dog.breed}).
+  return `Você é a assistente do Dog Hotel AU-Ê Petcare em Osasco/SP. Escreva uma mensagem curta e natural de WhatsApp em PORTUGUÊS DO BRASIL para ${dog.ownerName}, tutor(a) do cachorro ${dog.name} (${dog.breed}). ${dog.name} é ${isFemale ? 'uma cadela (fêmea)' : 'um cachorro (macho)'}. Use sempre os pronomes e artigos corretos: ${pronoun}/${article} para ${dog.name}.
 
 A mensagem deve seguir EXATAMENTE este formato (escreva em PORTUGUÊS, nunca em inglês):
 
 ${firstName}, ${greeting}!
-Passando pra dizer que hoje o ${dog.name} [descreva como foi o dia dele de forma breve e natural, 2-3 linhas, mencionando humor, atividades e alimentação de forma conversacional]
+Passando pra dizer que hoje ${article} ${dog.name} [descreva como foi o dia de ${pronoun} de forma breve e natural, 2-3 linhas, mencionando humor, atividades e alimentação de forma conversacional. Use sempre ${pronoun}/${article} para se referir a ${dog.name}]
 
 Regras para o texto:
 1. Considere o humor do cão (${moodText || 'não registrado'}) para definir o tom da mensagem
-2. Mencione as atividades que ele realizou: ${activitiesText || 'nenhuma atividade registrada'}
+2. Mencione as atividades que ${pronoun} realizou: ${activitiesText || 'nenhuma atividade registrada'}
 3. Sobre alimentação: ${mealsText.length > 0 ? mealsText.join('; ') : 'sem registros de alimentação'}
    - Se comeu tudo, diga que comeu bem
    - Se comeu parcialmente, aponte isso sutilmente
-   - Se não comeu nada, diga de forma amena que o cãozinho recusou a comida após algumas tentativas, por provável ansiedade${isNewDog ? ' ou por estar na fase de adaptação (cão novo)' : ''}
+   - Se não comeu nada, diga de forma amena que ${pronoun} recusou a comida após algumas tentativas, por provável ansiedade${isNewDog ? ' ou por estar na fase de adaptação (cão novo)' : ''}
    - Se estiver pendente, não mencione essa refeição
 4. ${medText ? `Inclua que a medicação foi ${report.medicationGiven ? 'aplicada corretamente' : 'não foi possível aplicar'}.` : 'NÃO mencione medicação pois não há.'}
 5. Use 1-2 emojis no total. Não mencione valores financeiros.
@@ -476,6 +482,7 @@ Regras para o texto:
 7. Escreva apenas a mensagem, pronta para enviar no WhatsApp. Sem títulos, sem cabeçalhos. Seja BREVE - máximo 5 linhas no total.
 
 Dados do dia de ${dog.name}:
+- Sexo: ${isFemale ? 'fêmea' : 'macho'}
 - Humor: ${moodText || 'não registrado'}
 - Alimentação: ${mealsText.length > 0 ? mealsText.join('; ') : 'sem registros'}
 - Atividades: ${activitiesText || 'nenhuma'}
