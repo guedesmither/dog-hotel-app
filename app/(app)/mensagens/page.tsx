@@ -216,13 +216,13 @@ export default function MensagensPage() {
       {waStatus && !waStatus.configured && (
         <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
           <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>Z-API não configurada. Adicione ZAPI_INSTANCE_ID e ZAPI_TOKEN nas variáveis de ambiente.</span>
+          <span>Evolution API não configurada. Adicione EVOLUTION_API_URL, EVOLUTION_API_KEY e EVOLUTION_INSTANCE_NAME nas variáveis de ambiente.</span>
         </div>
       )}
       {waStatus && waStatus.configured && !waStatus.connected && (
         <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
           <QrCode className="w-4 h-4 shrink-0" />
-          <span>WhatsApp não conectado. Escaneie o QR code no painel da Z-API para conectar.</span>
+          <span>WhatsApp não conectado. Escaneie o QR code no painel da Evolution API para conectar.</span>
           {waStatus.qrCode && (
             <img src={waStatus.qrCode} alt="QR Code" className="w-16 h-16 rounded border border-blue-200" />
           )}

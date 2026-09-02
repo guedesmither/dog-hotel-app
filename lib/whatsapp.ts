@@ -1,55 +1,64 @@
 import { prisma } from './prisma'
 
-export function getInstanceId(): string {
-  return process.env.ZAPI_INSTANCE_ID || ''
-}
-
-export function getToken(): string {
-  return process.env.ZAPI_TOKEN || ''
-}
-
-export function getZapiClientToken(): string {
-  return process.env.ZAPI_CLIENT_TOKEN || ''
-}
-
 /**
- * Z-API base URL for all endpoints
+ * Evolution API configuration
+ * Env vars: EVOLUTION_API_URL, EVOLUTION_API_KEY, EVOLUTION_INSTANCE_NAME
  */
-function baseUrl(): string {
-  const instanceId = getInstanceId()
-  const token = getToken()
-  return `https://api.z-api.io/instances/${instanceId}/token/${token}`
+
+export function getApiUrl(): string {
+  return (process.env.EVOLUTION_API_URL || '').replace(/\/$/, '')
+}
+
+export function getApiKey(): string {
+  return process.env.EVOLUTION_API_KEY || ''
+}
+
+export function getInstanceName(): string {
+  return process.env.EVOLUTION_INSTANCE_NAME || ''
 }
 
 /**
- * Send a text message via Z-API
+ * Check if Evolution API is configured
+ */
+export function isConfigured(): boolean {
+  return !!(getApiUrl() && getApiKey() && getInstanceName())
+}
+
+/**
+ * Send a text message via Evolution API
  */
 export async function sendWhatsAppMessage(to: string, text: string): Promise<{ id: string } | null> {
-  const instanceId = getInstanceId()
-  const token = getToken()
-  if (!instanceId || !token) {
-    console.error('[whatsapp] Missing ZAPI_INSTANCE_ID or ZAPI_TOKEN')
+  const apiUrl = getApiUrl()
+  const apiKey = getApiKey()
+  const instance = getInstanceName()
+
+  if (!apiUrl || !apiKey || !instance) {
+    console.error('[whatsapp] Missing EVOLUTION_API_URL, EVOLUTION_API_KEY or EVOLUTION_INSTANCE_NAME')
     return null
   }
 
   try {
-    const res = await fetch(`${baseUrl()}/send-text`, {
+    const res = await fetch(`${apiUrl}/message/sendText/${instance}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Client-Token': getZapiClientToken(),
+        'apikey': apiKey,
       },
-      body: JSON.stringify({ phone: to, message: text }),
+      body: JSON.stringify({
+        number: to,
+        text,
+      }),
     })
 
     if (!res.ok) {
       const err = await res.text()
-      console.error('[whatsapp] Z-API send failed:', err)
+      console.error('[whatsapp] Evolution API send failed:', err)
       return null
     }
 
     const data = await res.json()
-    return { id: data.messageId || data.id || '' }
+    const messageId = data.key?.id || data.messageId || data.id || ''
+    return { id: messageId }
   } catch (err) {
     console.error('[whatsapp] Send error:', err)
     return null
@@ -57,7 +66,7 @@ export async function sendWhatsAppMessage(to: string, text: string): Promise<{ i
 }
 
 /**
- * Send an image with caption via Z-API
+ * Send an image with caption via Evolution API
  * image: URL or base64 string (data:image/...)
  */
 export async function sendWhatsAppImage(
@@ -65,35 +74,49 @@ export async function sendWhatsAppImage(
   image: string,
   caption?: string
 ): Promise<{ id: string } | null> {
-  const instanceId = getInstanceId()
-  const token = getToken()
-  if (!instanceId || !token) {
-    console.error('[whatsapp] Missing ZAPI_INSTANCE_ID or ZAPI_TOKEN')
+  const apiUrl = getApiUrl()
+  const apiKey = getApiKey()
+  const instance = getInstanceName()
+
+  if (!apiUrl || !apiKey || !instance) {
+    console.error('[whatsapp] Missing EVOLUTION_API_URL, EVOLUTION_API_KEY or EVOLUTION_INSTANCE_NAME')
     return null
   }
 
   try {
-    const res = await fetch(`${baseUrl()}/send-image`, {
+    const isBase64 = image.startsWith('data:')
+    const body: Record<string, unknown> = {
+      number: to,
+      mediatype: 'image',
+      caption: caption || '',
+      fileName: 'photo.jpg',
+      mimetype: 'image/jpeg',
+    }
+
+    if (isBase64) {
+      body.media = image
+    } else {
+      body.media = image
+    }
+
+    const res = await fetch(`${apiUrl}/message/sendMedia/${instance}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Client-Token': getZapiClientToken(),
+        'apikey': apiKey,
       },
-      body: JSON.stringify({
-        phone: to,
-        image,
-        caption: caption || '',
-      }),
+      body: JSON.stringify(body),
     })
 
     if (!res.ok) {
       const err = await res.text()
-      console.error('[whatsapp] Z-API send-image failed:', err)
+      console.error('[whatsapp] Evolution API send-image failed:', err)
       return null
     }
 
     const data = await res.json()
-    return { id: data.messageId || data.id || '' }
+    const messageId = data.key?.id || data.messageId || data.id || ''
+    return { id: messageId }
   } catch (err) {
     console.error('[whatsapp] Send image error:', err)
     return null
@@ -140,19 +163,30 @@ export async function findOrCreateConversation(phoneNumber: string) {
 }
 
 /**
- * Get QR code for connecting WhatsApp (Z-API)
+ * Get QR code for connecting WhatsApp (Evolution API)
  */
 export async function getQRCode(): Promise<{ qrCode: string; connected: boolean } | null> {
+  const apiUrl = getApiUrl()
+  const apiKey = getApiKey()
+  const instance = getInstanceName()
+
+  if (!apiUrl || !apiKey || !instance) return null
+
   try {
-    const res = await fetch(`${baseUrl()}/qrcode`, {
+    const res = await fetch(`${apiUrl}/instance/connect/${instance}`, {
       headers: {
-        'Content-Type': 'application/json',
-        'Client-Token': getZapiClientToken(),
+        'apikey': apiKey,
       },
     })
     if (!res.ok) return null
     const data = await res.json()
-    return { qrCode: data.qrcode || data.value || '', connected: false }
+
+    if (data.instance?.state === 'open' || data.status === 'open') {
+      return { qrCode: '', connected: true }
+    }
+
+    const qr = data.qrcode?.base64 || data.qrcode || data.base64 || ''
+    return { qrCode: qr, connected: false }
   } catch (err) {
     console.error('[whatsapp] QR code error:', err)
     return null
@@ -160,24 +194,67 @@ export async function getQRCode(): Promise<{ qrCode: string; connected: boolean 
 }
 
 /**
- * Check instance status (connected or not)
+ * Check instance status (connected or not) via Evolution API
  */
 export async function getInstanceStatus(): Promise<{ connected: boolean; phone?: string } | null> {
+  const apiUrl = getApiUrl()
+  const apiKey = getApiKey()
+  const instance = getInstanceName()
+
+  if (!apiUrl || !apiKey || !instance) return null
+
   try {
-    const res = await fetch(`${baseUrl()}/status`, {
+    const res = await fetch(`${apiUrl}/instance/connectionState/${instance}`, {
       headers: {
-        'Content-Type': 'application/json',
-        'Client-Token': getZapiClientToken(),
+        'apikey': apiKey,
       },
     })
     if (!res.ok) return null
     const data = await res.json()
+    const state = data.instance?.state || data.state || ''
     return {
-      connected: data.connected || false,
-      phone: data.phone,
+      connected: state === 'open',
+      phone: data.instance?.ownerNumber || data.phone,
     }
   } catch (err) {
     console.error('[whatsapp] Status error:', err)
     return null
+  }
+}
+
+/**
+ * Set webhook for the instance (Evolution API)
+ */
+export async function setWebhook(webhookUrl: string): Promise<boolean> {
+  const apiUrl = getApiUrl()
+  const apiKey = getApiKey()
+  const instance = getInstanceName()
+
+  if (!apiUrl || !apiKey || !instance) return false
+
+  try {
+    const res = await fetch(`${apiUrl}/webhook/set/${instance}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': apiKey,
+      },
+      body: JSON.stringify({
+        enabled: true,
+        url: webhookUrl,
+        webhookByEvents: false,
+        webhookBase64: false,
+        events: [
+          'MESSAGES_UPSERT',
+          'MESSAGES_UPDATE',
+          'CONNECTION_UPDATE',
+          'QRCODE_UPDATED',
+        ],
+      }),
+    })
+    return res.ok
+  } catch (err) {
+    console.error('[whatsapp] Set webhook error:', err)
+    return false
   }
 }

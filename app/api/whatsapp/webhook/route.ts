@@ -1,50 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getZapiClientToken, findOrCreateConversation } from '@/lib/whatsapp'
+import { findOrCreateConversation } from '@/lib/whatsapp'
 
 export const dynamic = 'force-dynamic'
 
-// GET — Z-API webhook validation
+// GET — Webhook validation (optional, Evolution API doesn't require this)
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const token = searchParams.get('token')
-  const clientToken = getZapiClientToken()
-
-  if (clientToken && token !== clientToken) {
-    return NextResponse.json({ error: 'Invalid token' }, { status: 403 })
-  }
-
   return NextResponse.json({ status: 'ok' })
 }
 
-// POST — Receive incoming messages from Z-API webhook
-// Z-API format: { type: "ReceivedCallback", phone, text: { message: "..." }, messageId, ... }
+// POST — Receive events from Evolution API webhook
+// Format: { event: "MESSAGES_UPSERT", data: { key: { remoteJid, fromMe, id }, message: { conversation } }, ... }
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const eventType = body.type || ''
+    const eventType = body.event || ''
 
-    // Handle incoming message (ReceivedCallback)
-    if (eventType === 'ReceivedCallback') {
-      // Skip messages sent by me (from the instance itself)
-      if (body.fromMe === true) return NextResponse.json({ status: 'ignored' })
+    // Handle incoming message (MESSAGES_UPSERT)
+    if (eventType === 'MESSAGES_UPSERT') {
+      const msgData = body.data || {}
+      const key = msgData.key || {}
+      
+      // Skip messages sent by me
+      if (key.fromMe === true) return NextResponse.json({ status: 'ignored' })
 
-      const from = body.phone || ''
-      const text = body.text?.message || body.text?.text || ''
-      const waMessageId = body.messageId || ''
-      const senderName = body.senderName || body.chatName || ''
+      // Extract phone from remoteJid (format: 5511999999999@s.whatsapp.net)
+      const remoteJid = key.remoteJid || ''
+      const from = remoteJid.split('@')[0] || ''
+      const waMessageId = key.id || ''
+      
+      // Extract text from various message formats
+      const message = msgData.message || {}
+      const text = message.conversation || 
+                   message.extendedTextMessage?.text || 
+                   message.imageMessage?.caption ||
+                   message.videoMessage?.caption ||
+                   ''
 
       if (!from || !text) return NextResponse.json({ status: 'ignored' })
 
       const conv = await findOrCreateConversation(from)
-
-      // Update contact name if we have it and conversation doesn't
-      if (senderName && !conv.contactName) {
-        await prisma.whatsAppConversation.update({
-          where: { id: conv.id },
-          data: { contactName: senderName },
-        })
-      }
 
       await prisma.whatsAppMessage.create({
         data: {
@@ -65,47 +60,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'ok' })
     }
 
-    // Handle message status update (MessageStatusCallback)
-    if (eventType === 'MessageStatusCallback') {
-      const waId = body.ids?.[0] || body.messageId || ''
-      const statusValue = body.status || ''
+    // Handle message status update (MESSAGES_UPDATE)
+    if (eventType === 'MESSAGES_UPDATE') {
+      const msgData = body.data || {}
+      const key = msgData.key || {}
+      const waId = key.id || ''
+      const statusValue = msgData.status?.status || msgData.status || ''
 
       if (waId && statusValue) {
         await prisma.whatsAppMessage.updateMany({
           where: { waMessageId: waId },
-          data: { status: statusValue.toUpperCase() },
+          data: { status: String(statusValue).toUpperCase() },
         })
       }
 
       return NextResponse.json({ status: 'ok' })
     }
 
-    // Fallback for older/other event formats
-    if (body.phone && body.text?.message && !body.status) {
-      const from = body.phone || ''
-      const text = body.text.message || ''
-      const waMessageId = body.messageId || ''
+    // Handle connection update (CONNECTION_UPDATE)
+    if (eventType === 'CONNECTION_UPDATE') {
+      const state = body.data?.state || ''
+      console.log('[webhook] Connection update:', state)
+      return NextResponse.json({ status: 'ok' })
+    }
 
-      if (!from || !text) return NextResponse.json({ status: 'ignored' })
-
-      const conv = await findOrCreateConversation(from)
-
-      await prisma.whatsAppMessage.create({
-        data: {
-          conversationId: conv.id,
-          direction: 'INBOUND',
-          source: 'HUMAN',
-          text,
-          waMessageId,
-          status: 'DELIVERED',
-        },
-      })
-
-      await prisma.whatsAppConversation.update({
-        where: { id: conv.id },
-        data: { lastMessageAt: new Date() },
-      })
-
+    // Handle QR code update (QRCODE_UPDATED)
+    if (eventType === 'QRCODE_UPDATED') {
+      console.log('[webhook] QR code updated')
       return NextResponse.json({ status: 'ok' })
     }
 

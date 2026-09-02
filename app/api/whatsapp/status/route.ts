@@ -1,22 +1,19 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getInstanceStatus, getQRCode, getInstanceId, getToken } from '@/lib/whatsapp'
+import { getInstanceStatus, getQRCode, isConfigured } from '@/lib/whatsapp'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/whatsapp/status — check Z-API instance status and QR code
+// GET /api/whatsapp/status — check Evolution API instance status and QR code
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-  const instanceId = getInstanceId()
-  const token = getToken()
-
-  if (!instanceId || !token) {
+  if (!isConfigured()) {
     return NextResponse.json({
       configured: false,
-      message: 'ZAPI_INSTANCE_ID e ZAPI_TOKEN não configurados',
+      message: 'EVOLUTION_API_URL, EVOLUTION_API_KEY e EVOLUTION_INSTANCE_NAME não configurados',
     })
   }
 
