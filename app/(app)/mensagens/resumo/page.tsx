@@ -62,7 +62,6 @@ export default function DailySummaryPage() {
 
   const loadSummaries = useCallback(async () => {
     setLoading(true)
-    setError(null)
     try {
       const res = await fetch(`/api/whatsapp/daily-summary?date=${date}`)
       if (res.ok) {
@@ -95,7 +94,9 @@ export default function DailySummaryPage() {
       if (res.ok) {
         const data = await res.json()
         if (data.debug && data.debug.length > 0) {
-          setError('Debug: ' + data.debug.join(' | '))
+          setError('ERRO GEMINI: ' + data.debug.join(' | '))
+        } else {
+          setError(null)
         }
         await loadSummaries()
       } else {
@@ -121,13 +122,15 @@ export default function DailySummaryPage() {
       if (res.ok) {
         const data = await res.json()
         if (data.debug && data.debug.length > 0) {
-          setError('Debug: ' + data.debug.join(' | '))
+          setError('ERRO GEMINI: ' + data.debug.join(' | '))
+        } else {
+          setError(null)
         }
         await loadSummaries()
       } else {
         const err = await res.json()
         setError(err.error || 'Erro ao gerar rascunho')
-      }
+     }
     } catch {
       setError('Erro ao gerar rascunho')
     } finally {
