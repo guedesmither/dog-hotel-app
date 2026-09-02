@@ -122,12 +122,41 @@ export async function POST(req: NextRequest) {
       ...(dogIds ? { dogId: { in: dogIds } } : {}),
     },
     include: {
-      dog: { select: { id: true, name: true, breed: true, ownerName: true, ownerPhone: true } },
+      dog: { select: { id: true, name: true, breed: true, ownerName: true, ownerPhone: true, createdAt: true } },
       activities: true,
       photos: true,
     },
     orderBy: { dog: { name: 'asc' } },
   })
+
+  // Fetch weather for Osasco, SP
+  let weatherInfo = ''
+  try {
+    const weatherRes = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=-23.53&longitude=-46.79&current=temperature_2m,weather_code&timezone=America/Sao_Paulo&forecast_days=1`,
+      { signal: AbortSignal.timeout(5000) }
+    )
+    if (weatherRes.ok) {
+      const w = await weatherRes.json()
+      const temp = w.current?.temperature_2m
+      const code = w.current?.weather_code
+      const weatherMap: Record<number, string> = {
+        0: 'céu limpo', 1: 'predominantemente limpo', 2: 'parcialmente nublado',
+        3: 'nublado', 45: 'neblina', 48: 'neblina com geada',
+        51: 'garoa leve', 53: 'garoa moderada', 55: 'garoa intensa',
+        61: 'chuva leve', 63: 'chuva moderada', 65: 'chuva forte',
+        71: 'neve leve', 73: 'neve moderada', 75: 'neve forte',
+        80: 'pancadas leves', 81: 'pancadas moderadas', 82: 'pancadas violentas',
+        95: 'tempestade', 96: 'tempestade com granizo leve', 99: 'tempestade com granizo forte',
+      }
+      const desc = weatherMap[code] || 'tempo instável'
+      if (temp !== undefined) {
+        weatherInfo = `Clima em Osasco/SP hoje: ${desc}, ${Math.round(temp)}°C`
+      }
+    }
+  } catch {
+    // weather is optional, continue without it
+  }
 
   if (reports.length === 0) {
     return NextResponse.json({ error: 'Nenhum relatório encontrado para esta data' }, { status: 404 })
@@ -149,7 +178,19 @@ export async function POST(req: NextRequest) {
       continue
     }
 
-    const prompt = buildReportPrompt(report, attendantProfile)
+    // Fetch last 10 days of reports for this dog (excluding today)
+    const historyReports = await prisma.dailyReport.findMany({
+      where: {
+        dogId: report.dogId,
+        date: { lt: date },
+        absent: false,
+      },
+      include: { activities: true },
+      orderBy: { date: 'desc' },
+      take: 10,
+    })
+
+    const prompt = buildReportPrompt(report, attendantProfile, historyReports, weatherInfo)
 
     try {
       const res = await fetch(
@@ -315,7 +356,9 @@ export async function PATCH(req: NextRequest) {
 
 function buildReportPrompt(
   report: any,
-  attendantProfile: string
+  attendantProfile: string,
+  historyReports: any[] = [],
+  weatherInfo = ''
 ): string {
   const dog = report.dog
   const mealsText = []
@@ -356,30 +399,76 @@ function buildReportPrompt(
   }
   const moodText = report.mood ? moodMap[report.mood] || report.mood : ''
 
+  // First name only
+  const firstName = dog.ownerName.split(' ')[0]
+
+  // Check if dog is new (created within last 30 days)
+  const dogCreatedAt = new Date(dog.createdAt)
+  const daysSinceCreated = Math.floor((Date.now() - dogCreatedAt.getTime()) / (1000 * 60 * 60 * 24))
+  const isNewDog = daysSinceCreated <= 30
+
+  // Build history summary
+  let historySummary = ''
+  if (historyReports.length > 0) {
+    const eatingScores: string[] = []
+    const moodHistory: string[] = []
+    const activityHistory: string[] = []
+    for (const h of historyReports) {
+      const hMeals = [h.breakfastStatus, h.lunchStatus, h.afternoonSnackStatus, h.dinnerStatus]
+        .filter(s => s === 'EATEN').length
+      const hTotal = [h.breakfastStatus, h.lunchStatus, h.afternoonSnackStatus, h.dinnerStatus]
+        .filter(s => s !== 'PENDING').length
+      if (hTotal > 0) {
+        eatingScores.push(`${h.date}: ${hMeals}/${hTotal} refeições`)
+      }
+      if (h.mood) {
+        moodHistory.push(`${h.date}: ${moodMap[h.mood] || h.mood}`)
+      }
+      const hActs = h.activities.filter((a: any) => a.participated).map((a: any) => a.name).join(', ')
+      if (hActs) {
+        activityHistory.push(`${h.date}: ${hActs}`)
+      }
+    }
+    historySummary = [
+      eatingScores.length > 0 ? `Histórico alimentação (últimos ${historyReports.length} dias):\n  ${eatingScores.join('\n  ')}` : '',
+      moodHistory.length > 0 ? `Histórico humor:\n  ${moodHistory.join('\n  ')}` : '',
+      activityHistory.length > 0 ? `Histórico atividades:\n  ${activityHistory.join('\n  ')}` : '',
+    ].filter(Boolean).join('\n')
+  }
+
   const profileInstruction = attendantProfile
     ? `\n\nUse este estilo de atendimento:\n${attendantProfile}`
     : ''
 
-  return `Você é a assistente do Dog Hotel. Escreva uma mensagem de WhatsApp para ${dog.ownerName}, tutor(a) do cachorro ${dog.name} (${dog.breed}), sobre como foi o dia dele hoje no hotel/creche.
+  return `Você é a assistente do Dog Hotel AU-Ê Petcare em Osasco/SP. Escreva uma mensagem de WhatsApp para ${dog.ownerName}, tutor(a) do cachorro ${dog.name} (${dog.breed}).
 
-FORMATO OBRIGATÓRIO da mensagem (use exatamente estes campos):
+A mensagem deve seguir EXATAMENTE este formato:
 
-Resumo do dia do ${dog.name}
+${firstName}, [bom dia OU boa tarde OU boa noite baseado no horário atual]!
+Passando pra dizer que hoje o ${dog.name} [descreva como foi o dia dele de forma natural e personalizada]
 
-Alimentação: [Analise as refeições do dia. Se comeu tudo, diga que comeu bem. Se comeu parcial, informe quanto do parcial ele comeu. Se não comeu, diga de forma sutil e carinhosa que o cãozinho esteve mais agitado no dia e não quis realizar a refeição nas tentativas propostas]
-
-Brincadeiras: [Analise as brincadeiras/atividades realizadas no dia e com base no humor diga se ele participou de forma animada, agitada ou se ficou mais quietinho]
-
-Medicação: [SÓ inclua este campo se houver medicação marcada. Informe se foi medicado corretamente. Se NÃO houver medicação, NÃO inclua este campo]
-
-Use 1-2 emojis no total. Não mencione valores financeiros. Termine com uma frase breve se colocando à disposição. Escreva apenas a mensagem, pronta para enviar no WhatsApp.
+Regras para o texto:
+1. Considere o humor do cão (${moodText || 'não registrado'}) para definir o tom da mensagem
+2. Mencione as atividades que ele realizou: ${activitiesText || 'nenhuma atividade registrada'}
+3. Sobre alimentação: considere APENAS as refeições realizadas hoje. ${mealsText.length > 0 ? mealsText.join('; ') : 'sem registros de alimentação'}
+   - Se comeu tudo, diga que comeu bem
+   - Se comeu parcialmente, aponte isso sutilmente
+   - Se não comeu nada, diga de forma amena que o cãozinho recusou a comida após algumas tentativas, por provável ansiedade${isNewDog ? ' ou por estar na fase de adaptação (cão novo)' : ''}
+4. ${medText ? `Inclua que a medicação foi ${report.medicationGiven ? 'aplicada corretamente' : 'não foi possível aplicar'}.` : 'NÃO mencione medicação pois não há.'}
+5. Use 1-2 emojis no total. Não mencione valores financeiros.
+6. Termine com uma frase breve se colocando à disposição.
+7. Escreva apenas a mensagem, pronta para enviar no WhatsApp. Sem títulos, sem cabeçalhos.
 
 Dados do dia de ${dog.name}:
-${moodText ? `- Humor: ${moodText}` : ''}
-${mealsText.length > 0 ? `- Alimentação:\n${mealsText.map(m => `  ${m}`).join('\n')}` : '- Alimentação: sem registros'}
-${activitiesText ? `- Atividades: ${activitiesText}` : ''}
+- Humor: ${moodText || 'não registrado'}
+- Alimentação: ${mealsText.length > 0 ? mealsText.join('; ') : 'sem registros'}
+- Atividades: ${activitiesText || 'nenhuma'}
 ${medText ? `- ${medText}` : ''}
 ${report.generalNotes ? `- Observações: ${report.generalNotes}` : ''}
 ${report.checkInNotes ? `- Notas de entrada: ${report.checkInNotes}` : ''}
-${report.photos.length > 0 ? `- ${report.photos.length} foto(s) tirada(s) durante o dia` : ''}${profileInstruction}`
+${report.photos.length > 0 ? `- ${report.photos.length} foto(s) tirada(s) durante o dia` : ''}
+${isNewDog ? `- Cão novo: cadastrado há ${daysSinceCreated} dias (fase de adaptação)` : ''}
+${weatherInfo ? `- ${weatherInfo}` : ''}
+${historySummary ? `\n${historySummary}` : ''}
+${profileInstruction}`
 }
