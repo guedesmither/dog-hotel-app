@@ -190,6 +190,15 @@ export async function POST(req: NextRequest) {
       take: 10,
     })
 
+    // Debug: log raw meal data
+    console.log('[daily-summary] RAW MEALS for', report.dog.name, {
+      date: report.date,
+      breakfast: report.breakfastStatus,
+      lunch: report.lunchStatus,
+      afternoonSnack: report.afternoonSnackStatus,
+      dinner: report.dinnerStatus,
+    })
+
     const prompt = buildReportPrompt(report, attendantProfile, historyReports, weatherInfo)
 
     try {
@@ -199,7 +208,7 @@ export async function POST(req: NextRequest) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            systemInstruction: { parts: [{ text: 'Você é uma assistente que escreve mensagens de WhatsApp em PORTUGUÊS DO BRASIL. Nunca escreva em inglês. Suas mensagens são sempre naturais, carinhosas e detalhadas, com no mínimo 4 linhas de conteúdo.' }] },
+            systemInstruction: { parts: [{ text: 'Você é uma assistente que escreve mensagens curtas e naturais de WhatsApp em PORTUGUÊS DO BRASIL. Nunca escreva em inglês. Suas mensagens são sempre breves, carinhosas e diretas, no estilo de uma mensagem real de WhatsApp.' }] },
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.7,
@@ -441,24 +450,25 @@ function buildReportPrompt(
     ? `\n\nUse este estilo de atendimento:\n${attendantProfile}`
     : ''
 
-  return `Você é a assistente do Dog Hotel AU-Ê Petcare em Osasco/SP. Escreva uma mensagem de WhatsApp em PORTUGUÊS DO BRASIL para ${dog.ownerName}, tutor(a) do cachorro ${dog.name} (${dog.breed}).
+  return `Você é a assistente do Dog Hotel AU-Ê Petcare em Osasco/SP. Escreva uma mensagem curta e natural de WhatsApp em PORTUGUÊS DO BRASIL para ${dog.ownerName}, tutor(a) do cachorro ${dog.name} (${dog.breed}).
 
 A mensagem deve seguir EXATAMENTE este formato (escreva em PORTUGUÊS, nunca em inglês):
 
 ${firstName}, [bom dia OU boa tarde OU boa noite baseado no horário atual]!
-Passando pra dizer que hoje o ${dog.name} [descreva como foi o dia dele de forma natural, carinhosa e DETALHADA - escreva no mínimo 4 linhas de conteúdo sobre o dia, mencionando humor, atividades e alimentação de forma fluida e conversacional, como se fosse uma mensagem real de WhatsApp de uma atendente carinhosa]
+Passando pra dizer que hoje o ${dog.name} [descreva como foi o dia dele de forma breve e natural, 2-3 linhas, mencionando humor, atividades e alimentação de forma conversacional]
 
 Regras para o texto:
 1. Considere o humor do cão (${moodText || 'não registrado'}) para definir o tom da mensagem
 2. Mencione as atividades que ele realizou: ${activitiesText || 'nenhuma atividade registrada'}
-3. Sobre alimentação: considere APENAS as refeições realizadas hoje. ${mealsText.length > 0 ? mealsText.join('; ') : 'sem registros de alimentação'}
+3. Sobre alimentação: ${mealsText.length > 0 ? mealsText.join('; ') : 'sem registros de alimentação'}
    - Se comeu tudo, diga que comeu bem
    - Se comeu parcialmente, aponte isso sutilmente
    - Se não comeu nada, diga de forma amena que o cãozinho recusou a comida após algumas tentativas, por provável ansiedade${isNewDog ? ' ou por estar na fase de adaptação (cão novo)' : ''}
+   - Se estiver pendente, não mencione essa refeição
 4. ${medText ? `Inclua que a medicação foi ${report.medicationGiven ? 'aplicada corretamente' : 'não foi possível aplicar'}.` : 'NÃO mencione medicação pois não há.'}
 5. Use 1-2 emojis no total. Não mencione valores financeiros.
 6. Termine com uma frase breve se colocando à disposição.
-7. Escreva apenas a mensagem, pronta para enviar no WhatsApp. Sem títulos, sem cabeçalhos.
+7. Escreva apenas a mensagem, pronta para enviar no WhatsApp. Sem títulos, sem cabeçalhos. Seja BREVE - máximo 5 linhas no total.
 
 Dados do dia de ${dog.name}:
 - Humor: ${moodText || 'não registrado'}
