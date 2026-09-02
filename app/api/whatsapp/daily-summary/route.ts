@@ -450,11 +450,16 @@ function buildReportPrompt(
     ? `\n\nUse este estilo de atendimento:\n${attendantProfile}`
     : ''
 
+  // Calculate greeting based on Brazil timezone (UTC-3)
+  const brTime = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false })
+  const brHour = parseInt(brTime)
+  const greeting = brHour < 12 ? 'bom dia' : brHour < 18 ? 'boa tarde' : 'boa noite'
+
   return `Você é a assistente do Dog Hotel AU-Ê Petcare em Osasco/SP. Escreva uma mensagem curta e natural de WhatsApp em PORTUGUÊS DO BRASIL para ${dog.ownerName}, tutor(a) do cachorro ${dog.name} (${dog.breed}).
 
 A mensagem deve seguir EXATAMENTE este formato (escreva em PORTUGUÊS, nunca em inglês):
 
-${firstName}, [bom dia OU boa tarde OU boa noite baseado no horário atual]!
+${firstName}, ${greeting}!
 Passando pra dizer que hoje o ${dog.name} [descreva como foi o dia dele de forma breve e natural, 2-3 linhas, mencionando humor, atividades e alimentação de forma conversacional]
 
 Regras para o texto:
