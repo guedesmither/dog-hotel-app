@@ -199,10 +199,11 @@ export async function POST(req: NextRequest) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            systemInstruction: { parts: [{ text: 'Você é uma assistente que escreve mensagens de WhatsApp em PORTUGUÊS DO BRASIL. Nunca escreva em inglês. Suas mensagens são sempre naturais, carinhosas e detalhadas, com no mínimo 4 linhas de conteúdo.' }] },
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.7,
-              maxOutputTokens: 1024,
+              maxOutputTokens: 4096,
               topP: 0.9,
             },
           }),
@@ -440,12 +441,12 @@ function buildReportPrompt(
     ? `\n\nUse este estilo de atendimento:\n${attendantProfile}`
     : ''
 
-  return `Você é a assistente do Dog Hotel AU-Ê Petcare em Osasco/SP. Escreva uma mensagem de WhatsApp para ${dog.ownerName}, tutor(a) do cachorro ${dog.name} (${dog.breed}).
+  return `Você é a assistente do Dog Hotel AU-Ê Petcare em Osasco/SP. Escreva uma mensagem de WhatsApp em PORTUGUÊS DO BRASIL para ${dog.ownerName}, tutor(a) do cachorro ${dog.name} (${dog.breed}).
 
-A mensagem deve seguir EXATAMENTE este formato:
+A mensagem deve seguir EXATAMENTE este formato (escreva em PORTUGUÊS, nunca em inglês):
 
 ${firstName}, [bom dia OU boa tarde OU boa noite baseado no horário atual]!
-Passando pra dizer que hoje o ${dog.name} [descreva como foi o dia dele de forma natural e personalizada]
+Passando pra dizer que hoje o ${dog.name} [descreva como foi o dia dele de forma natural, carinhosa e DETALHADA - escreva no mínimo 4 linhas de conteúdo sobre o dia, mencionando humor, atividades e alimentação de forma fluida e conversacional, como se fosse uma mensagem real de WhatsApp de uma atendente carinhosa]
 
 Regras para o texto:
 1. Considere o humor do cão (${moodText || 'não registrado'}) para definir o tom da mensagem
