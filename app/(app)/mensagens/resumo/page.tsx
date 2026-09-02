@@ -154,6 +154,12 @@ export default function DailySummaryPage() {
 
   async function sendDraft(summary: DogSummary) {
     if (!summary.draftMessage) return
+    const phone = summary.ownerPhone.replace(/\D/g, '')
+    const text = encodeURIComponent(summary.draftMessage)
+    const url = `https://wa.me/${phone}?text=${text}`
+    window.open(url, '_blank')
+
+    // Mark as sent via API
     setSendingId(summary.dogId)
     try {
       const res = await fetch('/api/whatsapp/daily-summary', {
@@ -163,18 +169,14 @@ export default function DailySummaryPage() {
           date,
           dogId: summary.dogId,
           reportId: summary.reportId,
-          image: photoData[summary.dogId] || undefined,
         }),
       })
       if (res.ok) {
         setPhotoData(prev => { const next = { ...prev }; delete next[summary.dogId]; return next })
         await loadSummaries()
-      } else {
-        const err = await res.json()
-        alert(err.error || 'Erro ao enviar')
       }
     } catch {
-      alert('Erro ao enviar')
+      // Silent fail — message was already opened in WhatsApp
     } finally {
       setSendingId(null)
     }
@@ -394,7 +396,7 @@ export default function DailySummaryPage() {
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
                         >
                           {sendingId === summary.dogId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                          {photoData[summary.dogId] ? 'Enviar com foto' : 'Enviar'}
+                          Abrir no WhatsApp
                         </button>
                         <button
                           onClick={() => startEdit(summary)}

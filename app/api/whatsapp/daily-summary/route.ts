@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { sendWhatsAppMessage, sendWhatsAppImage, normalizePhone } from '@/lib/whatsapp'
 import { getGeminiApiKey } from '@/lib/gemini'
 
 export const dynamic = 'force-dynamic'
@@ -289,7 +288,7 @@ export async function PUT(req: NextRequest) {
 
 // PATCH /api/whatsapp/daily-summary
 // Body: { date: string, dogId: string, reportId: string }
-// Sends the draft message via WhatsApp and marks report as sent
+// Marks the report as sent (message is opened in WhatsApp via wa.me link from the client)
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
@@ -297,45 +296,10 @@ export async function PATCH(req: NextRequest) {
   if (role === 'TUTOR') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
 
   const body = await req.json()
-  const { date, dogId, reportId, image } = body as { date: string; dogId: string; reportId: string; image?: string }
+  const { date, dogId, reportId } = body as { date: string; dogId: string; reportId: string }
 
   if (!date || !dogId || !reportId) {
     return NextResponse.json({ error: 'Parâmetros obrigatórios: date, dogId, reportId' }, { status: 400 })
-  }
-
-  // Get draft
-  const draftsSetting = await prisma.appSetting.findUnique({
-    where: { key: `daily_drafts_${date}` },
-  })
-  const drafts: Record<string, string> = draftsSetting ? JSON.parse(draftsSetting.value) : {}
-  const message = drafts[dogId]
-
-  if (!message) {
-    return NextResponse.json({ error: 'Rascunho não encontrado' }, { status: 404 })
-  }
-
-  // Get dog phone
-  const report = await prisma.dailyReport.findUnique({
-    where: { id: reportId },
-    include: { dog: { select: { id: true, name: true, ownerName: true, ownerPhone: true } } },
-  })
-
-  if (!report) {
-    return NextResponse.json({ error: 'Relatório não encontrado' }, { status: 404 })
-  }
-
-  const phone = normalizePhone(report.dog.ownerPhone)
-  if (!phone) {
-    return NextResponse.json({ error: 'Telefone do tutor não encontrado' }, { status: 400 })
-  }
-
-  // Send via WhatsApp (image with caption or text only)
-  const sendResult = image
-    ? await sendWhatsAppImage(phone, image, message)
-    : await sendWhatsAppMessage(phone, message)
-
-  if (!sendResult) {
-    return NextResponse.json({ error: 'Erro ao enviar mensagem' }, { status: 500 })
   }
 
   // Mark report as sent
@@ -344,25 +308,7 @@ export async function PATCH(req: NextRequest) {
     data: { sentToWhatsApp: true },
   })
 
-  // Save message to conversation
-  const conv = await prisma.whatsAppConversation.findUnique({
-    where: { phoneNumber: phone },
-  })
-
-  if (conv) {
-    await prisma.whatsAppMessage.create({
-      data: {
-        conversationId: conv.id,
-        direction: 'OUTBOUND',
-        source: 'HUMAN',
-        text: message,
-        waMessageId: sendResult.id,
-        status: 'SENT',
-      },
-    })
-  }
-
-  return NextResponse.json({ success: true, messageId: sendResult.id })
+  return NextResponse.json({ success: true })
 }
 
 function buildReportPrompt(
