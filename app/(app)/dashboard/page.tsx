@@ -358,7 +358,7 @@ export default function DashboardPage() {
     if (!silent) setLoading(true)
     try {
       const [dogsRes, rosterRes] = await Promise.all([
-        fetch('/api/dogs?active=true'),
+        fetch(`/api/dogs?active=true&date=${today}`),
         fetch(`/api/roster?date=${today}`),
       ])
       const allDogs: DogWithStay[] = await dogsRes.json()
@@ -582,7 +582,7 @@ export default function DashboardPage() {
                               </button>
                             )}
                             {!isAbsent && (
-                              <Link href={`/dogs/${dog.id}/report`} className="text-xs bg-amber-600 hover:bg-amber-700 text-white py-1 px-2 rounded font-medium">📝</Link>
+                              <Link href={`/dogs/${dog.id}/report?date=${today}`} className="text-xs bg-amber-600 hover:bg-amber-700 text-white py-1 px-2 rounded font-medium">📝</Link>
                             )}
                             <button
                               onClick={() => toggleAbsent(dog.id, isAbsent)}
@@ -723,7 +723,7 @@ export default function DashboardPage() {
                     )}
                     {!isAbsent && (
                       <Link
-                        href={`/dogs/${dog.id}/report`}
+                        href={`/dogs/${dog.id}/report?date=${today}`}
                         className={`text-center text-xs bg-amber-600 hover:bg-amber-700 text-white py-2 px-3 rounded-lg font-medium transition-colors ${present === true ? 'flex-1' : 'flex-1'}`}
                       >
                         📝 Relatório do Dia

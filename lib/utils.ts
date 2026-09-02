@@ -30,7 +30,7 @@ export function formatDateShort(date: Date | string | null | undefined): string 
 }
 
 export function getTodayString() {
-  return new Date().toISOString().split('T')[0]
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
 }
 
 export const MEAL_STATUS_LABELS: Record<string, string> = {

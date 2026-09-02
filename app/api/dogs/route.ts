@@ -41,7 +41,8 @@ export async function GET(req: NextRequest) {
     ]
   }
 
-  const today = new Date().toISOString().split('T')[0]
+  const dateParam = searchParams.get('date')
+  const today = dateParam || new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
 
   const dogs = await prisma.dog.findMany({
     where,
