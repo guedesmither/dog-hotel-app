@@ -7,7 +7,7 @@ import { getGeminiApiKey } from '@/lib/gemini'
 
 export const dynamic = 'force-dynamic'
 
-const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_MODEL = 'gemini-3.6-flash'
 
 interface DogSummary {
   dogId: string
