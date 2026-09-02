@@ -91,6 +91,8 @@ export async function GET(
 
   if (!dog) return NextResponse.json({ error: 'Cão não encontrado' }, { status: 404 })
 
+  console.log('[dogs/[id]] dog:', dog.name, 'sex:', JSON.stringify(dog.sex))
+
   return NextResponse.json(dog)
 }
 

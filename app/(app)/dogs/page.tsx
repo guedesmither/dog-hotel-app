@@ -170,7 +170,7 @@ export default function DogsPage() {
                     <div className="flex gap-2 mt-0.5 flex-wrap">
                       {dog.size && <span className="text-xs text-gray-400">{dog.size}</span>}
                       {dog.weight && <span className="text-xs text-gray-400">{dog.weight} kg</span>}
-                      {dog.sex && <span className="text-xs text-gray-400">{dog.sex}</span>}
+                      {dog.sex ? <span className="text-xs text-gray-400">{dog.sex === 'femea' || dog.sex === 'Fêmea' || dog.sex === 'FEMEA' ? 'Fêmea' : dog.sex === 'macho' || dog.sex === 'Macho' || dog.sex === 'MACHO' ? 'Macho' : dog.sex}</span> : null}
                     </div>
                   </div>
                 </div>

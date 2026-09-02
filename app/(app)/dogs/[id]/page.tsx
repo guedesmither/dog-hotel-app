@@ -187,7 +187,7 @@ export default function DogProfilePage() {
                 {dog.color && <span className="badge bg-amber-100 text-amber-700">{dog.color}</span>}
                 {dog.weight && <span className="badge bg-gray-100 text-gray-600">{dog.weight} kg</span>}
                 {dog.size && <span className="badge bg-purple-50 text-purple-600">{dog.size}</span>}
-                {dog.sex && <span className="badge bg-pink-50 text-pink-600">{dog.sex}</span>}
+                {dog.sex ? <span className="badge bg-pink-50 text-pink-600">{dog.sex === 'femea' || dog.sex === 'Fêmea' || dog.sex === 'FEMEA' ? 'Fêmea' : dog.sex === 'macho' || dog.sex === 'Macho' || dog.sex === 'MACHO' ? 'Macho' : dog.sex}</span> : null}
                 {dog.castrated !== null && (
                   <span className="badge bg-blue-50 text-blue-600">{dog.castrated ? 'Castrado' : 'Não castrado'}</span>
                 )}
