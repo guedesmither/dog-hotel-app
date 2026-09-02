@@ -190,9 +190,10 @@ export async function POST(req: NextRequest) {
       take: 10,
     })
 
-    // Debug: log raw meal data
-    console.log('[daily-summary] RAW MEALS for', report.dog.name, {
+    // Debug: log raw meal data and sex
+    console.log('[daily-summary] RAW for', report.dog.name, {
       date: report.date,
+      sex: report.dog.sex,
       breakfast: report.breakfastStatus,
       lunch: report.lunchStatus,
       afternoonSnack: report.afternoonSnackStatus,
@@ -412,8 +413,9 @@ function buildReportPrompt(
   // First name only
   const firstName = dog.ownerName.split(' ')[0]
 
-  // Pronouns based on sex
-  const isFemale = dog.sex === 'FEMEA' || dog.sex === 'F' || dog.sex === 'Fêmea'
+  // Pronouns based on sex (handle all variations: macho/Macho/MACHO/femea/Fêmea/F etc)
+  const sexLower = (dog.sex || '').toLowerCase().trim()
+  const isFemale = sexLower === 'femea' || sexLower === 'fêmea' || sexLower === 'f' || sexLower === 'feminino'
   const pronoun = isFemale ? 'ela' : 'ele'
   const article = isFemale ? 'a' : 'o'
   const articleUpper = isFemale ? 'A' : 'O'
