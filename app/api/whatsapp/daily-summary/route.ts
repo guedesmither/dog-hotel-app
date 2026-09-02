@@ -381,8 +381,8 @@ function buildReportPrompt(
   ] as const
 
   for (const [label, status, qty, notes] of mealMap) {
-    if (status === 'EATEN') {
-      mealsText.push(`${label}: comeu${qty ? ` (${qty})` : ''}${notes ? ` - ${notes}` : ''}`)
+    if (status === 'ALL') {
+      mealsText.push(`${label}: comeu tudo${qty ? ` (${qty})` : ''}${notes ? ` - ${notes}` : ''}`)
     } else if (status === 'PARTIAL') {
       mealsText.push(`${label}: comeu parcialmente${qty ? ` (${qty})` : ''}${notes ? ` - ${notes}` : ''}`)
     } else if (status === 'REFUSED') {
@@ -425,7 +425,7 @@ function buildReportPrompt(
     const activityHistory: string[] = []
     for (const h of historyReports) {
       const hMeals = [h.breakfastStatus, h.lunchStatus, h.afternoonSnackStatus, h.dinnerStatus]
-        .filter(s => s === 'EATEN').length
+        .filter(s => s === 'ALL').length
       const hTotal = [h.breakfastStatus, h.lunchStatus, h.afternoonSnackStatus, h.dinnerStatus]
         .filter(s => s !== 'PENDING').length
       if (hTotal > 0) {
