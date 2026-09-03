@@ -173,7 +173,13 @@ export async function POST(req: NextRequest) {
 
   for (const report of reports) {
     if (report.absent) {
-      drafts[report.dogId] = `Olá ${report.dog.ownerName}! Aviso que ${report.dog.name} não veio hoje. Qualquer coisa, estamos à disposição! 🐾`
+      const firstName = report.dog.ownerName.split(' ')[0]
+      const brTime = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false })
+      const brHour = parseInt(brTime)
+      const greeting = brHour < 12 ? 'bom dia' : brHour < 18 ? 'boa tarde' : 'boa noite'
+      const sexLower = (report.dog.sex || '').toLowerCase().trim()
+      const isFemale = sexLower === 'femea' || sexLower === 'fêmea' || sexLower === 'f' || sexLower === 'feminino'
+      drafts[report.dogId] = `Olá ${firstName}, ${greeting}! Aviso que ${report.dog.name} não veio hoje. Pedimos que, se possível, agende a reposição o quanto antes para garantir o espaço d${isFemale ? 'a' : 'o'} ${report.dog.name} ainda dentro do mês vigente da mensalidade. Qualquer coisa, estamos à disposição! 🐾`
       continue
     }
 
