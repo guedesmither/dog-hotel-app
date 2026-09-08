@@ -44,6 +44,31 @@ export async function GET(req: NextRequest) {
   const dateParam = searchParams.get('date')
   const today = dateParam || new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
 
+  // Auto-deactivate stale hotel stays: if a dog has an active stay but no HOTEL roster
+  // entries for today or any future date, the stay has ended — mark it inactive.
+  const activeStays = await prisma.stay.findMany({
+    where: { active: true, isScheduled: false },
+    select: { id: true, dogId: true },
+  })
+  if (activeStays.length > 0) {
+    for (const stay of activeStays) {
+      const futureRoster = await prisma.dailyRoster.findFirst({
+        where: {
+          dogId: stay.dogId,
+          type: 'HOTEL',
+          date: { gte: today },
+        },
+        select: { id: true },
+      })
+      if (!futureRoster) {
+        await prisma.stay.update({
+          where: { id: stay.id },
+          data: { active: false, checkOut: new Date() },
+        })
+      }
+    }
+  }
+
   const dogs = await prisma.dog.findMany({
     where,
     include: {
