@@ -269,6 +269,62 @@ async function seedMensalCreche(date: string, targetDateObj: Date, added: string
     },
   })
 
+  // Pre-compute mensal period windows to batch roster counts
+  const targetDate = new Date(date + 'T12:00:00')
+  const hasExplicitEndMap = new Map<string, boolean>()
+  const windowStartMap = new Map<string, Date>()
+  const windowEndMap = new Map<string, Date>()
+  const dogIdsForCount = new Set<string>()
+
+  for (const sale of mensalSales) {
+    if (!sale.dogId || !sale.dog) continue
+    if (!isCrecheSale(sale)) continue
+    const dog = sale.dog
+    if (!dog.isActive || (dog.serviceType || '').toUpperCase() !== 'CRECHE') continue
+    if (dogsInPrevSameDay.has(dog.id)) continue
+    if (!dog.scheduledDays || dog.scheduledDays.trim() === '') continue
+    if (!isDayScheduled(dog.scheduledDays, targetDateObj.getDay())) continue
+
+    const period = calcMensalPeriod(sale)
+    if (!period) continue
+    if (targetDateObj < period.start || targetDateObj > period.end) continue
+
+    const hasExplicitEnd = !!sale.endDate
+    hasExplicitEndMap.set(sale.id, hasExplicitEnd)
+    if (hasExplicitEnd) {
+      windowStartMap.set(sale.id, period.start)
+      windowEndMap.set(sale.id, period.end)
+    } else {
+      const ws = new Date(targetDate)
+      ws.setDate(1)
+      ws.setHours(0, 0, 0, 0)
+      const we = new Date(targetDate)
+      we.setDate(1)
+      we.setMonth(we.getMonth() + 1)
+      we.setDate(0)
+      we.setHours(23, 59, 59, 999)
+      windowStartMap.set(sale.id, ws)
+      windowEndMap.set(sale.id, we)
+    }
+    if (sale.dogId) dogIdsForCount.add(sale.dogId)
+  }
+
+  // Batch: count CRECHE roster entries per dog for the relevant windows
+  const crecheCounts = new Map<string, number>()
+  if (dogIdsForCount.size > 0) {
+    const counts = await prisma.dailyRoster.groupBy({
+      by: ['dogId'],
+      where: {
+        dogId: { in: Array.from(dogIdsForCount) },
+        type: 'CRECHE',
+      },
+      _count: { _all: true },
+    })
+    for (const c of counts) {
+      if (c.dogId) crecheCounts.set(c.dogId, c._count._all)
+    }
+  }
+
   for (const sale of mensalSales) {
     if (!sale.dogId || !sale.dog) continue
     if (!isCrecheSale(sale)) continue
@@ -287,8 +343,26 @@ async function seedMensalCreche(date: string, targetDateObj: Date, added: string
 
     if (targetDateObj < period.start || targetDateObj > period.end) continue
 
-    const cap = await calcMensalAllowed(sale, dog, date)
-    if (cap.allowed !== Infinity && cap.used >= cap.allowed) continue
+    // Use batched count instead of individual calcMensalAllowed
+    const ws = windowStartMap.get(sale.id)!
+    const we = windowEndMap.get(sale.id)!
+    let allowed: number
+    if (dog.scheduledDays && dog.scheduledDays.trim() !== '') {
+      allowed = countScheduledOccurrences(dog.scheduledDays, ws, we)
+    } else {
+      const freq = getFrequencyFromProduct(sale)
+      if (freq > 0) {
+        const weeks = Math.ceil((we.getTime() - ws.getTime()) / (7 * 24 * 60 * 60 * 1000))
+        allowed = freq * weeks
+      } else {
+        allowed = Infinity
+      }
+    }
+
+    if (allowed !== Infinity) {
+      const used = crecheCounts.get(sale.dogId) || 0
+      if (used >= allowed) continue
+    }
 
     await upsertRosterEntry(dog.id, date, 'CRECHE', 'AUTO', added)
   }
