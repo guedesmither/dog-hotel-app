@@ -51,21 +51,24 @@ export async function GET(req: NextRequest) {
     select: { id: true, dogId: true },
   })
   if (activeStays.length > 0) {
-    for (const stay of activeStays) {
-      const futureRoster = await prisma.dailyRoster.findFirst({
-        where: {
-          dogId: stay.dogId,
-          type: 'HOTEL',
-          date: { gte: today },
-        },
-        select: { id: true },
+    const stayDogIds = [...new Set(activeStays.map(s => s.dogId))]
+    const futureRosters = await prisma.dailyRoster.findMany({
+      where: {
+        dogId: { in: stayDogIds },
+        type: 'HOTEL',
+        date: { gte: today },
+      },
+      select: { dogId: true },
+    })
+    const dogsWithFutureRoster = new Set(futureRosters.map(r => r.dogId))
+    const staleStayIds = activeStays
+      .filter(s => !dogsWithFutureRoster.has(s.dogId))
+      .map(s => s.id)
+    if (staleStayIds.length > 0) {
+      await prisma.stay.updateMany({
+        where: { id: { in: staleStayIds } },
+        data: { active: false, checkOut: new Date() },
       })
-      if (!futureRoster) {
-        await prisma.stay.update({
-          where: { id: stay.id },
-          data: { active: false, checkOut: new Date() },
-        })
-      }
     }
   }
 

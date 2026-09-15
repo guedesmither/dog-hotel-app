@@ -427,14 +427,52 @@ async function replicateFromPreviousWeek(date: string, targetDateObj: Date, adde
     include: { dog: true },
   })
 
+  // Batch: fetch all existing roster entries for the target date (avoid N+1 findFirst)
+  const existingEntries = await prisma.dailyRoster.findMany({
+    where: { date },
+    select: { dogId: true },
+  })
+  const existingDogIds = new Set(existingEntries.map(e => e.dogId))
+
+  // Batch: fetch all relevant sales for dogs in the previous week's roster
+  const dogIdsInPrev = previousEntries.map(e => e.dogId).filter(Boolean) as string[]
+  const allSales = dogIdsInPrev.length > 0 ? await prisma.sales.findMany({
+    where: {
+      dogId: { in: dogIdsInPrev },
+      paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
+      manualBaixa: false,
+    },
+    include: { items: { include: { product: true } } },
+  }) : []
+  const salesByDog = new Map<string, typeof allSales>()
+  for (const sale of allSales) {
+    if (!sale.dogId) continue
+    if (!salesByDog.has(sale.dogId)) salesByDog.set(sale.dogId, [])
+    salesByDog.get(sale.dogId)!.push(sale)
+  }
+
+  // Batch: count roster usage per dog for AVULSO/PACOTE validation
+  const avulsoPacoteDogIds = previousEntries
+    .filter(e => e.type === 'AVULSO' || e.type === 'PACOTE')
+    .map(e => e.dogId)
+    .filter(Boolean) as string[]
+  const rosterCounts = new Map<string, number>()
+  if (avulsoPacoteDogIds.length > 0) {
+    const counts = await prisma.dailyRoster.groupBy({
+      by: ['dogId'],
+      where: { dogId: { in: avulsoPacoteDogIds } },
+      _count: { _all: true },
+    })
+    for (const c of counts) {
+      if (c.dogId) rosterCounts.set(`${c.dogId}`, c._count._all)
+    }
+  }
+
   for (const entry of previousEntries) {
     if (!entry.dog || !entry.dog.isActive) continue
 
-    // Skip if already in roster for target date
-    const existing = await prisma.dailyRoster.findFirst({
-      where: { dogId: entry.dogId, date },
-    })
-    if (existing) continue
+    // Skip if already in roster for target date (using batched set)
+    if (entry.dogId && existingDogIds.has(entry.dogId)) continue
 
     const dog = entry.dog
 
@@ -451,20 +489,8 @@ async function replicateFromPreviousWeek(date: string, targetDateObj: Date, adde
 
       // Validate there's still an active creche sale covering this date
       if (!dog.isBolsista) {
-        const activeSales = await prisma.sales.findMany({
-          where: {
-            dogId: entry.dogId,
-            OR: [
-              { saleType: 'MENSAL' },
-              { items: { some: { product: { category: 'CRECHE' } } } },
-            ],
-            paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
-            manualBaixa: false,
-          },
-          include: { items: { include: { product: true } } },
-        })
-
-        const hasValidSale = activeSales.some(sale => {
+        const dogSales = salesByDog.get(entry.dogId!) || []
+        const hasValidSale = dogSales.some(sale => {
           if (!isCrecheSale(sale)) return false
           const period = calcMensalPeriod(sale)
           if (!period) return false
@@ -477,18 +503,10 @@ async function replicateFromPreviousWeek(date: string, targetDateObj: Date, adde
 
     // AVULSO/PACOTE: validate there's still an active sale with remaining days
     if (entry.type === 'AVULSO' || entry.type === 'PACOTE') {
-      const activeSales = await prisma.sales.findMany({
-        where: {
-          dogId: entry.dogId,
-          saleType: { in: ['AVULSO', 'PACOTE'] },
-          paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
-          manualBaixa: false,
-        },
-        include: { items: { include: { product: true } } },
-      })
+      const dogSales = (salesByDog.get(entry.dogId!) || []).filter(s => s.saleType === 'AVULSO' || s.saleType === 'PACOTE')
 
       let hasValidSale = false
-      for (const sale of activeSales) {
+      for (const sale of dogSales) {
         const period = sale.saleType === 'AVULSO' ? calcAvulsoPeriod(sale) : calcMensalPeriod(sale)
         if (!period) continue
         if (targetDateObj < period.start || targetDateObj > period.end) continue
@@ -496,13 +514,8 @@ async function replicateFromPreviousWeek(date: string, targetDateObj: Date, adde
         const purchasedDays = countPurchasedAvulsoDays(sale)
         if (purchasedDays === 0) { hasValidSale = true; break }
 
-        const used = await prisma.dailyRoster.count({
-          where: {
-            dogId: entry.dogId,
-            type: entry.type,
-            date: { gte: period.start.toISOString().split('T')[0], lte: period.end.toISOString().split('T')[0] },
-          },
-        })
+        // Use batched count (approximate — counts all roster entries for this dog, not just within period)
+        const used = rosterCounts.get(`${entry.dogId}`) || 0
         if (used < purchasedDays) { hasValidSale = true; break }
       }
 
