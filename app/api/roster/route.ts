@@ -367,6 +367,32 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Cleanup: remove AUTO HOTEL entries for dogs that already checked out
+    const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
+    const futureHotelEntries = await prisma.dailyRoster.findMany({
+      where: { type: 'HOTEL', source: 'AUTO', date: { gte: todayStr } },
+      select: { id: true, dogId: true, date: true },
+    })
+    if (futureHotelEntries.length > 0) {
+      const hotelDogIds = Array.from(new Set(futureHotelEntries.map(e => e.dogId).filter(Boolean) as string[]))
+      const completedStays = await prisma.stay.findMany({
+        where: { dogId: { in: hotelDogIds }, isScheduled: false, checkOut: { not: null } },
+        select: { dogId: true, checkOut: true },
+      })
+      const checkedOutDogIds = new Set(completedStays.filter(s => s.checkOut && new Date(s.checkOut) <= new Date()).map(s => s.dogId))
+      if (checkedOutDogIds.size > 0) {
+        const staleIds = futureHotelEntries.filter(e => e.dogId && checkedOutDogIds.has(e.dogId)).map(e => e.id)
+        const staleDates = futureHotelEntries.filter(e => e.dogId && checkedOutDogIds.has(e.dogId)).map(e => e.date)
+        if (staleIds.length > 0) {
+          await prisma.dailyRoster.deleteMany({ where: { id: { in: staleIds } } })
+          // Reset seed tracking for affected dates so they re-seed without the stale HOTEL entries
+          if (staleDates.length > 0) {
+            await prisma.dailyRosterSeed.deleteMany({ where: { date: { in: Array.from(new Set(staleDates)) } } })
+          }
+        }
+      }
+    }
+
     const entries = await prisma.dailyRoster.findMany({
       where: { date: { in: dates } },
       select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, guestName: true, dog: { select: dogSelect } } as any,

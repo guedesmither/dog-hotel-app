@@ -382,6 +382,26 @@ async function seedHotel(date: string, targetDateObj: Date, added: string[]) {
     include: { dog: true },
   })
 
+  // Batch: fetch completed stays (non-scheduled, with checkOut) to detect consumed hotel periods
+  const allDogIds = Array.from(new Set(scheduledStays.map(s => s.dogId).filter(Boolean) as string[]))
+  const completedStaysByDog = new Map<string, { checkIn: Date | null; checkOut: Date | null }[]>()
+  if (allDogIds.length > 0) {
+    const completedStays = await prisma.stay.findMany({
+      where: {
+        dogId: { in: allDogIds },
+        isScheduled: false,
+        checkOut: { not: null },
+      },
+      select: { dogId: true, checkIn: true, checkOut: true },
+    })
+    for (const cs of completedStays) {
+      if (!cs.dogId) continue
+      const arr = completedStaysByDog.get(cs.dogId) || []
+      arr.push({ checkIn: cs.checkIn, checkOut: cs.checkOut })
+      completedStaysByDog.set(cs.dogId, arr)
+    }
+  }
+
   for (const stay of scheduledStays) {
     if (!stay.dog) continue
     const dog = stay.dog
@@ -393,6 +413,17 @@ async function seedHotel(date: string, targetDateObj: Date, added: string[]) {
     end.setHours(23, 59, 59, 999)
 
     if (targetDateObj < start || targetDateObj > end) continue
+
+    // Skip if dog already checked out from this hotel period
+    const dogCompleted = completedStaysByDog.get(dog.id) || []
+    const isConsumed = dogCompleted.some(cs => {
+      if (!cs.checkOut) return false
+      const co = new Date(cs.checkOut)
+      co.setHours(0, 0, 0, 0)
+      // If checkOut is on or after the scheduled checkIn, the dog already went through this period
+      return co >= start
+    })
+    if (isConsumed) continue
 
     await upsertRosterEntry(dog.id, date, 'HOTEL', 'AUTO', added)
   }
@@ -410,6 +441,27 @@ async function seedHotel(date: string, targetDateObj: Date, added: string[]) {
     include: { dog: true },
   })
 
+  // Batch: fetch completed stays for hotel sale dogs too
+  const saleDogIds = Array.from(new Set(hotelSales.map(s => s.dogId).filter(Boolean) as string[]))
+  const saleCompletedByDog = new Map<string, { checkIn: Date | null; checkOut: Date | null }[]>()
+  const missingSaleDogIds = saleDogIds.filter(id => !completedStaysByDog.has(id))
+  if (missingSaleDogIds.length > 0) {
+    const extraCompleted = await prisma.stay.findMany({
+      where: {
+        dogId: { in: missingSaleDogIds },
+        isScheduled: false,
+        checkOut: { not: null },
+      },
+      select: { dogId: true, checkIn: true, checkOut: true },
+    })
+    for (const cs of extraCompleted) {
+      if (!cs.dogId) continue
+      const arr = saleCompletedByDog.get(cs.dogId) || []
+      arr.push({ checkIn: cs.checkIn, checkOut: cs.checkOut })
+      saleCompletedByDog.set(cs.dogId, arr)
+    }
+  }
+
   for (const sale of hotelSales) {
     if (!sale.dogId || !sale.dog) continue
     const dog = sale.dog
@@ -419,6 +471,16 @@ async function seedHotel(date: string, targetDateObj: Date, added: string[]) {
     if (!period) continue
 
     if (targetDateObj < period.start || targetDateObj > period.end) continue
+
+    // Skip if dog already checked out from this hotel period
+    const dogCompleted = completedStaysByDog.get(dog.id) || saleCompletedByDog.get(dog.id) || []
+    const isConsumed = dogCompleted.some(cs => {
+      if (!cs.checkOut) return false
+      const co = new Date(cs.checkOut)
+      co.setHours(0, 0, 0, 0)
+      return co >= period.start
+    })
+    if (isConsumed) continue
 
     const alreadyFromStay = scheduledStays.some((s) => {
       if (s.dogId !== dog.id) return false
