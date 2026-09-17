@@ -368,65 +368,8 @@ async function seedMensalCreche(date: string, targetDateObj: Date, added: string
   }
 }
 
-async function seedAvulso(date: string, targetDateObj: Date, added: string[]) {
-  const avulsoSales = await prisma.sales.findMany({
-    where: {
-      saleType: 'AVULSO',
-      paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
-      manualBaixa: false,
-      dogId: { not: null },
-    },
-    include: {
-      dog: true,
-      items: { include: { product: true } },
-      package: true,
-    },
-  })
-
-  for (const sale of avulsoSales) {
-    if (!sale.dogId || !sale.dog) continue
-    const dog = sale.dog
-    if (!dog.isActive) continue
-
-    // If sale has a linked package, validate it's not expired
-    if (sale.package) {
-      if (!sale.package.isActive || sale.package.remainingDays <= 0) continue
-      if (new Date(sale.package.expiryDate) < targetDateObj) continue
-    }
-
-    const period = calcAvulsoPeriod(sale)
-    if (!period) continue
-
-    if (targetDateObj < period.start || targetDateObj > period.end) continue
-
-    const purchasedDays = countPurchasedAvulsoDays(sale)
-    if (purchasedDays === 0) {
-      // Sale without explicit day items: allow one day within period
-      const used = await prisma.dailyRoster.count({
-        where: {
-          dogId: dog.id,
-          type: 'AVULSO',
-          date: { gte: period.start.toISOString().split('T')[0], lte: period.end.toISOString().split('T')[0] },
-        },
-      })
-      if (used === 0) await upsertRosterEntry(dog.id, date, 'AVULSO', 'AUTO', added)
-      continue
-    }
-
-    const used = await prisma.dailyRoster.count({
-      where: {
-        dogId: dog.id,
-        type: 'AVULSO',
-        date: { gte: period.start.toISOString().split('T')[0], lte: period.end.toISOString().split('T')[0] },
-      },
-    })
-
-    if (used < purchasedDays) {
-      await upsertRosterEntry(dog.id, date, 'AVULSO', 'AUTO', added)
-      break
-    }
-  }
-}
+// seedAvulso removed — was dead code (never called in seedDate).
+// AVULSO/PACOTE seeding is handled by replicateFromPreviousWeek and seedPacote.
 
 async function seedHotel(date: string, targetDateObj: Date, added: string[]) {
   // Auto-seed from scheduled hotel stays

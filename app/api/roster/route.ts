@@ -401,7 +401,6 @@ export async function GET(req: NextRequest) {
 
 // POST /api/roster  { dogId, date, type?, isPernoite?, packageId? }
 export async function POST(req: NextRequest) {
-  console.log('[DEBUG] POST /api/roster called')
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
@@ -597,7 +596,7 @@ export async function POST(req: NextRequest) {
     // ── BOLSISTA: always eligible, skip all checks ──────────────────────────
     if (dog.dogStatus === 'BOLSISTA' || dog.isBolsista === true) {
       // Fall through directly to upsert below
-      console.log(`[DEBUG] Dog ${dogId} is BOLSISTA - skipping eligibility checks`)
+      // BOLSISTA: skip eligibility checks
     } else {
 
     let eligible = false
@@ -728,31 +727,18 @@ export async function POST(req: NextRequest) {
     if (entryType === 'CRECHE') {
       const monthlySales = dog.sales.filter((s: any) => isCrecheSale(s))
 
-      console.log(`[DEBUG] CRECHE check: found ${monthlySales.length} creche sales`)
       for (const sale of monthlySales) {
-        // Parse dates using helper that handles DD/MM/YYYY format
-        console.log(`[DEBUG] Sale ${sale.id}: startDate=${sale.startDate}, saleDate=${sale.saleDate}, endDate=${sale.endDate}`)
         const saleDate = parseSaleDate(sale.startDate) || parseSaleDate(sale.saleDate)
-        console.log(`[DEBUG] Parsed saleDate: ${saleDate}`)
-        if (!saleDate) {
-          console.log(`[DEBUG] Skipping sale ${sale.id}: no valid saleDate`)
-          continue
-        }
+        if (!saleDate) continue
         saleDate.setHours(0, 0, 0, 0)
 
         const hasExplicitEnd = !!sale.endDate
         let expiryDate = parseSaleDate(sale.endDate)
         if (!expiryDate) {
-          // No explicit endDate: MENSAL valid indefinitely, use end of target month for counting
           expiryDate = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0)
         }
         expiryDate.setHours(23, 59, 59, 999)
-        console.log(`[DEBUG] Sale ${sale.id}: saleDate=${saleDate.toISOString()}, expiryDate=${expiryDate.toISOString()}, targetDate=${targetDate.toISOString()}`)
-
-        if (targetDate < saleDate || targetDate > expiryDate) {
-          console.log(`[DEBUG] Sale ${sale.id}: targetDate outside range`)
-          continue
-        }
+        if (targetDate < saleDate || targetDate > expiryDate) continue
 
         // For counting allowed/used days, use the target month window when there's no explicit endDate
         const countStart = hasExplicitEnd ? saleDate : new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
@@ -807,15 +793,11 @@ export async function POST(req: NextRequest) {
         s.saleType === 'PACOTE' ||
         (s.items.some((i: any) => i.product?.category === 'AVULSO' || i.product?.category === 'PACOTE' || i.product?.name.includes('Diária')))
       )
-      console.log(`[DEBUG AVULSO] found ${avulsoSales.length} avulso/pacote sales for dog ${dogId}`)
+      // AVULSO/PACOTE eligibility check
 
       for (const sale of avulsoSales) {
-        console.log(`[DEBUG AVULSO] checking sale ${sale.id}, type=${sale.saleType}, startDate=${sale.startDate}, saleDate=${sale.saleDate}, endDate=${sale.endDate}`)
         const saleDate = parseSaleDate(sale.startDate) || parseSaleDate(sale.saleDate)
-        if (!saleDate) {
-          console.log(`[DEBUG AVULSO] skipping sale ${sale.id}: no valid saleDate`)
-          continue
-        }
+        if (!saleDate) continue
         saleDate.setHours(0, 0, 0, 0)
 
         let expiryDate = parseSaleDate(sale.endDate)
@@ -824,12 +806,7 @@ export async function POST(req: NextRequest) {
           expiryDate.setDate(expiryDate.getDate() + 90)
         }
         expiryDate.setHours(23, 59, 59, 999)
-        console.log(`[DEBUG AVULSO] sale ${sale.id}: saleDate=${saleDate.toISOString()}, expiryDate=${expiryDate.toISOString()}, targetDate=${targetDate.toISOString()}`)
-
-        if (targetDate < saleDate || targetDate > expiryDate) {
-          console.log(`[DEBUG AVULSO] sale ${sale.id}: targetDate outside range`)
-          continue
-        }
+        if (targetDate < saleDate || targetDate > expiryDate) continue
 
         // Count purchased days vs days already in roster (scheduled or attended)
         const saleDateStr = saleDate.toISOString().split('T')[0]
@@ -841,7 +818,6 @@ export async function POST(req: NextRequest) {
         const usedDays = await prisma.dailyRoster.count({
           where: { dogId, type: 'AVULSO', date: { gte: saleDateStr, lte: expiryDateStr } },
         })
-        console.log(`[DEBUG AVULSO] purchasedDays=${purchasedDays} usedDays=${usedDays}`)
         if (usedDays < purchasedDays) {
           eligible = true
           reason = `Diária avulsa disponível: ${purchasedDays - usedDays} dia(s) restante(s)`

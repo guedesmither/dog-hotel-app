@@ -46,29 +46,32 @@ export async function GET(req: NextRequest) {
 
   // Auto-deactivate stale hotel stays: if a dog has an active stay but no HOTEL roster
   // entries for today or any future date, the stay has ended — mark it inactive.
-  const activeStays = await prisma.stay.findMany({
-    where: { active: true, isScheduled: false },
-    select: { id: true, dogId: true },
-  })
-  if (activeStays.length > 0) {
-    const stayDogIds = [...new Set(activeStays.map(s => s.dogId))]
-    const futureRosters = await prisma.dailyRoster.findMany({
-      where: {
-        dogId: { in: stayDogIds },
-        type: 'HOTEL',
-        date: { gte: today },
-      },
-      select: { dogId: true },
+  // Only run on dashboard calls (active=true) to avoid overhead on other API calls.
+  if (active === 'true') {
+    const activeStays = await prisma.stay.findMany({
+      where: { active: true, isScheduled: false },
+      select: { id: true, dogId: true },
     })
-    const dogsWithFutureRoster = new Set(futureRosters.map(r => r.dogId))
-    const staleStayIds = activeStays
-      .filter(s => !dogsWithFutureRoster.has(s.dogId))
-      .map(s => s.id)
-    if (staleStayIds.length > 0) {
-      await prisma.stay.updateMany({
-        where: { id: { in: staleStayIds } },
-        data: { active: false, checkOut: new Date() },
+    if (activeStays.length > 0) {
+      const stayDogIds = Array.from(new Set(activeStays.map(s => s.dogId)))
+      const futureRosters = await prisma.dailyRoster.findMany({
+        where: {
+          dogId: { in: stayDogIds },
+          type: 'HOTEL',
+          date: { gte: today },
+        },
+        select: { dogId: true },
       })
+      const dogsWithFutureRoster = new Set(futureRosters.map(r => r.dogId))
+      const staleStayIds = activeStays
+        .filter(s => !dogsWithFutureRoster.has(s.dogId))
+        .map(s => s.id)
+      if (staleStayIds.length > 0) {
+        await prisma.stay.updateMany({
+          where: { id: { in: staleStayIds } },
+          data: { active: false, checkOut: new Date() },
+        })
+      }
     }
   }
 

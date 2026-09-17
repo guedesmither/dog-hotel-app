@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
     const saleTypeFilter = searchParams.get('saleType') // MENSAL, AVULSO, HOTEL, PACOTE
     const searchQuery = searchParams.get('search') // Search by dog name or owner
     const dogIdFilter = searchParams.get('dogId') // Filter by exact dog ID
+    const lightweight = searchParams.get('lightweight') === 'true' // Skip serviceStatus computation
 
     const where: any = {}
     
@@ -96,7 +97,11 @@ export async function GET(req: NextRequest) {
       orderBy: { saleDate: 'desc' },
     })
 
-    // Compute serviceStatus for each sale
+    // Compute serviceStatus for each sale (skip if lightweight mode)
+    if (lightweight) {
+      return NextResponse.json(sales)
+    }
+
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
@@ -241,8 +246,6 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    console.log('=== Criando nova venda ===')
-    console.log('Body:', body)
     
     const {
       saleDate,
@@ -264,20 +267,6 @@ export async function POST(req: NextRequest) {
     if (saleStartDate && saleEndDate && new Date(saleStartDate) > new Date(saleEndDate)) {
       return NextResponse.json({ error: 'Data de fim não pode ser anterior à data de início' }, { status: 400 })
     }
-
-    console.log('Dados da venda:', {
-      saleDate,
-      finalPrice,
-      discount,
-      amountReceived,
-      paymentStatus,
-      paymentDate,
-      paymentMethod,
-      paymentFee,
-      notes,
-      dogId,
-      items,
-    })
 
     // Determine saleType based on items - fetch product categories from DB
     let saleType = 'AVULSO'
@@ -363,8 +352,6 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    console.log('Venda criada com sucesso:', sale.id)
-
     // Auto-create Package record for PACOTE sales (PACOTE não é auto-lançado na agenda)
     if (saleType === 'PACOTE' && dogId) {
       try {
@@ -385,7 +372,6 @@ export async function POST(req: NextRequest) {
             isActive: true,
           },
         })
-        console.log('Package criado automaticamente para venda PACOTE:', sale.id)
       } catch (pkgErr) {
         console.error('Erro ao criar package automático (venda registrada normalmente):', pkgErr)
       }
@@ -409,8 +395,6 @@ export async function POST(req: NextRequest) {
             notes: `Agendamento criado automaticamente a partir da venda #${sale.id.slice(-6)}`,
           },
         })
-        console.log('Stay criado automaticamente para venda HOTEL:', sale.id)
-
         // Auto-lançar o cão na agenda para cada dia do período de hotel
         const start = safeDate(saleStartDate)
         const end = saleEndDate ? safeDate(saleEndDate) : safeDate(saleStartDate)
@@ -422,7 +406,6 @@ export async function POST(req: NextRequest) {
             create: { dogId, date: dateStr, type: 'HOTEL', source: 'AUTO' },
           })
         }
-        console.log('Hotel lançado na agenda para venda:', sale.id)
       } catch (stayErr) {
         console.error('Erro ao criar stay/agenda automático (venda registrada normalmente):', stayErr)
       }
@@ -441,7 +424,6 @@ export async function POST(req: NextRequest) {
         const startStr = start.toISOString().split('T')[0]
         const endStr = end.toISOString().split('T')[0]
         const result = await seedRange(startStr, endStr)
-        console.log('Agenda atualizada automaticamente para venda MENSAL:', result)
       } catch (reseedErr) {
         console.error('Erro ao re-seedar agenda (não crítico):', reseedErr)
       }

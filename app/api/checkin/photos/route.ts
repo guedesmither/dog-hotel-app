@@ -76,15 +76,17 @@ export async function POST(req: NextRequest) {
       // Store relative URL
       const url = `/uploads/checkin/${dogId}/${filename}`
       photoUrls.push(url)
+    }
 
-      // Save to database
-      await prisma.reportPhoto.create({
-        data: {
+    // Batch insert all photos in a single query
+    if (photoUrls.length > 0) {
+      await prisma.reportPhoto.createMany({
+        data: photoUrls.map(url => ({
           reportId: report.id,
           url,
           type: 'CHECKIN',
           caption: `Check-in ${date}`,
-        },
+        })),
       })
     }
 

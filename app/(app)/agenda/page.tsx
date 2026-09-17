@@ -230,9 +230,12 @@ export default function AgendaPage() {
 
   async function loadSuggestedDogs(date: string) {
     try {
-      // Fetch all active sales (not cancelled, not manually completed)
-      // Use broad date range to catch sales whose validity covers the target date
-      const res = await fetch(`/api/sales?startDate=2000-01-01&endDate=2099-12-31`)
+      // Fetch active sales with lightweight mode (skip serviceStatus N+1 queries)
+      // Use 6 month lookback — covers MENSAL (indefinite), PACOTE (6mo), HOTEL/AVULSO (30d)
+      const lookback = new Date(date + 'T12:00:00')
+      lookback.setMonth(lookback.getMonth() - 6)
+      const lookbackStr = lookback.toISOString().split('T')[0]
+      const res = await fetch(`/api/sales?startDate=${lookbackStr}&endDate=2099-12-31&lightweight=true`)
       if (!res.ok) return
       const sales: Array<{ dogId: string | null; saleType: string; paymentStatus: string; manualBaixa: boolean; startDate: string | null; endDate: string | null; saleDate: string | null }> = await res.json()
 
