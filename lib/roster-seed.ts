@@ -650,16 +650,22 @@ async function seedPacote(date: string, targetDateObj: Date, added: string[]) {
     },
   })
 
+  if (activePackages.length === 0) return
+
+  // Batch: fetch all existing roster entries for this date to avoid N+1
+  const dogIds = activePackages.map(p => p.dogId)
+  const existingEntries = await prisma.dailyRoster.findMany({
+    where: { dogId: { in: dogIds }, date },
+    select: { dogId: true },
+  })
+  const existingDogIds = new Set(existingEntries.map(e => e.dogId))
+
   for (const pkg of activePackages) {
     const dog = pkg.dog
     if (!dog || !dog.isActive) continue
 
-    // Skip if dog already has a roster entry for this date
-    const existing = await prisma.dailyRoster.findFirst({
-      where: { dogId: dog.id, date },
-      select: { id: true },
-    })
-    if (existing) continue
+    // Skip if dog already has a roster entry for this date (using batched set)
+    if (existingDogIds.has(dog.id)) continue
 
     // If dog has scheduledDays, only seed on scheduled days
     if (dog.scheduledDays && dog.scheduledDays.trim() !== '') {

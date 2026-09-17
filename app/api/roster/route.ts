@@ -359,8 +359,12 @@ export async function GET(req: NextRequest) {
 
     // Seed each day if not yet seeded (use DailyRosterSeed to avoid re-seeding after manual clears)
     for (const d of dates) {
-      const seeded = await prisma.dailyRosterSeed.findUnique({ where: { date: d } })
-      if (!seeded) await seedDate(d)
+      try {
+        const seeded = await prisma.dailyRosterSeed.findUnique({ where: { date: d } })
+        if (!seeded) await seedDate(d)
+      } catch (err) {
+        console.error(`[roster GET] Error seeding ${d}:`, err)
+      }
     }
 
     const entries = await prisma.dailyRoster.findMany({
