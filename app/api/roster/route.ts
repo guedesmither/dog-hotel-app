@@ -1120,7 +1120,16 @@ export async function DELETE(req: NextRequest) {
 
   // Delete by entryId (for adaptação entries that have no dogId)
   if (entryId) {
+    // Fetch the entry first to get the date for seed record
+    const entry = await prisma.dailyRoster.findUnique({ where: { id: entryId } })
     await prisma.dailyRoster.deleteMany({ where: { id: entryId } })
+    if (entry?.date) {
+      await prisma.dailyRosterSeed.upsert({
+        where: { date: entry.date },
+        update: {},
+        create: { date: entry.date },
+      })
+    }
     return NextResponse.json({ success: true })
   }
 
