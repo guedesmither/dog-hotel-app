@@ -1184,6 +1184,12 @@ export async function DELETE(req: NextRequest) {
     }
 
     await prisma.dailyRoster.deleteMany({ where: { dogId, date } })
+    // Ensure seed record exists so the date isn't re-seeded on next page load
+    await prisma.dailyRosterSeed.upsert({
+      where: { date },
+      update: {},
+      create: { date },
+    })
     return NextResponse.json({ success: true })
   }
 
