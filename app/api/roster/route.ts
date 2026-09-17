@@ -382,13 +382,8 @@ export async function GET(req: NextRequest) {
       const checkedOutDogIds = new Set(completedStays.filter(s => s.checkOut && new Date(s.checkOut) <= new Date()).map(s => s.dogId))
       if (checkedOutDogIds.size > 0) {
         const staleIds = futureHotelEntries.filter(e => e.dogId && checkedOutDogIds.has(e.dogId)).map(e => e.id)
-        const staleDates = futureHotelEntries.filter(e => e.dogId && checkedOutDogIds.has(e.dogId)).map(e => e.date)
         if (staleIds.length > 0) {
           await prisma.dailyRoster.deleteMany({ where: { id: { in: staleIds } } })
-          // Reset seed tracking for affected dates so they re-seed without the stale HOTEL entries
-          if (staleDates.length > 0) {
-            await prisma.dailyRosterSeed.deleteMany({ where: { date: { in: Array.from(new Set(staleDates)) } } })
-          }
         }
       }
     }
