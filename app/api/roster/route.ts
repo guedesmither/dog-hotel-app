@@ -361,7 +361,16 @@ export async function GET(req: NextRequest) {
     for (const d of dates) {
       try {
         const seeded = await prisma.dailyRosterSeed.findUnique({ where: { date: d } })
-        if (!seeded) await seedDate(d)
+        if (!seeded) {
+          await seedDate(d)
+        } else {
+          // Check if entries exist — if not, the seed record is stale (buggy cleanup deleted them)
+          const count = await prisma.dailyRoster.count({ where: { date: d } })
+          if (count === 0) {
+            await prisma.dailyRosterSeed.deleteMany({ where: { date: d } })
+            await seedDate(d)
+          }
+        }
       } catch (err) {
         console.error(`[roster GET] Error seeding ${d}:`, err)
       }
@@ -384,27 +393,38 @@ export async function GET(req: NextRequest) {
   }
 
   if (date) {
-    const seeded = await prisma.dailyRosterSeed.findUnique({ where: { date } })
-    if (!seeded) await seedDate(date)
+    try {
+      const seeded = await prisma.dailyRosterSeed.findUnique({ where: { date } })
+      if (!seeded) await seedDate(date)
 
-    let entries = await prisma.dailyRoster.findMany({
-      where: { date },
-      select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, guestName: true, dog: { select: dogSelect } } as any,
-      orderBy: [{ dogId: 'asc' }],
-    })
-
-    // Fallback: if seeded but all entries were deleted (e.g. by buggy cleanup), re-seed
-    if (entries.length === 0 && seeded) {
-      await prisma.dailyRosterSeed.deleteMany({ where: { date } })
-      await seedDate(date)
-      entries = await prisma.dailyRoster.findMany({
+      let entries = await prisma.dailyRoster.findMany({
         where: { date },
         select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, guestName: true, dog: { select: dogSelect } } as any,
         orderBy: [{ dogId: 'asc' }],
       })
-    }
 
-    return NextResponse.json(entries)
+      // Fallback: if seeded but all entries were deleted (e.g. by buggy cleanup), re-seed
+      if (entries.length === 0 && seeded) {
+        await prisma.dailyRosterSeed.deleteMany({ where: { date } })
+        await seedDate(date)
+        entries = await prisma.dailyRoster.findMany({
+          where: { date },
+          select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, guestName: true, dog: { select: dogSelect } } as any,
+          orderBy: [{ dogId: 'asc' }],
+        })
+      }
+
+      return NextResponse.json(entries)
+    } catch (err) {
+      console.error(`[roster GET] Error for date ${date}:`, err)
+      // Return whatever entries exist, even if seeding failed
+      const entries = await prisma.dailyRoster.findMany({
+        where: { date },
+        select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, guestName: true, dog: { select: dogSelect } } as any,
+        orderBy: [{ dogId: 'asc' }],
+      })
+      return NextResponse.json(entries)
+    }
   }
 
   return NextResponse.json({ error: 'Parâmetro date ou weekStart obrigatório' }, { status: 400 })

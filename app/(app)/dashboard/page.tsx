@@ -362,13 +362,16 @@ export default function DashboardPage() {
         fetch(`/api/roster?date=${today}`),
       ])
       const allDogs: DogWithStay[] = await dogsRes.json()
-      const entries: any[] = await rosterRes.json()
+      const rosterData = await rosterRes.json()
+      const entries: any[] = Array.isArray(rosterData) ? rosterData : []
       setRosterEntries(entries)
       // Monitores não precisam ver cães que vieram só para banho (sem creche/hotel/etc no dia)
       const relevantEntries = isMonitor ? entries.filter((e: any) => e.type !== 'BANHO') : entries
       const rosterIds = new Set(relevantEntries.map((e: any) => e.dogId || e.dog?.id))
       const todayDogs = allDogs.filter(d => rosterIds.has(d.id))
       setDogs(todayDogs)
+    } catch (err) {
+      console.error('loadDay error:', err)
     } finally {
       if (!silent) setLoading(false)
     }

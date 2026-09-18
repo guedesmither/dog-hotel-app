@@ -89,7 +89,8 @@ export default function AlimentacaoPage() {
         fetch(`/api/roster?date=${today}`),
       ])
       const allRaw: (DogItem & { reports?: DogReport[] })[] = await dogsRes.json()
-      const rosterEntries: Array<{ dog: { id: string }; present: boolean | null; type?: string }> = await rosterRes.json()
+      const rosterData = await rosterRes.json()
+      const rosterEntries: Array<{ dog: { id: string }; present: boolean | null; type?: string }> = Array.isArray(rosterData) ? rosterData : []
 
       // Only dogs in the roster, not absent (present !== false), and not banho-only (sem creche/hotel no dia)
       const presentIds = new Set(
