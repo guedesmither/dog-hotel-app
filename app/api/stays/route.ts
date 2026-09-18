@@ -147,5 +147,18 @@ export async function PUT(req: NextRequest) {
     include: { dog: true, photos: true },
   })
 
+  // Remove future AUTO HOTEL entries for this dog — they've checked out
+  if (stay.dogId) {
+    const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
+    await prisma.dailyRoster.deleteMany({
+      where: {
+        dogId: stay.dogId,
+        type: 'HOTEL',
+        source: 'AUTO',
+        date: { gt: todayStr },
+      },
+    })
+  }
+
   return NextResponse.json(stay)
 }

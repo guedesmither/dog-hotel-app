@@ -367,27 +367,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Cleanup: remove AUTO HOTEL entries for dogs that already checked out
-    const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })
-    const futureHotelEntries = await prisma.dailyRoster.findMany({
-      where: { type: 'HOTEL', source: 'AUTO', date: { gte: todayStr } },
-      select: { id: true, dogId: true, date: true },
-    })
-    if (futureHotelEntries.length > 0) {
-      const hotelDogIds = Array.from(new Set(futureHotelEntries.map(e => e.dogId).filter(Boolean) as string[]))
-      const completedStays = await prisma.stay.findMany({
-        where: { dogId: { in: hotelDogIds }, isScheduled: false, checkOut: { not: null } },
-        select: { dogId: true, checkOut: true },
-      })
-      const checkedOutDogIds = new Set(completedStays.filter(s => s.checkOut && new Date(s.checkOut) <= new Date()).map(s => s.dogId))
-      if (checkedOutDogIds.size > 0) {
-        const staleIds = futureHotelEntries.filter(e => e.dogId && checkedOutDogIds.has(e.dogId)).map(e => e.id)
-        if (staleIds.length > 0) {
-          await prisma.dailyRoster.deleteMany({ where: { id: { in: staleIds } } })
-        }
-      }
-    }
-
     const entries = await prisma.dailyRoster.findMany({
       where: { date: { in: dates } },
       select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, guestName: true, dog: { select: dogSelect } } as any,
@@ -408,11 +387,22 @@ export async function GET(req: NextRequest) {
     const seeded = await prisma.dailyRosterSeed.findUnique({ where: { date } })
     if (!seeded) await seedDate(date)
 
-    const entries = await prisma.dailyRoster.findMany({
+    let entries = await prisma.dailyRoster.findMany({
       where: { date },
       select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, guestName: true, dog: { select: dogSelect } } as any,
       orderBy: [{ dogId: 'asc' }],
     })
+
+    // Fallback: if seeded but all entries were deleted (e.g. by buggy cleanup), re-seed
+    if (entries.length === 0 && seeded) {
+      await prisma.dailyRosterSeed.deleteMany({ where: { date } })
+      await seedDate(date)
+      entries = await prisma.dailyRoster.findMany({
+        where: { date },
+        select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, guestName: true, dog: { select: dogSelect } } as any,
+        orderBy: [{ dogId: 'asc' }],
+      })
+    }
 
     return NextResponse.json(entries)
   }
