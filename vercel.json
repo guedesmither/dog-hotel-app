@@ -1,4 +1,4 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npm run build"
+  "buildCommand": "node scripts/prepare-schema.js && prisma generate && next build"
 }
