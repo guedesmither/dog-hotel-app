@@ -3,6 +3,29 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+const CATEGORIES = new Set([
+  'OBRA',
+  'INFRAESTRUTURA',
+  'ALUGUEL',
+  'FOLHA SALARIAL',
+  'PROLABORE',
+  'COMUNICAÇÃO E MARKETING',
+  'CONTABILIDADE',
+  'ÁGUA',
+  'ENERGIA ELÉTRICA',
+  'INTERNET',
+  'MATERIAL LIMPEZA',
+  'IMPOSTO IPTU',
+  'ASSOCIAÇÃO',
+  'TAXA JUNTA COMERCIAL',
+  'TAXA BOMBEIROS',
+  'SISTEMA CARTÃO',
+  'APORTE NICE',
+  'ADIANTAMENTO SÓCIO',
+  'ENTRADA CAIXA',
+  'OUTROS',
+])
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
@@ -21,6 +44,28 @@ export async function GET(req: NextRequest) {
   })
 
   return NextResponse.json(entries)
+}
+
+export async function PATCH(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+
+  const body = await req.json()
+  const ids: string[] = Array.isArray(body.ids)
+    ? Array.from(new Set<string>(body.ids.filter((id: unknown) => typeof id === 'string' && id.length > 0)))
+    : []
+  const category = typeof body.category === 'string' ? body.category : ''
+
+  if (ids.length === 0 || !CATEGORIES.has(category)) {
+    return NextResponse.json({ error: 'Selecione lançamentos e uma categoria válida.' }, { status: 400 })
+  }
+
+  const updated = await prisma.financialEntry.updateMany({
+    where: { id: { in: ids } },
+    data: { category },
+  })
+
+  return NextResponse.json({ updated: updated.count })
 }
 
 export async function POST(req: NextRequest) {

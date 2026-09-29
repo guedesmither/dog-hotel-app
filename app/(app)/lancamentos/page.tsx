@@ -82,6 +82,9 @@ export default function LancamentosPage() {
   const [filterCategory, setFilterCategory] = useState('')
   const [search, setSearch] = useState('')
   const [seedLoading, setSeedLoading] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkCategory, setBulkCategory] = useState('')
+  const [bulkSaving, setBulkSaving] = useState(false)
 
   const fetchEntries = useCallback(async () => {
     setLoading(true)
@@ -90,7 +93,12 @@ export default function LancamentosPage() {
     if (filterType) params.set('type', filterType)
     const res = await fetch(`/api/financeiro?${params}`)
     const data = await res.json()
-    setEntries(Array.isArray(data) ? data : [])
+    const nextEntries = Array.isArray(data) ? data : []
+    setEntries(nextEntries)
+    setSelectedIds(current => {
+      const availableIds = new Set(nextEntries.map((entry: FinancialEntry) => entry.id))
+      return new Set(Array.from(current).filter(id => availableIds.has(id)))
+    })
     setLoading(false)
   }, [filterPeriod, filterType])
 
@@ -150,6 +158,37 @@ export default function LancamentosPage() {
     fetchEntries()
   }
 
+  const toggleEntry = (id: string) => {
+    setSelectedIds(current => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleBulkCategory = async () => {
+    if (!bulkCategory || selectedIds.size === 0) return
+    setBulkSaving(true)
+    try {
+      const res = await fetch('/api/financeiro', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds), category: bulkCategory }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao atualizar')
+      toast.success(`${data.updated} lançamento${data.updated !== 1 ? 's' : ''} atualizado${data.updated !== 1 ? 's' : ''}!`)
+      setSelectedIds(new Set())
+      setBulkCategory('')
+      await fetchEntries()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao atualizar lançamentos.')
+    } finally {
+      setBulkSaving(false)
+    }
+  }
+
   const handleSeed = async () => {
     if (!confirm('Importar todos os dados históricos? Isso só funciona se não houver registros ainda.')) return
     setSeedLoading(true)
@@ -177,6 +216,17 @@ export default function LancamentosPage() {
     }
     return true
   })
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every(entry => selectedIds.has(entry.id))
+
+  const toggleAllFiltered = () => {
+    setSelectedIds(current => {
+      const next = new Set(current)
+      if (allFilteredSelected) filtered.forEach(entry => next.delete(entry.id))
+      else filtered.forEach(entry => next.add(entry.id))
+      return next
+    })
+  }
 
   const totalEntradas = filtered.filter(e => e.type === 'E').reduce((s, e) => s + e.amount, 0)
   const totalSaidas = filtered.filter(e => e.type === 'S').reduce((s, e) => s + e.amount, 0)
@@ -294,12 +344,54 @@ export default function LancamentosPage() {
         )}
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-wrap items-end gap-3">
+          <div className="mr-auto">
+            <p className="text-sm font-semibold text-emerald-800">
+              {selectedIds.size} lançamento{selectedIds.size !== 1 ? 's' : ''} selecionado{selectedIds.size !== 1 ? 's' : ''}
+            </p>
+            <button onClick={() => setSelectedIds(new Set())} className="text-xs text-emerald-700 hover:underline">
+              Limpar seleção
+            </button>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-emerald-800 mb-1">Nova categoria</label>
+            <select
+              className="border border-emerald-300 rounded-lg px-3 py-2 text-sm min-w-[220px] bg-white"
+              value={bulkCategory}
+              onChange={e => setBulkCategory(e.target.value)}
+            >
+              <option value="">Selecione...</option>
+              {CATEGORIES.map(category => <option key={category} value={category}>{category}</option>)}
+            </select>
+          </div>
+          <button
+            onClick={handleBulkCategory}
+            disabled={!bulkCategory || bulkSaving}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+          >
+            <Check className="w-4 h-4" />
+            {bulkSaving ? 'Atualizando...' : 'Alterar categoria'}
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                <th className="pl-4 pr-2 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    aria-label="Selecionar todos os lançamentos visíveis"
+                    checked={allFilteredSelected}
+                    onChange={toggleAllFiltered}
+                    disabled={filtered.length === 0}
+                    className="w-4 h-4 rounded border-gray-300 accent-emerald-600"
+                  />
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Data</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Tipo</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Categoria</th>
@@ -312,11 +404,20 @@ export default function LancamentosPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Carregando...</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Carregando...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Nenhum lançamento encontrado.</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Nenhum lançamento encontrado.</td></tr>
               ) : filtered.map(e => (
-                <tr key={e.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={e.id} className={`transition-colors ${selectedIds.has(e.id) ? 'bg-emerald-50 hover:bg-emerald-100' : 'hover:bg-gray-50'}`}>
+                  <td className="pl-4 pr-2 py-2.5">
+                    <input
+                      type="checkbox"
+                      aria-label={`Selecionar lançamento de ${fmtDate(e.date)}`}
+                      checked={selectedIds.has(e.id)}
+                      onChange={() => toggleEntry(e.id)}
+                      className="w-4 h-4 rounded border-gray-300 accent-emerald-600"
+                    />
+                  </td>
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{fmtDate(e.date)}</td>
                   <td className="px-4 py-2.5">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${e.type === 'E' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
