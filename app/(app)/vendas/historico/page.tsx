@@ -62,6 +62,7 @@ interface Sale {
   } | null
   items: {
     id: string
+    productId: string | null
     quantity: number
     unitPrice: number
     totalPrice: number
@@ -81,6 +82,7 @@ function HistoricoContent() {
   const urlDogId = searchParams.get('dogId')
 
   const [dogs, setDogs] = useState<Dog[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [sales, setSales] = useState<Sale[]>([])
   const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7))
   const [startDate, setStartDate] = useState<string>('')
@@ -103,6 +105,7 @@ function HistoricoContent() {
   const [editNotes, setEditNotes] = useState<string>('')
   const [editBasePrice, setEditBasePrice] = useState<string>('')
   const [editFinalPrice, setEditFinalPrice] = useState<string>('')
+  const [editItems, setEditItems] = useState<Array<{ productId: string; quantity: number; unitPrice: number }>>([])
   const [printSaleId, setPrintSaleId] = useState<string | undefined>(undefined)
   const [showPrintModal, setShowPrintModal] = useState(false)
 
@@ -112,6 +115,15 @@ function HistoricoContent() {
       if (res.ok) setDogs(await res.json())
     } catch {
       toast.error('Erro ao carregar cães')
+    }
+  }
+
+  const loadProducts = async () => {
+    try {
+      const res = await fetch('/api/products')
+      if (res.ok) setProducts(await res.json())
+    } catch {
+      toast.error('Erro ao carregar produtos')
     }
   }
 
@@ -154,6 +166,7 @@ function HistoricoContent() {
 
   useEffect(() => {
     loadDogs()
+    loadProducts()
     loadSales()
   }, [selectedMonth, startDate, endDate, statusFilter, searchTerm, selectedDogId])
 
@@ -224,6 +237,24 @@ function HistoricoContent() {
     setEditNotes(sale.notes || '')
     setEditBasePrice(sale.basePrice.toString())
     setEditFinalPrice(sale.finalPrice.toString())
+    setEditItems(sale.items.map(item => ({
+      productId: item.productId || item.product?.id || '',
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    })))
+  }
+
+  const changeEditProduct = (index: number, productId: string) => {
+    const product = products.find(item => item.id === productId)
+    if (!product) return
+    const nextItems = editItems.map((item, itemIndex) =>
+      itemIndex === index ? { ...item, productId, unitPrice: product.price } : item
+    )
+    const nextBasePrice = nextItems.reduce((total, item) => total + item.quantity * item.unitPrice, 0)
+    const currentDiscount = parseFloat(editDiscount) || 0
+    setEditItems(nextItems)
+    setEditBasePrice(nextBasePrice.toFixed(2))
+    setEditFinalPrice(Math.max(nextBasePrice - currentDiscount, 0).toFixed(2))
   }
 
   const updateSalePayment = async () => {
@@ -245,6 +276,7 @@ function HistoricoContent() {
           notes: editNotes || null,
           basePrice: parseFloat(editBasePrice) || 0,
           finalPrice: parseFloat(editFinalPrice) || 0,
+          items: editItems,
         }),
       })
       if (res.ok) {
@@ -274,6 +306,12 @@ function HistoricoContent() {
       return ''
     }
   }
+
+  const editProductCategories = editItems.map(item =>
+    products.find(product => product.id === item.productId)?.category ||
+    editingSale?.items.find(existingItem => existingItem.productId === item.productId)?.product?.category ||
+    ''
+  )
 
   return (
     <div className="p-3 md:p-6">
@@ -602,8 +640,32 @@ function HistoricoContent() {
       {editingSale && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] flex flex-col">
-            <h3 className="text-lg font-semibold mb-4">Editar Pagamento - {editingSale.dog?.name} <span className="text-xs font-normal text-gray-400">#{editingSale.id.slice(-6)}</span></h3>
+            <h3 className="text-lg font-semibold mb-4">Editar Venda - {editingSale.dog?.name} <span className="text-xs font-normal text-gray-400">#{editingSale.id.slice(-6)}</span></h3>
             <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+              <div className="space-y-2">
+                <label className="label">Produto da Venda</label>
+                {editItems.map((item, index) => {
+                  const currentProduct = editingSale.items[index]?.product
+                  const currentProductIsInactive = currentProduct && !products.some(product => product.id === currentProduct.id)
+                  return (
+                    <select
+                      key={index}
+                      className="input"
+                      value={item.productId}
+                      onChange={(event) => changeEditProduct(index, event.target.value)}
+                    >
+                      {currentProductIsInactive && (
+                        <option value={currentProduct.id}>{currentProduct.name} (inativo)</option>
+                      )}
+                      {products.map(product => (
+                        <option key={product.id} value={product.id}>
+                          {product.category} — {product.name} — {product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </option>
+                      ))}
+                    </select>
+                  )
+                })}
+              </div>
               <div>
                 <label className="label">Valor em Conta</label>
                 <input
@@ -656,10 +718,9 @@ function HistoricoContent() {
               </div>
 
               {(() => {
-                const cats = editingSale.items.map(i => i.product?.category || '')
-                const isBanho = cats.includes('SERVICO') || cats.includes('BANHO')
-                const isAvulso = cats.includes('AVULSO') || editingSale.saleType === 'AVULSO'
-                const isCreche = cats.includes('CRECHE') && !editingSale.startDate
+                const isBanho = editProductCategories.includes('SERVICO') || editProductCategories.includes('BANHO')
+                const isAvulso = editProductCategories.includes('AVULSO')
+                const isCreche = editProductCategories.includes('CRECHE') && !editingSale.startDate
                 if (!isBanho && !isAvulso && !isCreche) return null
                 return (
                 <div className="space-y-3 pt-3 border-t border-green-200">
@@ -677,10 +738,9 @@ function HistoricoContent() {
               })()}
 
               {(() => {
-                const cats = editingSale.items.map(i => i.product?.category || '')
-                const isHotel = cats.includes('HOTEL') || editingSale.saleType === 'HOTEL'
-                const isCreche = cats.includes('CRECHE') || editingSale.saleType === 'MENSAL'
-                const isPacote = cats.includes('PACOTE') || editingSale.saleType === 'PACOTE'
+                const isHotel = editProductCategories.includes('HOTEL')
+                const isCreche = editProductCategories.includes('CRECHE')
+                const isPacote = editProductCategories.includes('PACOTE')
                 if (!isHotel && !isCreche && !isPacote) return null
                 const label = isHotel ? '🏨 Período da Estadia' : isCreche ? '📅 Vigência da Mensalidade' : '📦 Vigência do Pacote'
                 return (
