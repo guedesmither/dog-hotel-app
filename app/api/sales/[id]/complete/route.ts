@@ -46,6 +46,10 @@ export async function POST(
 
     const sale = await prisma.sales.findUnique({
       where: { id: params.id },
+      include: {
+        package: { select: { id: true } },
+        items: { select: { product: { select: { name: true } } } },
+      },
     })
 
     if (!sale) {
@@ -62,6 +66,26 @@ export async function POST(
         manualBaixaDate: new Date(),
       },
     })
+
+    if (sale.saleType === 'PACOTE' && sale.dogId && !sale.package) {
+      const productName = sale.items[0]?.product?.name || ''
+      const daysMatch = productName.match(/(\d+)\s*Dia/i)
+      const saleDays = daysMatch ? parseInt(daysMatch[1], 10) : null
+      const legacyPackages = await prisma.package.findMany({
+        where: { dogId: sale.dogId, saleId: null },
+      })
+      const match = legacyPackages
+        .map(pkg => {
+          const priceDifference = Math.abs(pkg.pricePaid - sale.finalPrice)
+          const dateDifference = Math.abs(pkg.purchaseDate.getTime() - sale.saleDate.getTime())
+          const compatible = pkg.totalDays === saleDays || priceDifference < 0.01
+          return { pkg, score: compatible ? dateDifference + priceDifference : Number.POSITIVE_INFINITY }
+        })
+        .sort((a, b) => a.score - b.score)[0]
+      if (match && Number.isFinite(match.score)) {
+        await prisma.package.update({ where: { id: match.pkg.id }, data: { saleId: sale.id } })
+      }
+    }
 
     console.log('Venda atualizada com sucesso, manualBaixa:', updatedSale.manualBaixa)
     return NextResponse.json(updatedSale)

@@ -83,27 +83,71 @@ export async function GET(req: NextRequest) {
         isActive: true,
         remainingDays: { gt: 0 },
         expiryDate: { gte: new Date() },
-        AND: [
-          {
-            OR: [
-              { dogId },
-              ...(dog.ownerCpf ? [{ dog: { ownerCpf: dog.ownerCpf } }] : [])
-            ]
-          },
-          {
-            OR: [
-              { saleId: null },
-              { sale: { is: { manualBaixa: false } } }
-            ]
-          }
+        OR: [
+          { dogId },
+          ...(dog.ownerCpf ? [{ dog: { ownerCpf: dog.ownerCpf } }] : [])
         ]
+      },
+      include: {
+        sale: { select: { manualBaixa: true } },
       },
       orderBy: {
         createdAt: 'desc',
       },
     })
 
-    return NextResponse.json(packages)
+    const legacyPackages = packages
+      .filter(pkg => !pkg.saleId)
+      .sort((a, b) => a.purchaseDate.getTime() - b.purchaseDate.getTime())
+    const packageDogIds = Array.from(new Set(legacyPackages.map(pkg => pkg.dogId)))
+    const linkedSaleIds = packages.flatMap(pkg => pkg.saleId ? [pkg.saleId] : [])
+    const packageSales = packageDogIds.length > 0
+      ? await prisma.sales.findMany({
+          where: {
+            dogId: { in: packageDogIds },
+            saleType: 'PACOTE',
+            ...(linkedSaleIds.length > 0 ? { id: { notIn: linkedSaleIds } } : {}),
+          },
+          select: {
+            id: true,
+            dogId: true,
+            saleDate: true,
+            finalPrice: true,
+            manualBaixa: true,
+            items: { select: { product: { select: { name: true } } } },
+          },
+          orderBy: { saleDate: 'asc' },
+        })
+      : []
+
+    const legacyPackageSales = new Map<string, boolean>()
+    const matchedSaleIds = new Set<string>()
+    for (const pkg of legacyPackages) {
+      const matches = packageSales
+        .filter(sale => sale.dogId === pkg.dogId && !matchedSaleIds.has(sale.id))
+        .map(sale => {
+          const productName = sale.items[0]?.product?.name || ''
+          const daysMatch = productName.match(/(\d+)\s*Dia/i)
+          const saleDays = daysMatch ? parseInt(daysMatch[1], 10) : null
+          const priceDifference = Math.abs(sale.finalPrice - pkg.pricePaid)
+          const dateDifference = Math.abs(sale.saleDate.getTime() - pkg.purchaseDate.getTime())
+          const compatible = saleDays === pkg.totalDays || priceDifference < 0.01
+          return { sale, score: compatible ? dateDifference + priceDifference : Number.POSITIVE_INFINITY }
+        })
+        .sort((a, b) => a.score - b.score)
+
+      const match = matches[0]
+      if (match && Number.isFinite(match.score)) {
+        matchedSaleIds.add(match.sale.id)
+        legacyPackageSales.set(pkg.id, match.sale.manualBaixa)
+      }
+    }
+
+    const visiblePackages = packages
+      .filter(pkg => pkg.sale ? !pkg.sale.manualBaixa : !legacyPackageSales.get(pkg.id))
+      .map(({ sale, ...pkg }) => pkg)
+
+    return NextResponse.json(visiblePackages)
   } catch (error) {
     console.error('Error fetching packages:', error)
     return NextResponse.json({ error: 'Failed to fetch packages' }, { status: 500 })
