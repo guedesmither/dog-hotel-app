@@ -83,9 +83,19 @@ export async function GET(req: NextRequest) {
         isActive: true,
         remainingDays: { gt: 0 },
         expiryDate: { gte: new Date() },
-        OR: [
-          { dogId },
-          ...(dog.ownerCpf ? [{ dog: { ownerCpf: dog.ownerCpf } }] : [])
+        AND: [
+          {
+            OR: [
+              { dogId },
+              ...(dog.ownerCpf ? [{ dog: { ownerCpf: dog.ownerCpf } }] : [])
+            ]
+          },
+          {
+            OR: [
+              { saleId: null },
+              { sale: { is: { manualBaixa: false } } }
+            ]
+          }
         ]
       },
       orderBy: {

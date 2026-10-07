@@ -528,7 +528,7 @@ export async function POST(req: NextRequest) {
     // Validate package exists and has remaining days
     const pkg = await prisma.package.findUnique({
       where: { id: packageId },
-      include: { dog: true },
+      include: { dog: true, sale: { select: { manualBaixa: true } } },
     })
 
     if (!pkg) {
@@ -538,10 +538,12 @@ export async function POST(req: NextRequest) {
       }, { status: 404 })
     }
 
-    if (!pkg.isActive || pkg.remainingDays <= 0) {
+    if (!pkg.isActive || pkg.remainingDays <= 0 || pkg.sale?.manualBaixa) {
       return NextResponse.json({ 
         error: 'Pacote inválido',
-        details: 'Este pacote não está ativo ou não tem dias restantes'
+        details: pkg.sale?.manualBaixa
+          ? 'A venda deste pacote já recebeu baixa'
+          : 'Este pacote não está ativo ou não tem dias restantes'
       }, { status: 403 })
     }
 
@@ -577,7 +579,14 @@ export async function POST(req: NextRequest) {
         serviceType: true,
         scheduledDays: true,
         isActive: true,
-        packages: true,
+        packages: {
+          where: {
+            OR: [
+              { saleId: null },
+              { sale: { is: { manualBaixa: false } } },
+            ],
+          },
+        },
         sales: {
           where: {
             paymentStatus: { in: ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA'] },
