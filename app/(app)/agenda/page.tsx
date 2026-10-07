@@ -93,6 +93,9 @@ export default function AgendaPage() {
   const [showDogSearch, setShowDogSearch] = useState(false)
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set())
   const [addSearch, setAddSearch] = useState('')
+  const [selectedAddDogIds, setSelectedAddDogIds] = useState<Set<string>>(new Set())
+  const [bulkChoosingType, setBulkChoosingType] = useState(false)
+  const [bulkAdding, setBulkAdding] = useState(false)
   const [suggestedDogSales, setSuggestedDogSales] = useState<Map<string, string[]>>(new Map())
   const [showAdaptacao, setShowAdaptacao] = useState(false)
   const [adaptacaoName, setAdaptacaoName] = useState('')
@@ -185,6 +188,60 @@ export default function AgendaPage() {
       setAddingToDate(null)
       setDogPackages(null)
     }
+  }
+
+  function toggleAddDogSelection(dogId: string) {
+    setSelectedAddDogIds(current => {
+      const next = new Set(current)
+      if (next.has(dogId)) next.delete(dogId)
+      else next.add(dogId)
+      return next
+    })
+  }
+
+  async function addDogsBulk(date: string, type: string) {
+    if (selectedAddDogIds.size === 0) return
+    setBulkAdding(true)
+    const dogIds = Array.from(selectedAddDogIds)
+    const results = await Promise.all(dogIds.map(async dogId => {
+      const dog = data?.allDogs.find(item => item.id === dogId)
+      try {
+        const res = await fetch('/api/roster', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dogId, date, type }),
+        })
+        const responseData = await res.json()
+        return {
+          dogId,
+          dogName: dog?.name || responseData.dogName || 'Cão',
+          ok: res.ok,
+          reason: responseData.reason || responseData.details || responseData.error,
+        }
+      } catch (err) {
+        return { dogId, dogName: dog?.name || 'Cão', ok: false, reason: err instanceof Error ? err.message : 'Erro de conexão' }
+      }
+    }))
+
+    const failures = results.filter(result => !result.ok)
+    const successCount = results.length - failures.length
+    if (successCount > 0) await reload()
+
+    if (failures.length === 0) {
+      setAddingToDate(null)
+      setSelectedAddDogIds(new Set())
+      setBulkChoosingType(false)
+      setError(null)
+      setShowError(false)
+    } else {
+      setSelectedAddDogIds(new Set(failures.map(result => result.dogId)))
+      setError({
+        message: `${successCount} adicionado${successCount !== 1 ? 's' : ''}; ${failures.length} não pôde${failures.length !== 1 ? 'ram' : ''} ser adicionado${failures.length !== 1 ? 's' : ''}`,
+        details: failures.map(result => `${result.dogName}: ${result.reason || 'não elegível para esta modalidade'}`).join(' • '),
+      })
+      setShowError(true)
+    }
+    setBulkAdding(false)
   }
 
   async function addAdaptacao(date: string, name: string) {
@@ -1325,7 +1382,35 @@ export default function AgendaPage() {
                 <div className="p-1.5 border-t border-gray-100">
                   {addingToDate === date ? (
                     <div className="space-y-1">
-                      {pendingAddDog && pendingAddDog.date === date ? (
+                      {bulkChoosingType && selectedAddDogIds.size > 0 ? (
+                        <>
+                          <div className="flex items-center justify-between px-1">
+                            <p className="text-xs text-gray-600 font-medium">Modalidade para {selectedAddDogIds.size} cães:</p>
+                            <button onClick={() => setBulkChoosingType(false)} disabled={bulkAdding} className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50">
+                              Voltar
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-1 mt-1">
+                            <button onClick={() => addDogsBulk(date, 'CRECHE')} disabled={bulkAdding} className="px-2 py-1.5 text-xs bg-amber-50 hover:bg-amber-100 rounded transition-colors disabled:opacity-50">
+                              🐾 Creche
+                            </button>
+                            <button onClick={() => addDogsBulk(date, 'AVULSO')} disabled={bulkAdding} className="px-2 py-1.5 text-xs bg-orange-50 hover:bg-orange-100 rounded transition-colors disabled:opacity-50">
+                              💵 Avulso
+                            </button>
+                            <button onClick={() => addDogsBulk(date, 'HOTEL')} disabled={bulkAdding} className="px-2 py-1.5 text-xs bg-blue-50 hover:bg-blue-100 rounded transition-colors disabled:opacity-50">
+                              🏨 Hotel
+                            </button>
+                            <button onClick={() => addDogsBulk(date, 'REPOSICAO')} disabled={bulkAdding} className="px-2 py-1.5 text-xs bg-purple-50 hover:bg-purple-100 rounded transition-colors disabled:opacity-50">
+                              🔄 Reposição
+                            </button>
+                            <button onClick={() => addDogsBulk(date, 'BANHO')} disabled={bulkAdding} className="col-span-2 px-2 py-1.5 text-xs bg-cyan-50 hover:bg-cyan-100 rounded transition-colors disabled:opacity-50">
+                              🛁 Banho
+                            </button>
+                          </div>
+                          {bulkAdding && <p className="text-xs text-center text-gray-500 py-1">Adicionando cães...</p>}
+                          <p className="text-[10px] text-gray-400 px-1">Pacotes devem ser escolhidos individualmente.</p>
+                        </>
+                      ) : pendingAddDog && pendingAddDog.date === date ? (
                         // Step 2: choose type or package
                         <>
                         {(() => {
@@ -1408,39 +1493,89 @@ export default function AgendaPage() {
                             className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-500"
                             autoFocus
                           />
-                          <div className="max-h-32 overflow-y-auto space-y-1">
-                            {(data?.allDogs ?? []).filter(d => 
+                          {(() => {
+                            const matchingDogs = (data?.allDogs ?? []).filter(d =>
                               d.name.toLowerCase().includes(addSearch.toLowerCase()) ||
                               d.ownerName.toLowerCase().includes(addSearch.toLowerCase())
-                            ).slice(0, 10).map(d => {
-                              const alreadyInDate = entriesForDate(date).some(e => e.dogId === d.id)
-                              return (
-                                <button
-                                  key={d.id}
-                                  onClick={() => {
-                                    setPendingAddDog({ dogId: d.id, date })
-                                    loadDogPackages(d.id)
-                                  }}
-                                  disabled={alreadyInDate}
-                                  className={`w-full text-left px-2 py-1 text-xs rounded transition-colors ${
-                                    alreadyInDate
-                                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                      : 'bg-amber-50 hover:bg-amber-100 text-gray-700'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-1.5">
-                                    <div className="w-4 h-4 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[6px]">
-                                      {d.photoUrl ? <img src={d.photoUrl} alt={d.name} className="w-full h-full object-cover" /> : '🐶'}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="font-medium truncate">{d.name}</p>
-                                      <p className="text-gray-400 truncate">{d.ownerName}</p>
-                                    </div>
+                            )
+                            const dogIdsInDate = new Set(allEntriesForDate(date).map(entry => entry.dogId))
+                            const availableDogs = matchingDogs.filter(dog => !dogIdsInDate.has(dog.id))
+                            const allAvailableSelected = availableDogs.length > 0 && availableDogs.every(dog => selectedAddDogIds.has(dog.id))
+                            return (
+                              <>
+                                <label className="flex items-center gap-2 px-1 py-1 text-xs text-gray-600">
+                                  <input
+                                    type="checkbox"
+                                    checked={allAvailableSelected}
+                                    disabled={availableDogs.length === 0}
+                                    onChange={() => setSelectedAddDogIds(current => {
+                                      const next = new Set(current)
+                                      if (allAvailableSelected) availableDogs.forEach(dog => next.delete(dog.id))
+                                      else availableDogs.forEach(dog => next.add(dog.id))
+                                      return next
+                                    })}
+                                    className="w-3.5 h-3.5 rounded border-gray-300 accent-amber-500"
+                                  />
+                                  Selecionar resultados disponíveis
+                                </label>
+                                <div className="max-h-40 overflow-y-auto space-y-1">
+                                  {matchingDogs.map(d => {
+                                    const alreadyInDate = dogIdsInDate.has(d.id)
+                                    return (
+                                      <div
+                                        key={d.id}
+                                        className={`flex items-center gap-1 rounded transition-colors ${
+                                          alreadyInDate
+                                            ? 'bg-gray-100 text-gray-400'
+                                            : selectedAddDogIds.has(d.id) ? 'bg-amber-100 text-gray-700' : 'bg-amber-50 hover:bg-amber-100 text-gray-700'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          aria-label={`Selecionar ${d.name}`}
+                                          checked={selectedAddDogIds.has(d.id)}
+                                          onChange={() => toggleAddDogSelection(d.id)}
+                                          disabled={alreadyInDate}
+                                          className="ml-2 w-3.5 h-3.5 rounded border-gray-300 accent-amber-500 shrink-0"
+                                        />
+                                        <button
+                                          onClick={() => {
+                                            setPendingAddDog({ dogId: d.id, date })
+                                            loadDogPackages(d.id)
+                                          }}
+                                          disabled={alreadyInDate}
+                                          className="flex-1 min-w-0 text-left px-1 py-1 text-xs disabled:cursor-not-allowed"
+                                        >
+                                          <div className="flex items-center gap-1.5">
+                                            <div className="w-4 h-4 rounded-full overflow-hidden bg-amber-100 shrink-0 flex items-center justify-center text-[6px]">
+                                              {d.photoUrl ? <img src={d.photoUrl} alt={d.name} className="w-full h-full object-cover" /> : '🐶'}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="font-medium truncate">{d.name}</p>
+                                              <p className="text-gray-400 truncate">{d.ownerName}</p>
+                                            </div>
+                                          </div>
+                                        </button>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                                {selectedAddDogIds.size > 0 && (
+                                  <div className="flex items-center gap-1 pt-1">
+                                    <button onClick={() => setSelectedAddDogIds(new Set())} className="px-2 py-1.5 text-xs text-gray-500 hover:text-gray-700">
+                                      Limpar
+                                    </button>
+                                    <button
+                                      onClick={() => setBulkChoosingType(true)}
+                                      className="flex-1 px-2 py-1.5 text-xs font-medium bg-amber-500 hover:bg-amber-600 text-white rounded transition-colors"
+                                    >
+                                      Escolher modalidade ({selectedAddDogIds.size})
+                                    </button>
                                   </div>
-                                </button>
-                              )
-                            })}
-                          </div>
+                                )}
+                              </>
+                            )
+                          })()}
                           {/* Adaptação: cão sem cadastro */}
                           <div className="pt-1.5 mt-1 border-t border-gray-100">
                             {showAdaptacao ? (
@@ -1487,6 +1622,8 @@ export default function AgendaPage() {
                         setAddSearch('')
                         setPendingAddDog(null)
                         setDogPackages(null)
+                        setSelectedAddDogIds(new Set())
+                        setBulkChoosingType(false)
                         setShowAdaptacao(false)
                         setAdaptacaoName('')
                         loadSuggestedDogs(date)
