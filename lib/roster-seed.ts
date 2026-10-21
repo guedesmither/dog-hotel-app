@@ -271,7 +271,6 @@ async function seedMensalCreche(date: string, targetDateObj: Date, added: string
 
   // Pre-compute mensal period windows to batch roster counts
   const targetDate = new Date(date + 'T12:00:00')
-  const hasExplicitEndMap = new Map<string, boolean>()
   const windowStartMap = new Map<string, Date>()
   const windowEndMap = new Map<string, Date>()
   const dogIdsForCount = new Set<string>()
@@ -290,7 +289,6 @@ async function seedMensalCreche(date: string, targetDateObj: Date, added: string
     if (targetDateObj < period.start || targetDateObj > period.end) continue
 
     const hasExplicitEnd = !!sale.endDate
-    hasExplicitEndMap.set(sale.id, hasExplicitEnd)
     if (hasExplicitEnd) {
       windowStartMap.set(sale.id, period.start)
       windowEndMap.set(sale.id, period.end)
@@ -309,19 +307,36 @@ async function seedMensalCreche(date: string, targetDateObj: Date, added: string
     if (sale.dogId) dogIdsForCount.add(sale.dogId)
   }
 
-  // Batch: count CRECHE roster entries per dog for the relevant windows
+  // Batch: load roster entries once, then count each sale only inside its own validity window.
   const crecheCounts = new Map<string, number>()
   if (dogIdsForCount.size > 0) {
-    const counts = await prisma.dailyRoster.groupBy({
-      by: ['dogId'],
+    const windowStarts = Array.from(windowStartMap.values())
+    const windowEnds = Array.from(windowEndMap.values())
+    const minStart = new Date(Math.min(...windowStarts.map(window => window.getTime())))
+    const maxEnd = new Date(Math.max(...windowEnds.map(window => window.getTime())))
+    const rosterEntries = await prisma.dailyRoster.findMany({
       where: {
         dogId: { in: Array.from(dogIdsForCount) },
         type: 'CRECHE',
+        date: {
+          gte: minStart.toISOString().split('T')[0],
+          lte: maxEnd.toISOString().split('T')[0],
+        },
       },
-      _count: { _all: true },
+      select: { dogId: true, date: true },
     })
-    for (const c of counts) {
-      if (c.dogId) crecheCounts.set(c.dogId, c._count._all)
+
+    for (const sale of mensalSales) {
+      if (!sale.dogId) continue
+      const windowStart = windowStartMap.get(sale.id)
+      const windowEnd = windowEndMap.get(sale.id)
+      if (!windowStart || !windowEnd) continue
+      const startStr = windowStart.toISOString().split('T')[0]
+      const endStr = windowEnd.toISOString().split('T')[0]
+      const used = rosterEntries.filter(entry =>
+        entry.dogId === sale.dogId && entry.date >= startStr && entry.date <= endStr
+      ).length
+      crecheCounts.set(sale.id, used)
     }
   }
 
@@ -360,7 +375,7 @@ async function seedMensalCreche(date: string, targetDateObj: Date, added: string
     }
 
     if (allowed !== Infinity) {
-      const used = crecheCounts.get(sale.dogId) || 0
+      const used = crecheCounts.get(sale.id) || 0
       if (used >= allowed) continue
     }
 
