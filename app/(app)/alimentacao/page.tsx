@@ -5,6 +5,7 @@ import { Eye, RefreshCw, CheckCircle2, Clock, PlusCircle, Search, X, Plus, Trash
 import { getTodayString, MEAL_STATUS_LABELS, MEAL_STATUS_COLORS } from '@/lib/utils'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { useSession } from 'next-auth/react'
 
 const MEAL_STATUSES = ['PENDING', 'ALL', 'PARTIAL', 'REFUSED']
 
@@ -62,6 +63,8 @@ interface DogItem {
 }
 
 export default function AlimentacaoPage() {
+  const { data: session } = useSession()
+  const isMonitor = (session?.user as { role?: string } | undefined)?.role === 'MONITOR'
   const [dogs, setDogs] = useState<DogItem[]>([])
   const [allDogs, setAllDogs] = useState<DogItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -283,6 +286,7 @@ export default function AlimentacaoPage() {
               saving={savingId === dog.id}
               onUpdate={(field, value) => updateMeal(dog, field, value)}
               onReload={() => reloadDog(dog.id)}
+              isMonitor={isMonitor}
             />
           ))}
         </div>
@@ -313,11 +317,13 @@ function DogMonitoringCard({
   saving,
   onUpdate,
   onReload,
+  isMonitor,
 }: {
   dog: DogItem
   saving: boolean
   onUpdate: (field: string, value: string) => void
   onReload: () => void
+  isMonitor: boolean
 }) {
   const [newActivity, setNewActivity] = useState('')
   const [addingActivity, setAddingActivity] = useState(false)
@@ -418,9 +424,11 @@ function DogMonitoringCard({
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             <span className="text-xs font-bold uppercase tracking-wide">Ficha Técnica</span>
           </div>
-          <a href={`/dogs/${dog.id}`} className="text-[10px] text-amber-600 hover:underline">
-            Ver ficha completa →
-          </a>
+          {!isMonitor && (
+            <a href={`/dogs/${dog.id}`} className="text-[10px] text-amber-600 hover:underline">
+              Ver ficha completa →
+            </a>
+          )}
         </div>
         
         {(dog.feedingType || dog.feedingInstructions || dog.allergies || dog.medications || dog.notes || dog.vetName || dog.feedingTimesPerDay || dog.feedingGramsPerMeal) ? (
@@ -504,7 +512,9 @@ function DogMonitoringCard({
           <p className="text-xs text-gray-400 italic">
             Nenhuma informação de alimentação, medicação ou alergia cadastrada nesta ficha.
             <br />
-            <a href={`/dogs/${dog.id}/edit`} className="text-amber-600 hover:underline">Cadastrar informações →</a>
+            {!isMonitor && (
+              <a href={`/dogs/${dog.id}/edit`} className="text-amber-600 hover:underline">Cadastrar informações →</a>
+            )}
           </p>
         )}
       </div>

@@ -13,6 +13,9 @@ export async function GET(req: NextRequest) {
   const active = searchParams.get('active')
   const status = searchParams.get('status')
   const search = searchParams.get('search')
+  if (sessionUser.role === 'MONITOR' && active !== 'true') {
+    return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+  }
 
   const where: Record<string, unknown> = {}
   if (status === 'CRECHE') { where.isActive = true; where.dogStatus = 'CRECHE' }
@@ -73,6 +76,69 @@ export async function GET(req: NextRequest) {
         })
       }
     }
+  }
+
+  if (sessionUser.role === 'MONITOR') {
+    const dogs = await prisma.dog.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        breed: true,
+        photoUrl: true,
+        size: true,
+        serviceType: true,
+        scheduledDays: true,
+        dogStatus: true,
+        isBolsista: true,
+        feedingType: true,
+        feedingInstructions: true,
+        feedingTimesPerDay: true,
+        feedingGramsPerMeal: true,
+        medications: true,
+        allergies: true,
+        notes: true,
+        vetName: true,
+        vetPhone: true,
+        stays: {
+          where: { active: true },
+          take: 1,
+          select: { room: true, checkIn: true, active: true },
+        },
+        reports: active === 'true'
+          ? {
+              where: { date: today },
+              take: 1,
+              include: {
+                activities: true,
+                author: { select: { name: true } },
+              },
+            }
+          : false,
+      },
+      orderBy: { name: 'asc' },
+    })
+
+    const editorIds = new Set<string>()
+    for (const dog of dogs as any[]) {
+      for (const report of dog.reports || []) {
+        if (report.lastEditedById) editorIds.add(report.lastEditedById)
+      }
+    }
+    const editors = editorIds.size > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: Array.from(editorIds) } },
+          select: { id: true, name: true },
+        })
+      : []
+    const editorMap = Object.fromEntries(editors.map(editor => [editor.id, editor.name]))
+    for (const dog of dogs as any[]) {
+      for (const report of dog.reports || []) {
+        report.lastEditedByName = report.lastEditedById ? editorMap[report.lastEditedById] || null : null
+      }
+    }
+
+    return NextResponse.json(dogs)
   }
 
   const dogs = await prisma.dog.findMany({

@@ -70,7 +70,7 @@ function MealDot({ status }: { status: string }) {
 }
 
 export default function DashboardPage() {
-  const { data: session } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
   const router = useRouter()
   const userRole = (session?.user as { role?: string })?.role || ''
   const isMonitor = userRole === 'MONITOR'
@@ -147,7 +147,7 @@ export default function DashboardPage() {
         body: JSON.stringify({ dogId, date: today, present: currentAbsent }),
       })
       await loadDay(true)
-      await loadReplacements()
+      if (!isMonitor) await loadReplacements()
     } finally {
       setTogglingAbsent(null)
     }
@@ -259,6 +259,7 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    if (sessionStatus !== 'authenticated' || isMonitor) return
     fetch('/api/replacements?status=PENDING')
       .then(r => r.json()).then(setReplacements).catch(() => {})
     fetch('/api/replacements?status=SCHEDULED')
@@ -269,7 +270,7 @@ export default function DashboardPage() {
       .then(r => r.json()).then(setExpiredReplacements).catch(() => {})
     fetch('/api/replacements?status=DONE')
       .then(r => r.json()).then(setDoneReplacements).catch(() => {})
-  }, [])
+  }, [sessionStatus, isMonitor])
 
   async function loadReplacements() {
     const [p, s, e, d] = await Promise.all([
@@ -378,17 +379,19 @@ export default function DashboardPage() {
   }
 
   useEffect(() => { loadDay() }, [today])
-  useEffect(() => { if (!isMonitor) loadRenewals() }, [])
+  useEffect(() => {
+    if (sessionStatus === 'authenticated' && !isMonitor) loadRenewals()
+  }, [sessionStatus, isMonitor])
   
   // Reload when window gains focus (returning from report page)
   useEffect(() => {
     const handleFocus = () => {
       loadDay(true) // silent reload
-      if (!isMonitor) loadReplacements()
+      if (sessionStatus === 'authenticated' && !isMonitor) loadReplacements()
     }
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [today, isMonitor])
+  }, [today, isMonitor, sessionStatus])
 
   const hotelDogs = dogs.filter((d) => d.stays.some((s) => s.active))
   const crecheDogs = dogs.filter((d) => !d.stays.some((s) => s.active))
@@ -483,7 +486,7 @@ export default function DashboardPage() {
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase">
                     <th className="px-3 py-2 text-left">Cão</th>
-                    <th className="px-3 py-2 text-left">Tutor</th>
+                    {!isMonitor && <th className="px-3 py-2 text-left">Tutor</th>}
                     <th className="px-3 py-2 text-center">Tipo</th>
                     <th className="px-3 py-2 text-center">Porte</th>
                     <th className="px-3 py-2 text-center">Presença</th>
@@ -512,7 +515,9 @@ export default function DashboardPage() {
                             </div>
                             <div>
                               <div className="flex items-center gap-1.5">
-                                <Link href={`/dogs/${dog.id}`} className="font-semibold text-gray-800 hover:underline">{dog.name}</Link>
+                                {isMonitor
+                                  ? <span className="font-semibold text-gray-800">{dog.name}</span>
+                                  : <Link href={`/dogs/${dog.id}`} className="font-semibold text-gray-800 hover:underline">{dog.name}</Link>}
                                 {report && !isAbsent && (
                                   <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">📋</span>
                                 )}
@@ -524,7 +529,7 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 py-2 text-gray-600">{dog.ownerName}</td>
+                        {!isMonitor && <td className="px-3 py-2 text-gray-600">{dog.ownerName}</td>}
                         <td className="px-3 py-2 text-center">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             entryType === 'HOTEL' ? 'bg-blue-100 text-blue-700'
@@ -584,7 +589,7 @@ export default function DashboardPage() {
                                 <UserCheck className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            {!isAbsent && (
+                            {!isMonitor && !isAbsent && (
                               <Link href={`/dogs/${dog.id}/report?date=${today}`} className="text-xs bg-amber-600 hover:bg-amber-700 text-white py-1 px-2 rounded font-medium">📝</Link>
                             )}
                             <button
@@ -724,7 +729,7 @@ export default function DashboardPage() {
                         <UserCheck className="w-3.5 h-3.5 inline mr-1" /> Confirmar Presença
                       </button>
                     )}
-                    {!isAbsent && (
+                    {!isMonitor && !isAbsent && (
                       <Link
                         href={`/dogs/${dog.id}/report?date=${today}`}
                         className={`text-center text-xs bg-amber-600 hover:bg-amber-700 text-white py-2 px-3 rounded-lg font-medium transition-colors ${present === true ? 'flex-1' : 'flex-1'}`}
@@ -743,7 +748,7 @@ export default function DashboardPage() {
                     >
                       {isAbsent ? '↩ Desfazer ausência' : '🚫 Ausente'}
                     </button>
-                    {!isAbsent && (
+                    {!isMonitor && !isAbsent && (
                       <Link
                         href={`/dogs/${dog.id}`}
                         className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded-lg font-medium transition-colors"

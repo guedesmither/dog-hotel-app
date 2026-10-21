@@ -72,7 +72,7 @@ const navSections: NavSection[] = [
         href: '/dogs',
         label: 'Cães',
         icon: <Dog className="w-5 h-5" />,
-        roles: ['ADMIN', 'MANAGER', 'MONITOR'],
+        roles: ['ADMIN', 'MANAGER'],
       },
       {
         href: '/dogs/new',

@@ -330,23 +330,35 @@ function getDayName(dateStr: string) {
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const role = (session.user as { role: string }).role
 
   const { searchParams } = new URL(req.url)
   const date = searchParams.get('date')
   const weekStart = searchParams.get('weekStart')
-
-  const dogSelect = {
-    id: true,
-    name: true,
-    breed: true,
-    ownerName: true,
-    photoUrl: true,
-    serviceType: true,
-    scheduledDays: true,
-    monthlyStartDay: true,
-    dogStatus: true,
-    isBolsista: true, // Bolsista flag for UI
+  if (role === 'MONITOR' && (!date || weekStart)) {
+    return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   }
+
+  const dogSelect = role === 'MONITOR'
+    ? {
+        id: true,
+        name: true,
+        breed: true,
+        photoUrl: true,
+        serviceType: true,
+      }
+    : {
+        id: true,
+        name: true,
+        breed: true,
+        ownerName: true,
+        photoUrl: true,
+        serviceType: true,
+        scheduledDays: true,
+        monthlyStartDay: true,
+        dogStatus: true,
+        isBolsista: true,
+      }
 
   if (weekStart) {
     const dates: string[] = []
