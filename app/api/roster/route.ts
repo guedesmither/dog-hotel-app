@@ -1071,7 +1071,10 @@ export async function POST(req: NextRequest) {
   const updateData: any = { source: 'MANUAL', type: entryType }
   if (isPernoite !== undefined) updateData.isPernoite = isPernoite
   if (hasBanho !== undefined) updateData.hasBanho = hasBanho
-  if (packageId) {
+  const existingForPackage = packageId
+    ? await prisma.dailyRoster.findUnique({ where: { dogId_date: { dogId, date } }, select: { packageId: true } })
+    : null
+  if (packageId && existingForPackage?.packageId !== packageId) {
     updateData.packageId = packageId
     // Decrement package remaining days
     const updatedPkg = await prisma.package.update({

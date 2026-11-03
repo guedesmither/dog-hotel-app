@@ -102,6 +102,7 @@ export default function PresencasPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [dateInputs, setDateInputs] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [baixaInputs, setBaixaInputs] = useState<Record<string, string>>({})
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -139,6 +140,34 @@ export default function PresencasPage() {
       await load(true)
     } catch {
       toast.error('Não foi possível salvar')
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  async function darBaixaPacote(dogId: string, packageId: string, date: string) {
+    setSavingId(packageId)
+    try {
+      const res = await fetch('/api/roster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dogId, date, type: 'PACOTE', packageId }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.details || err.error || 'Não foi possível dar baixa')
+      }
+      const presence = await fetch('/api/roster/presence', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dogId, date, present: true }),
+      })
+      if (!presence.ok) throw new Error('Dia criado na agenda, mas a presença não foi marcada')
+      toast.success(`Baixa em ${fmtDay(date)} lançada na agenda`)
+      setBaixaInputs(prev => { const n = { ...prev }; delete n[packageId]; return n })
+      await load(true)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Não foi possível dar baixa')
     } finally {
       setSavingId(null)
     }
@@ -367,6 +396,31 @@ export default function PresencasPage() {
                           Dias {p.kind === 'MENSAL' ? 'do período' : 'do pacote'} ({p.days.length})
                           <span className="font-normal text-xs text-gray-400 ml-2">clique para ajustar na agenda</span>
                         </h3>
+                        {p.kind === 'PACOTE' && (() => {
+                          const baixaDate = baixaInputs[p.id] ?? todayStr()
+                          const alreadyUsed = p.days.some(d => d.date === baixaDate)
+                          const noBalance = (p.balance ?? 0) <= 0
+                          return (
+                            <div className="rounded-lg border border-orange-200 bg-orange-50/60 p-3 mb-3 flex flex-col sm:flex-row sm:items-center gap-2">
+                              <p className="flex-1 text-xs text-orange-900">
+                                <b>Dar baixa</b>: o cão veio e não estava na agenda? Escolha o dia: ele entra na agenda como presente e desconta 1 dia do pacote.
+                              </p>
+                              <div className="flex items-center gap-1">
+                                <input type="date" value={baixaDate} min={p.start} max={p.end}
+                                  onChange={e => setBaixaInputs(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                  className="input py-1 text-xs w-36" />
+                                <button disabled={!baixaDate || alreadyUsed || noBalance || savingId === p.id}
+                                  onClick={() => {
+                                    if (confirm(`Dar baixa de 1 dia do pacote de ${row.dog.name} em ${fmtDay(baixaDate)}?`)) darBaixaPacote(row.dog.id, p.id, baixaDate)
+                                  }}
+                                  title={noBalance ? 'Pacote sem saldo' : alreadyUsed ? 'Este dia já foi descontado do pacote' : ''}
+                                  className="text-xs px-3 py-1.5 rounded-lg bg-orange-600 text-white font-semibold disabled:opacity-40 hover:bg-orange-700">
+                                  Dar baixa
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })()}
                         {p.days.length === 0 ? (
                           <p className="text-xs text-gray-400">Nenhum dia na agenda.</p>
                         ) : (
