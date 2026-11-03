@@ -34,6 +34,10 @@ export function parseSaleDate(dateValue: any): Date | null {
   return null
 }
 
+function startOfDateUTC(date: string): Date {
+  return new Date(`${date}T00:00:00.000Z`)
+}
+
 export function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate()
 }
@@ -495,7 +499,7 @@ async function replicateFromPreviousWeek(date: string, targetDateObj: Date, adde
         dogId: { in: pacoteDogIds },
         isActive: true,
         remainingDays: { gt: 0 },
-        expiryDate: { gte: date },
+        expiryDate: { gte: startOfDateUTC(date) },
       },
     })
     for (const pkg of activePkgs) {
@@ -601,7 +605,7 @@ async function seedPacote(date: string, targetDateObj: Date, added: string[]) {
     where: {
       isActive: true,
       remainingDays: { gt: 0 },
-      expiryDate: { gte: date },
+      expiryDate: { gte: startOfDateUTC(date) },
     },
     include: {
       dog: { select: { id: true, name: true, isActive: true, scheduledDays: true, serviceType: true } },
