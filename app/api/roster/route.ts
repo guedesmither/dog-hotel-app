@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { findReplacementForReposicao, linkReposicaoToReplacement, releaseReposicaoReplacement } from '@/lib/replacements'
 import { seedDate, refreshDay, isCrecheSale, calcMensalPeriod, calcMensalAllowed, calcAvulsoPeriod, calcHotelPeriod, isDayScheduled } from '@/lib/roster-seed'
 
 const DAYS_PT = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
@@ -653,6 +654,7 @@ export async function POST(req: NextRequest) {
 
     let eligible = false
     let reason = ''
+    const reposicaoReplacement = entryType === 'REPOSICAO' ? await findReplacementForReposicao(dogId, date) : null
 
     // ── ADMIN / MANAGER: check sale validity + scheduledDays ──────────────
     if (isAdminOrManager) {
@@ -759,6 +761,9 @@ export async function POST(req: NextRequest) {
         )
         eligible = hasValidPacote || hasValidPackage
         reason = eligible ? 'Admin: venda de pacote encontrada' : 'Não há pacote de diárias válido para esta data'
+      } else if (entryType === 'REPOSICAO') {
+        eligible = !!reposicaoReplacement
+        reason = eligible ? 'Admin: reposição pendente' : 'Não há reposição pendente para este cão'
       }
 
       // Note: Admin also requires valid sale - no free scheduling
@@ -1016,6 +1021,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (!eligible && reposicaoReplacement) {
+      eligible = true
+      reason = 'Reposição pendente'
+    }
+
     if (!eligible) {
       return NextResponse.json({ 
         error: 'Cão não elegível para agendamento',
@@ -1031,6 +1041,9 @@ export async function POST(req: NextRequest) {
   const existingEntry = await prisma.dailyRoster.findFirst({ where: { dogId, date } })
   if (existingEntry && existingEntry.type !== entryType) {
     const serviceDate = new Date(date + 'T12:00:00')
+    if (existingEntry.type === 'REPOSICAO') {
+      await releaseReposicaoReplacement(dogId, date)
+    }
     if (existingEntry.type === 'AVULSO') {
       const completedSale = await prisma.sales.findFirst({
         where: { dogId, saleType: 'AVULSO', manualBaixa: true, serviceDate },
@@ -1080,6 +1093,10 @@ export async function POST(req: NextRequest) {
     create: { dogId, date, source: 'MANUAL', type: entryType, isPernoite: isPernoite || false, packageId },
     select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, dog: { select: { id: true, name: true, breed: true, ownerName: true, photoUrl: true, serviceType: true, scheduledDays: true, monthlyStartDay: true } } } as any,
   })
+
+  if (entryType === 'REPOSICAO') {
+    await linkReposicaoToReplacement(dogId, date)
+  }
 
   // Auto-baixa for AVULSO: find uncompleted AVULSO sale and mark it as completed
   if (entryType === 'AVULSO') {
@@ -1221,6 +1238,10 @@ export async function DELETE(req: NextRequest) {
           })
         }
       }
+    }
+
+    if (entry?.type === 'REPOSICAO') {
+      await releaseReposicaoReplacement(dogId, date)
     }
 
     await prisma.dailyRoster.deleteMany({ where: { dogId, date } })

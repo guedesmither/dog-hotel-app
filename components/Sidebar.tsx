@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   CalendarDays,
+  CalendarCheck,
   UtensilsCrossed,
   Eye,
   CalendarPlus,
@@ -101,6 +102,12 @@ const navSections: NavSection[] = [
         href: '/agenda',
         label: 'Agenda',
         icon: <CalendarRange className="w-5 h-5" />,
+        roles: ['ADMIN', 'MANAGER'],
+      },
+      {
+        href: '/presencas',
+        label: 'Presenças',
+        icon: <CalendarCheck className="w-5 h-5" />,
         roles: ['ADMIN', 'MANAGER'],
       },
       {

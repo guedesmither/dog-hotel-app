@@ -156,54 +156,44 @@ function countPurchasedAvulsoDays(sale: any): number {
     .reduce((sum: number, item: any) => sum + (item.quantity || 1), 0)
 }
 
+export function getMensalWindow(sale: any, date: string): { start: Date; end: Date } | null {
+  const period = calcMensalPeriod(sale)
+  if (!period) return null
+  if (sale.endDate) return period
+  // No explicit endDate: window is the target month
+  const target = new Date(date + 'T12:00:00')
+  const start = new Date(target.getFullYear(), target.getMonth(), 1, 0, 0, 0, 0)
+  const end = new Date(target.getFullYear(), target.getMonth() + 1, 0, 23, 59, 59, 999)
+  return { start, end }
+}
+
+export function calcMensalQuota(sale: any, scheduledDays: string | null | undefined, start: Date, end: Date): number {
+  if (scheduledDays && scheduledDays.trim() !== '') {
+    return countScheduledOccurrences(scheduledDays, start, end)
+  }
+  const freq = getFrequencyFromProduct(sale)
+  if (freq > 0) {
+    const weeks = Math.ceil((end.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000))
+    return freq * weeks
+  }
+  return Infinity
+}
+
 export async function calcMensalAllowed(
   sale: any,
   dog: any,
   date: string
 ): Promise<{ allowed: number; used: number }> {
-  const period = calcMensalPeriod(sale)
-  if (!period) return { allowed: Infinity, used: 0 }
+  const window = getMensalWindow(sale, date)
+  if (!window) return { allowed: Infinity, used: 0 }
 
-  // If sale has no explicit endDate, calculate window for the target month only
-  const hasExplicitEnd = !!sale.endDate
-  const targetDate = new Date(date + 'T12:00:00')
-  const windowStart = hasExplicitEnd
-    ? period.start
-    : (() => {
-        const d = new Date(targetDate)
-        d.setDate(1)
-        d.setHours(0, 0, 0, 0)
-        return d
-      })()
-  const windowEnd = hasExplicitEnd
-    ? period.end
-    : (() => {
-        const d = new Date(targetDate)
-        d.setDate(1)
-        d.setMonth(d.getMonth() + 1)
-        d.setDate(0)
-        d.setHours(23, 59, 59, 999)
-        return d
-      })()
-
-  let allowed: number
-  if (dog.scheduledDays && dog.scheduledDays.trim() !== '') {
-    allowed = countScheduledOccurrences(dog.scheduledDays, windowStart, windowEnd)
-  } else {
-    const freq = getFrequencyFromProduct(sale)
-    if (freq > 0) {
-      const weeks = Math.ceil((windowEnd.getTime() - windowStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
-      allowed = freq * weeks
-    } else {
-      allowed = Infinity
-    }
-  }
+  const allowed = calcMensalQuota(sale, dog.scheduledDays, window.start, window.end)
 
   const used = await prisma.dailyRoster.count({
     where: {
       dogId: dog.id,
       type: 'CRECHE',
-      date: { gte: windowStart.toISOString().split('T')[0], lte: windowEnd.toISOString().split('T')[0] },
+      date: { gte: window.start.toISOString().split('T')[0], lte: window.end.toISOString().split('T')[0] },
     },
   })
 

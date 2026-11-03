@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { syncReposicaoPresence } from '@/lib/replacements'
 
 function getTodayString() {
   return new Date().toISOString().split('T')[0]
@@ -81,6 +82,9 @@ export async function PATCH(req: NextRequest) {
       select: { type: true },
     })
     resolvedType = rosterEntry?.type
+  }
+  if (resolvedType === 'REPOSICAO') {
+    await syncReposicaoPresence(dogId, date, present)
   }
   // BANHO entries are standalone walk-in services — never generate replacements
   const isHotelOrReposicao = resolvedType === 'HOTEL' || resolvedType === 'REPOSICAO' || resolvedType === 'BANHO'

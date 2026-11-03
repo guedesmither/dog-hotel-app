@@ -142,6 +142,21 @@ export default function AgendaPage() {
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const dateParam = params.get('date')
+    const dogParam = params.get('dog')
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+      setWeekStart(getMonday(new Date(dateParam + 'T12:00:00')))
+    }
+    if (dogParam) {
+      setSelectedDogId(dogParam)
+      setViewMode('dog')
+    } else if (dateParam) {
+      setViewMode('week')
+    }
+  }, [])
+
+  useEffect(() => {
     if (!showWeekPicker) return
     const handler = (e: MouseEvent) => {
       const target = e.target as HTMLElement

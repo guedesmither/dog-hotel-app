@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { removeReposicaoRosterEntry } from '@/lib/replacements'
 
 export async function PATCH(
   req: NextRequest,
@@ -15,14 +16,25 @@ export async function PATCH(
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   }
 
-  const { scheduledDate, status } = await req.json()
+  const { scheduledDate, status } = await req.json() as { scheduledDate?: string | null; status?: string }
+
+  const current = await prisma.replacement.findUnique({ where: { id: params.id } })
+  if (!current) return NextResponse.json({ error: 'Reposição não encontrada' }, { status: 404 })
 
   const data: Record<string, unknown> = {}
-  if (scheduledDate !== undefined) {
+  if (scheduledDate) {
     data.scheduledDate = scheduledDate
     data.status = 'SCHEDULED'
+  } else if (scheduledDate === null || status === 'PENDING' || status === 'EXPIRED') {
+    data.scheduledDate = null
+    data.status = status && status !== 'SCHEDULED' ? status : 'PENDING'
   }
-  if (status !== undefined) data.status = status
+  if (status !== undefined && data.status === undefined) data.status = status
+
+  // Keep the agenda in sync: drop the REPOSICAO entry from the previous date when it moves or is cleared
+  if (current.scheduledDate && current.scheduledDate !== scheduledDate && data.scheduledDate !== undefined) {
+    await removeReposicaoRosterEntry(current.dogId, current.scheduledDate)
+  }
 
   const replacement = await prisma.replacement.update({
     where: { id: params.id },
@@ -32,7 +44,6 @@ export async function PATCH(
     },
   })
 
-  // If scheduling a replacement date, also create/upsert the DailyRoster entry
   if (scheduledDate && replacement.dogId) {
     await prisma.dailyRoster.upsert({
       where: { dogId_date: { dogId: replacement.dogId, date: scheduledDate } },
@@ -56,6 +67,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   }
 
-  await prisma.replacement.delete({ where: { id: params.id } })
+  const deleted = await prisma.replacement.delete({ where: { id: params.id } })
+  if (deleted.scheduledDate) await removeReposicaoRosterEntry(deleted.dogId, deleted.scheduledDate)
   return NextResponse.json({ success: true })
 }
