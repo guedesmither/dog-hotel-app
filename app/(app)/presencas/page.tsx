@@ -21,6 +21,7 @@ interface Plan {
   absentLost: number
   balance: number | null
   days: DayEntry[]
+  closed: boolean
 }
 
 interface ReplacementRow {
@@ -173,6 +174,31 @@ export default function PresencasPage() {
     }
   }
 
+  async function updatePackageStatus(packageId: string, action: 'close' | 'reopen') {
+    setSavingId(packageId)
+    try {
+      const res = await fetch(`/api/packages/${packageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(result.details || result.error || 'Não foi possível atualizar o pacote')
+
+      if (action === 'close') {
+        const removedFutureDays = result.removedFutureDays || 0
+        toast.success(`Pacote encerrado${removedFutureDays > 0 ? ` — ${removedFutureDays} dia(s) futuro(s) removido(s) da agenda` : ''}`)
+      } else {
+        toast.success('Pacote reaberto')
+      }
+      await load(true)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Não foi possível atualizar o pacote')
+    } finally {
+      setSavingId(null)
+    }
+  }
+
   function toggle(dogId: string) {
     setExpanded(prev => {
       const next = new Set(prev)
@@ -284,8 +310,8 @@ export default function PresencasPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-gray-900">{row.dog.name}</p>
                         {row.plans.map(p => (
-                          <span key={p.id} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${p.kind === 'MENSAL' ? 'bg-teal-100 text-teal-800' : 'bg-orange-100 text-orange-800'}`}>
-                            {p.kind === 'MENSAL' ? 'Mensal' : 'Pacote'}
+                          <span key={p.id} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${p.kind === 'MENSAL' ? 'bg-teal-100 text-teal-800' : p.closed ? 'bg-gray-200 text-gray-600' : 'bg-orange-100 text-orange-800'}`}>
+                            {p.kind === 'MENSAL' ? 'Mensal' : p.closed ? 'Pacote encerrado' : 'Pacote'}
                           </span>
                         ))}
                         {pending > 0 && (
@@ -396,14 +422,39 @@ export default function PresencasPage() {
                           Dias {p.kind === 'MENSAL' ? 'do período' : 'do pacote'} ({p.days.length})
                           <span className="font-normal text-xs text-gray-400 ml-2">clique para ajustar na agenda</span>
                         </h3>
+                        {p.kind === 'PACOTE' && (
+                          <div className="rounded-lg border border-gray-200 bg-white p-3 mb-3 flex flex-col sm:flex-row sm:items-center gap-2">
+                            {p.closed ? (
+                              <>
+                                <p className="flex-1 text-sm font-medium text-gray-500">Pacote encerrado</p>
+                                <button disabled={savingId === p.id}
+                                  onClick={() => updatePackageStatus(p.id, 'reopen')}
+                                  className="text-xs px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 font-semibold disabled:opacity-40 hover:bg-gray-300">
+                                  Reabrir pacote
+                                </button>
+                              </>
+                            ) : (
+                              <button disabled={savingId === p.id}
+                                onClick={() => {
+                                  if (confirm(`Encerrar o pacote de ${row.dog.name} ? Os ${p.balance} dia(s) restantes deixam de valer e os dias futuros desse pacote saem da agenda.`)) {
+                                    updatePackageStatus(p.id, 'close')
+                                  }
+                                }}
+                                className="text-xs px-3 py-1.5 rounded-lg bg-red-600 text-white font-semibold disabled:opacity-40 hover:bg-red-700">
+                                Encerrar pacote
+                              </button>
+                            )}
+                          </div>
+                        )}
                         {p.kind === 'PACOTE' && (() => {
                           const baixaDate = baixaInputs[p.id] ?? todayStr()
                           const alreadyUsed = p.days.some(d => d.date === baixaDate)
                           const noBalance = (p.balance ?? 0) <= 0
+                          if (p.closed) return null
                           return (
                             <div className="rounded-lg border border-orange-200 bg-orange-50/60 p-3 mb-3 flex flex-col sm:flex-row sm:items-center gap-2">
                               <p className="flex-1 text-xs text-orange-900">
-                                <b>Dar baixa</b>: o cão veio e não estava na agenda? Escolha o dia: ele entra na agenda como presente e desconta 1 dia do pacote.
+                                <b>Lançar dia esquecido</b>: o cão veio e não estava na agenda? Escolha o dia: ele entra na agenda como presente e desconta 1 dia do pacote.
                               </p>
                               <div className="flex items-center gap-1">
                                 <input type="date" value={baixaDate} min={p.start} max={p.end}
@@ -415,7 +466,7 @@ export default function PresencasPage() {
                                   }}
                                   title={noBalance ? 'Pacote sem saldo' : alreadyUsed ? 'Este dia já foi descontado do pacote' : ''}
                                   className="text-xs px-3 py-1.5 rounded-lg bg-orange-600 text-white font-semibold disabled:opacity-40 hover:bg-orange-700">
-                                  Dar baixa
+                                  Lançar dia
                                 </button>
                               </div>
                             </div>

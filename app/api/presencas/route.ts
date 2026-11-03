@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
           expiryDate: { gte: new Date(ref + 'T00:00:00.000Z') },
         },
         orderBy: { purchaseDate: 'asc' },
+        include: { sale: { select: { manualBaixa: true } } },
       },
     },
   })
@@ -135,7 +136,7 @@ export async function GET(req: NextRequest) {
       const balance = mensal.acquired === null
         ? null
         : mensal.acquired - counts.present - counts.scheduled - counts.unmarked - absentLost
-      plans.push({ kind: 'MENSAL', id: mensal.saleId, start: mensal.start, end: mensal.end, acquired: mensal.acquired, ...counts, absentLost, balance, days })
+      plans.push({ kind: 'MENSAL', id: mensal.saleId, start: mensal.start, end: mensal.end, acquired: mensal.acquired, ...counts, absentLost, balance, days, closed: false })
     }
 
     for (const pkg of dog.packages) {
@@ -153,6 +154,7 @@ export async function GET(req: NextRequest) {
         absentLost: 0,
         balance: pkg.remainingDays,
         days,
+        closed: !pkg.isActive || !!pkg.sale?.manualBaixa,
       })
     }
 
