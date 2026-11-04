@@ -12,6 +12,12 @@ const DAY_NAME_MAP: Record<number, string[]> = {
   6: ['sábado', 'sab', 'sabado'],
 }
 
+export function isCrecheDog(dog: { serviceType?: string | null; dogStatus?: string | null }): boolean {
+  const service = (dog.serviceType || '').trim().toUpperCase()
+  if (service) return service.includes('CRECHE')
+  return (dog.dogStatus || '').trim().toUpperCase() === 'CRECHE'
+}
+
 export function getDayName(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00')
   return DAYS_PT[d.getDay()]
@@ -218,9 +224,9 @@ async function upsertRosterEntry(
 async function seedBolsistas(date: string, targetDateObj: Date, added: string[]) {
   const allBolsistaDogs = await prisma.dog.findMany({
     where: { isBolsista: true, isActive: true },
-    select: { id: true, name: true, scheduledDays: true, serviceType: true },
+    select: { id: true, name: true, scheduledDays: true, serviceType: true, dogStatus: true },
   })
-  const bolsistaDogs = allBolsistaDogs.filter((d) => (d.serviceType || '').toUpperCase() === 'CRECHE')
+  const bolsistaDogs = allBolsistaDogs.filter(isCrecheDog)
 
   for (const dog of bolsistaDogs) {
     if (!dog.scheduledDays || dog.scheduledDays.trim() === '') continue
@@ -273,7 +279,7 @@ async function seedMensalCreche(date: string, targetDateObj: Date, added: string
     if (!sale.dogId || !sale.dog) continue
     if (!isCrecheSale(sale)) continue
     const dog = sale.dog
-    if (!dog.isActive || (dog.serviceType || '').toUpperCase() !== 'CRECHE') continue
+    if (!dog.isActive || !isCrecheDog(dog)) continue
     if (dogsInPrevSameDay.has(dog.id)) continue
     if (!dog.scheduledDays || dog.scheduledDays.trim() === '') continue
     if (!isDayScheduled(dog.scheduledDays, targetDateObj.getDay())) continue
@@ -338,7 +344,7 @@ async function seedMensalCreche(date: string, targetDateObj: Date, added: string
     if (!sale.dogId || !sale.dog) continue
     if (!isCrecheSale(sale)) continue
     const dog = sale.dog
-    if (!dog.isActive || (dog.serviceType || '').toUpperCase() !== 'CRECHE') continue
+    if (!dog.isActive || !isCrecheDog(dog)) continue
 
     // Skip dogs that were in the previous week's same day — they're managed by replication
     if (dogsInPrevSameDay.has(dog.id)) continue
@@ -530,7 +536,7 @@ async function replicateFromPreviousWeek(date: string, targetDateObj: Date, adde
     if (entry.type === 'BANHO') continue
 
     if (entry.type === 'CRECHE') {
-      if ((dog.serviceType || '').toUpperCase() !== 'CRECHE') continue
+      if (!isCrecheDog(dog)) continue
       // NÃO checar isDayScheduled aqui — a agenda ajustada pelo usuário é a fonte de verdade (regra #1)
       // Se o cão estava na semana anterior neste dia da semana, ele deve ser replicado
 

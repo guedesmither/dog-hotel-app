@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { findReplacementForReposicao, linkReposicaoToReplacement, releaseReposicaoReplacement } from '@/lib/replacements'
-import { seedDate, refreshDay, isCrecheSale, calcMensalPeriod, calcMensalAllowed, calcAvulsoPeriod, calcHotelPeriod, isDayScheduled } from '@/lib/roster-seed'
+import { seedDate, refreshDay, isCrecheSale, isCrecheDog, calcMensalPeriod, calcMensalAllowed, calcAvulsoPeriod, calcHotelPeriod, isDayScheduled } from '@/lib/roster-seed'
 
 const DAYS_PT = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
@@ -69,13 +69,13 @@ async function diagnoseRefreshDay(date: string) {
     }
 
     if (entry.type === 'CRECHE') {
-      if ((dog.serviceType || '').toUpperCase() !== 'CRECHE') {
+      if (!isCrecheDog(dog)) {
         diagnostics.push({
           dogId: entry.dogId,
           name: dog.name,
           type: entry.type,
           result: 'SKIP',
-          reason: `serviceType é ${dog.serviceType || 'vazio'}, não CRECHE`,
+          reason: `serviceType é ${dog.serviceType || 'vazio'}, dogStatus é ${dog.dogStatus || 'vazio'}, não CRECHE`,
         })
         continue
       }
