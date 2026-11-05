@@ -17,6 +17,16 @@ const DAY_NAME_MAP: Record<number, string[]> = {
   6: ['sábado', 'sab', 'sabado'],
 }
 
+function saleHasDayItem(sale: { items?: Array<{ product: { category: string; name: string } | null }> }): boolean {
+  return (sale.items || []).some(({ product }) =>
+    !!product && (
+      product.category === 'AVULSO' ||
+      product.category === 'PACOTE' ||
+      /dia|diária|diaria/i.test(product.name)
+    )
+  )
+}
+
 // Extract frequency number from product name: "Mensal 2x" → 2
 function getFrequencyFromProduct(sale: any): number {
   for (const item of (sale.items || [])) {
@@ -479,7 +489,7 @@ export async function POST(req: NextRequest) {
   // Toggle-only update (hasBanho or isPernoite without adding to roster)
   if (hasBanho !== undefined && !type && !packageId) {
     // Use upsert to create entry if it doesn't exist
-    await prisma.dailyRoster.upsert({
+    const rosterEntry = await prisma.dailyRoster.upsert({
       where: { dogId_date: { dogId, date } },
       update: { hasBanho },
       create: { dogId, date, hasBanho, source: 'MANUAL', type: 'CRECHE' },
@@ -504,15 +514,26 @@ export async function POST(req: NextRequest) {
           data: { manualBaixa: true, manualBaixaDate: new Date(), serviceDate: new Date(date + 'T12:00:00') },
         })
       } else {
-        // No uncompleted bath sale found — block the toggle
-        await prisma.dailyRoster.update({
-          where: { dogId_date: { dogId, date } },
-          data: { hasBanho: false },
+        const completedBanhoSale = await prisma.sales.findFirst({
+          where: {
+            dogId,
+            manualBaixa: true,
+            serviceDate: new Date(date + 'T12:00:00'),
+            items: { some: { product: { category: { in: ['SERVICO', 'BANHO'] } } } },
+          },
         })
-        return NextResponse.json({
-          error: 'Não há venda de banho não baixada para este cão',
-          dogName: '',
-        }, { status: 403 })
+
+        if (!completedBanhoSale) {
+          // No uncompleted bath sale found — block the toggle
+          await prisma.dailyRoster.update({
+            where: { dogId_date: { dogId, date } },
+            data: { hasBanho: false },
+          })
+          return NextResponse.json({
+            error: 'Não há venda de banho não baixada para este cão',
+            dogName: '',
+          }, { status: 403 })
+        }
       }
     } else {
       // Reverting banho: find the sale that was auto-completed for this date and revert it
@@ -523,9 +544,13 @@ export async function POST(req: NextRequest) {
           serviceDate: new Date(date + 'T12:00:00'),
           items: { some: { product: { category: { in: ['SERVICO', 'BANHO'] } } } },
         },
+        include: { items: { include: { product: true } } },
       })
 
-      if (completedBanhoSale) {
+      if (
+        completedBanhoSale &&
+        !(saleHasDayItem(completedBanhoSale) && rosterEntry.type === 'AVULSO')
+      ) {
         await prisma.sales.update({
           where: { id: completedBanhoSale.id },
           data: { manualBaixa: false, manualBaixaDate: null, serviceDate: null },
@@ -633,18 +658,29 @@ export async function POST(req: NextRequest) {
         orderBy: { saleDate: 'asc' },
       })
 
-      if (!banhoSale) {
-        return NextResponse.json({
-          error: 'Não há venda de banho não baixada para este cão',
-          dogName: dog?.name || '',
-        }, { status: 403 })
-      }
+      if (banhoSale) {
+        // Auto-baixa the bath sale
+        await prisma.sales.update({
+          where: { id: banhoSale.id },
+          data: { manualBaixa: true, manualBaixaDate: new Date(), serviceDate: new Date(date + 'T12:00:00') },
+        })
+      } else {
+        const completedBanhoSale = await prisma.sales.findFirst({
+          where: {
+            dogId,
+            manualBaixa: true,
+            serviceDate: new Date(date + 'T12:00:00'),
+            items: { some: { product: { category: { in: ['SERVICO', 'BANHO'] } } } },
+          },
+        })
 
-      // Auto-baixa the bath sale
-      await prisma.sales.update({
-        where: { id: banhoSale.id },
-        data: { manualBaixa: true, manualBaixaDate: new Date(), serviceDate: new Date(date + 'T12:00:00') },
-      })
+        if (!completedBanhoSale) {
+          return NextResponse.json({
+            error: 'Não há venda de banho não baixada para este cão',
+            dogName: dog?.name || '',
+          }, { status: 403 })
+        }
+      }
     } else
     // ── BOLSISTA: always eligible, skip all checks ──────────────────────────
     if (dog.dogStatus === 'BOLSISTA' || dog.isBolsista === true) {
@@ -1058,8 +1094,12 @@ export async function POST(req: NextRequest) {
     if (existingEntry.type === 'BANHO' || (existingEntry.hasBanho && entryType !== 'BANHO')) {
       const completedBanhoSale = await prisma.sales.findFirst({
         where: { dogId, manualBaixa: true, serviceDate, items: { some: { product: { category: { in: ['SERVICO', 'BANHO'] } } } } },
+        include: { items: { include: { product: true } } },
       })
-      if (completedBanhoSale) {
+      if (
+        completedBanhoSale &&
+        !(saleHasDayItem(completedBanhoSale) && entryType === 'AVULSO')
+      ) {
         await prisma.sales.update({
           where: { id: completedBanhoSale.id },
           data: { manualBaixa: false, manualBaixaDate: null, serviceDate: null },

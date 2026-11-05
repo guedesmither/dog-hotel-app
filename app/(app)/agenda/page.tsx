@@ -417,11 +417,19 @@ export default function AgendaPage() {
 
   async function toggleBanho(dogId: string, date: string, current: boolean) {
     try {
-      await fetch('/api/roster', {
+      const res = await fetch('/api/roster', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dogId, date, hasBanho: !current }),
       })
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        setError({ message: errorData.error || 'Erro ao marcar banho', details: errorData.reason || errorData.details })
+        setShowError(true)
+      } else {
+        setError(null)
+        setShowError(false)
+      }
       await reload()
     } catch (error) {
       console.error('Error toggling banho:', error)
