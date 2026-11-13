@@ -504,16 +504,16 @@ async function replicateFromPreviousWeek(date: string, targetDateObj: Date, adde
     }
   }
 
-  // Batch: count roster usage per dog per type for AVULSO/PACOTE validation
-  const avulsoPacoteDogIds = previousEntries
-    .filter(e => e.type === 'AVULSO' || e.type === 'PACOTE')
+  // Batch: count roster usage per dog per type for PACOTE validation
+  const pacoteDogIdsWithPreviousEntries = previousEntries
+    .filter(e => e.type === 'PACOTE')
     .map(e => e.dogId)
     .filter(Boolean) as string[]
   const rosterCountsByType = new Map<string, number>() // key: `${dogId}:${type}`
-  if (avulsoPacoteDogIds.length > 0) {
+  if (pacoteDogIdsWithPreviousEntries.length > 0) {
     const counts = await prisma.dailyRoster.groupBy({
       by: ['dogId', 'type'],
-      where: { dogId: { in: avulsoPacoteDogIds } },
+      where: { dogId: { in: pacoteDogIdsWithPreviousEntries } },
       _count: { _all: true },
     })
     for (const c of counts) {
@@ -526,14 +526,9 @@ async function replicateFromPreviousWeek(date: string, targetDateObj: Date, adde
 
     // Skip if already in roster for target date (using batched set)
     if (entry.dogId && existingDogIds.has(entry.dogId)) continue
+    if (entry.type !== 'CRECHE' && entry.type !== 'PACOTE') continue
 
     const dog = entry.dog
-
-    // HOTEL: never replicate from previous week — hotel is period-based (stay dates)
-    if (entry.type === 'HOTEL') continue
-
-    // BANHO: never replicate — bath is a one-time service
-    if (entry.type === 'BANHO') continue
 
     if (entry.type === 'CRECHE') {
       if (!isCrecheDog(dog)) continue
@@ -554,13 +549,10 @@ async function replicateFromPreviousWeek(date: string, targetDateObj: Date, adde
       }
     }
 
-    // AVULSO/PACOTE: validate there's still an active sale with remaining days
-    if (entry.type === 'AVULSO' || entry.type === 'PACOTE') {
-      // For PACOTE: check if dog has an active package with remaining days
-      if (entry.type === 'PACOTE') {
-        const activePkgs = activePackagesByDog.get(entry.dogId!) || []
-        if (activePkgs.length === 0) continue // No active package — don't replicate
-      }
+    // PACOTE: validate there's still an active sale with remaining days
+    if (entry.type === 'PACOTE') {
+      const activePkgs = activePackagesByDog.get(entry.dogId!) || []
+      if (activePkgs.length === 0) continue // No active package — don't replicate
 
       const dogSales = (salesByDog.get(entry.dogId!) || []).filter(s => s.saleType === 'AVULSO' || s.saleType === 'PACOTE')
 
@@ -677,9 +669,9 @@ export async function seedRange(startDate: string, endDate: string): Promise<{ d
 export async function refreshDay(date: string): Promise<{ added: string[]; removed: number }> {
   const added: string[] = []
 
-  // Remove only AUTO entries for this day (keep MANUAL entries)
+  // Remove only unmarked AUTO entries for this day
   const removed = await prisma.dailyRoster.deleteMany({
-    where: { date, source: 'AUTO' },
+    where: { date, source: 'AUTO', present: null },
   })
 
   // Clear seed so seedDate runs fresh
@@ -690,6 +682,31 @@ export async function refreshDay(date: string): Promise<{ added: string[]; remov
 
   console.log(`[refreshDay ${date}] result: added=${added.length} removed=${removed.count}`)
   return { added, removed: removed.count }
+}
+
+export async function refreshStaleSeeds(dates: string[], now: Date = new Date()): Promise<string[]> {
+  const todaySP = new Date(now.getTime() - 3 * 3600 * 1000).toISOString().slice(0, 10)
+  const refreshed: string[] = []
+
+  for (const date of [...dates].sort()) {
+    try {
+      if (date < todaySP) continue
+
+      const seed = await prisma.dailyRosterSeed.findUnique({ where: { date } })
+      if (!seed) continue
+
+      const prevEnd = new Date(`${date}T03:00:00.000Z`)
+      prevEnd.setUTCDate(prevEnd.getUTCDate() - 6)
+      if (seed.seededAt < prevEnd && now >= prevEnd) {
+        await refreshDay(date)
+        refreshed.push(date)
+      }
+    } catch (err) {
+      console.error(`[refreshStaleSeeds ${date}] Error refreshing:`, err)
+    }
+  }
+
+  return refreshed
 }
 
 export async function resetSeedTracking(date: string) {

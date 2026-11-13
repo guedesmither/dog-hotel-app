@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { findReplacementForReposicao, linkReposicaoToReplacement, releaseReposicaoReplacement } from '@/lib/replacements'
-import { seedDate, refreshDay, isCrecheSale, isCrecheDog, calcMensalPeriod, calcMensalAllowed, calcAvulsoPeriod, calcHotelPeriod, isDayScheduled } from '@/lib/roster-seed'
+import { seedDate, refreshDay, refreshStaleSeeds, isCrecheSale, isCrecheDog, calcMensalPeriod, calcMensalAllowed, calcAvulsoPeriod, calcHotelPeriod, isDayScheduled } from '@/lib/roster-seed'
 
 const DAYS_PT = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
@@ -399,6 +399,8 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    await refreshStaleSeeds(dates)
+
     const entries = await prisma.dailyRoster.findMany({
       where: { date: { in: dates } },
       select: { id: true, dogId: true, date: true, source: true, type: true, present: true, isPernoite: true, hasBanho: true, packageId: true, guestName: true, dog: { select: dogSelect } } as any,
@@ -419,6 +421,7 @@ export async function GET(req: NextRequest) {
     try {
       const seeded = await prisma.dailyRosterSeed.findUnique({ where: { date } })
       if (!seeded) await seedDate(date)
+      await refreshStaleSeeds([date])
 
       let entries = await prisma.dailyRoster.findMany({
         where: { date },
