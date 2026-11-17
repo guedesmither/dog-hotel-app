@@ -17,6 +17,7 @@ import {
   Eye,
   CalendarPlus,
   CalendarRange,
+  FileText,
   History,
   TrendingUp,
   ClipboardCheck,
@@ -79,6 +80,12 @@ const navSections: NavSection[] = [
         href: '/dogs/new',
         label: 'Novo Cão',
         icon: <PlusCircle className="w-5 h-5" />,
+        roles: ['ADMIN', 'MANAGER'],
+      },
+      {
+        href: '/contratos',
+        label: 'Contratos',
+        icon: <FileText className="w-5 h-5" />,
         roles: ['ADMIN', 'MANAGER'],
       },
       {

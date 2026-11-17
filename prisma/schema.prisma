@@ -398,3 +398,24 @@ model AppSetting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+model Contract {
+  id        String    @id @default(cuid())
+  ownerKey  String
+  ownerName String
+  dogIds    String    @default("")
+  dogNames  String    @default("")
+  status    String    @default("GERADO")
+  source    String    @default("GERADO")
+  fileName  String
+  mimeType  String
+  fileData  Bytes
+  version   Int       @default(1)
+  sentAt    DateTime?
+  signedAt  DateTime?
+  createdBy String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([ownerKey])
+}
