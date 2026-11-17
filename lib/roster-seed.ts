@@ -684,6 +684,37 @@ export async function refreshDay(date: string): Promise<{ added: string[]; remov
   return { added, removed: removed.count }
 }
 
+export async function cleanupMensalRoster(
+  dogId: string,
+  start: string,
+  end: string,
+  now: Date = new Date(),
+): Promise<{ dates: string[]; removed: number }> {
+  const todaySP = new Date(now.getTime() - 3 * 3600 * 1000).toISOString().slice(0, 10)
+  const firstDate = start > todaySP ? start : todaySP
+  if (firstDate > end) return { dates: [], removed: 0 }
+
+  const current = new Date(`${firstDate}T12:00:00.000Z`)
+  const last = new Date(`${end}T12:00:00.000Z`)
+  const dates: string[] = []
+  let totalRemoved = 0
+
+  while (current <= last) {
+    const date = current.toISOString().slice(0, 10)
+    const result = await prisma.dailyRoster.deleteMany({
+      where: { dogId, date, source: 'AUTO', present: null, type: 'CRECHE' },
+    })
+    if (result.count > 0) {
+      dates.push(date)
+      totalRemoved += result.count
+      await seedDate(date)
+    }
+    current.setUTCDate(current.getUTCDate() + 1)
+  }
+
+  return { dates, removed: totalRemoved }
+}
+
 export async function refreshStaleSeeds(dates: string[], now: Date = new Date()): Promise<string[]> {
   const todaySP = new Date(now.getTime() - 3 * 3600 * 1000).toISOString().slice(0, 10)
   const refreshed: string[] = []

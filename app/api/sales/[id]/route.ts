@@ -2,6 +2,29 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { calcMensalPeriod, cleanupMensalRoster, isCrecheSale, seedRange } from '@/lib/roster-seed'
+
+const ACTIVE_MENSAL_STATUSES = ['PAGO', 'PENDENTE', 'AGENDADO', 'PROGRAMADA']
+
+function mensalRosterRange(sale: any): { start: string; end: string } | null {
+  const period = calcMensalPeriod(sale)
+  if (!period) return null
+
+  const start = period.start.toISOString().slice(0, 10)
+  const end = sale.endDate
+    ? period.end
+    : (() => {
+        const cappedEnd = new Date(period.start)
+        cappedEnd.setDate(cappedEnd.getDate() + 60)
+        return cappedEnd
+      })()
+
+  return { start, end: end.toISOString().slice(0, 10) }
+}
+
+function dateKey(value: Date | null): string | null {
+  return value ? value.toISOString().slice(0, 10) : null
+}
 
 // PUT /api/sales/[id] - Update a sale
 export async function PUT(
@@ -18,15 +41,44 @@ export async function PUT(
 
   try {
     const body = await req.json()
-    const { amountReceived, paymentStatus, paymentDate, paymentMethod, paymentFee, saleDate, serviceDate, isExempt, startDate, endDate, discount, notes, basePrice, finalPrice, items } = body
+    const { amountReceived, paymentStatus, paymentDate, paymentMethod, paymentFee, saleDate, serviceDate, isExempt, startDate, endDate, manualBaixa, discount, notes, basePrice, finalPrice, items } = body
 
     console.log('=== Atualizando venda ===')
     console.log('Sale ID:', params.id)
     console.log('Body:', body)
 
+    if (manualBaixa !== undefined && typeof manualBaixa !== 'boolean') {
+      return NextResponse.json({ error: 'manualBaixa deve ser booleano' }, { status: 400 })
+    }
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
       return NextResponse.json({ error: 'Data de fim não pode ser anterior à data de início' }, { status: 400 })
     }
+
+    const originalSale = await prisma.sales.findUnique({
+      where: { id: params.id },
+      include: { items: { include: { product: true } } },
+    })
+    if (!originalSale) return NextResponse.json({ error: 'Venda não encontrada' }, { status: 404 })
+
+    const oldMensalRange = originalSale.dogId && isCrecheSale(originalSale)
+      ? mensalRosterRange(originalSale)
+      : null
+    const nextStartDate = startDate === undefined
+      ? originalSale.startDate
+      : startDate
+        ? new Date(startDate + 'T12:00:00')
+        : null
+    const nextEndDate = endDate === undefined
+      ? originalSale.endDate
+      : endDate
+        ? new Date(endDate + 'T12:00:00')
+        : null
+    const mensalPeriodChanged = !!oldMensalRange && (
+      (startDate !== undefined && dateKey(nextStartDate) !== dateKey(originalSale.startDate)) ||
+      (endDate !== undefined && dateKey(nextEndDate) !== dateKey(originalSale.endDate)) ||
+      (paymentStatus !== undefined && paymentStatus !== originalSale.paymentStatus) ||
+      (manualBaixa !== undefined && manualBaixa !== originalSale.manualBaixa)
+    )
 
     let normalizedItems: Array<{ productId: string; quantity: number; unitPrice: number; totalPrice: number }> | undefined
     let updatedSaleType: string | undefined
@@ -93,6 +145,7 @@ export async function PUT(
           isExempt: isExempt !== undefined ? isExempt : undefined,
           startDate: startDate !== undefined ? (startDate ? new Date(startDate + 'T12:00:00') : null) : undefined,
           endDate: endDate !== undefined ? (endDate ? new Date(endDate + 'T12:00:00') : null) : undefined,
+          manualBaixa: manualBaixa !== undefined ? manualBaixa : undefined,
           discount: discount !== undefined ? discount : undefined,
           notes: notes !== undefined ? notes : undefined,
           basePrice: basePrice !== undefined ? basePrice : undefined,
@@ -176,6 +229,23 @@ export async function PUT(
       return updatedSale
     })
 
+    if (mensalPeriodChanged && originalSale.dogId && oldMensalRange) {
+      await cleanupMensalRoster(originalSale.dogId, oldMensalRange.start, oldMensalRange.end)
+
+      const saleIsActive =
+        ACTIVE_MENSAL_STATUSES.includes(sale.paymentStatus || '') &&
+        !sale.manualBaixa &&
+        isCrecheSale(sale)
+      const newMensalRange = saleIsActive ? mensalRosterRange(sale) : null
+      if (sale.dogId && newMensalRange) {
+        const todaySP = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10)
+        const seedStart = newMensalRange.start > todaySP ? newMensalRange.start : todaySP
+        if (seedStart <= newMensalRange.end) {
+          await seedRange(seedStart, newMensalRange.end)
+        }
+      }
+    }
+
     console.log('Venda atualizada com sucesso:', sale.id)
     return NextResponse.json(sale)
   } catch (error: any) {
@@ -199,9 +269,20 @@ export async function DELETE(
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   }
 
+  const sale = await prisma.sales.findUnique({
+    where: { id: params.id },
+    include: { items: { include: { product: true } } },
+  })
+  if (!sale) return NextResponse.json({ error: 'Venda não encontrada' }, { status: 404 })
+
+  const mensalRange = sale.dogId && isCrecheSale(sale) ? mensalRosterRange(sale) : null
   await prisma.sales.delete({
     where: { id: params.id },
   })
+
+  if (sale.dogId && mensalRange) {
+    await cleanupMensalRoster(sale.dogId, mensalRange.start, mensalRange.end)
+  }
 
   return NextResponse.json({ success: true })
 }
