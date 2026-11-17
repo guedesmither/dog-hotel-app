@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ensureContractTable } from '@/lib/contracts-db'
 import {
   contractContentDisposition,
   contractDocxMimeType,
@@ -18,6 +19,8 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const role = (session.user as { role?: string }).role || ''
   if (!isContractManager(role)) return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+
+  await ensureContractTable()
 
   const contract = await prisma.contract.findUnique({
     where: { id: params.id },
@@ -43,6 +46,8 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const role = (session.user as { role?: string }).role || ''
   if (!isContractManager(role)) return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+
+  await ensureContractTable()
 
   const existing = await prisma.contract.findUnique({
     where: { id: params.id },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ensureContractTable } from '@/lib/contracts-db'
 import { normalizeOwner } from '@/lib/contracts'
 import {
   contractDocxMimeType,
@@ -76,6 +77,8 @@ export async function POST(req: NextRequest) {
   if (!isContractManager(sessionUser.role || '')) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   }
+
+  await ensureContractTable()
 
   const formData = await req.formData()
   const files = formData.getAll('files').filter((value): value is File => value instanceof File)

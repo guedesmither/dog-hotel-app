@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ensureContractTable } from '@/lib/contracts-db'
 import { contractMetadataSelect, isContractManager } from '@/lib/contracts-api'
 
 type RouteContext = { params: { id: string } }
@@ -11,6 +12,8 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const role = (session.user as { role?: string }).role || ''
   if (!isContractManager(role)) return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+
+  await ensureContractTable()
 
   const contract = await prisma.contract.findUnique({
     where: { id: params.id },
@@ -25,6 +28,8 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const role = (session.user as { role?: string }).role || ''
   if (!isContractManager(role)) return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+
+  await ensureContractTable()
 
   const body = await req.json().catch(() => null)
   const status = body?.status
@@ -58,6 +63,8 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const role = (session.user as { role?: string }).role || ''
   if (role !== 'ADMIN') return NextResponse.json({ error: 'Apenas ADMIN pode excluir contratos' }, { status: 403 })
+
+  await ensureContractTable()
 
   const existing = await prisma.contract.findUnique({
     where: { id: params.id },

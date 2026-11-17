@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ensureContractTable } from '@/lib/contracts-db'
 import { buildContractData, contractFileName, normalizeOwner, renderContractDocx } from '@/lib/contracts'
 import { contractDocxMimeType, contractMetadataSelect, isContractManager } from '@/lib/contracts-api'
 
@@ -11,52 +12,61 @@ export async function GET() {
   const role = (session.user as { role?: string }).role || ''
   if (!isContractManager(role)) return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
 
-  const [dogs, contracts] = await Promise.all([
-    prisma.dog.findMany({
-      where: { isActive: true },
-      orderBy: [{ ownerName: 'asc' }, { name: 'asc' }],
-      select: { id: true, name: true, ownerName: true, ownerPhone: true },
-    }),
-    prisma.contract.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: contractMetadataSelect,
-    }),
-  ])
+  try {
+    await ensureContractTable()
 
-  const latestByOwner = new Map<string, typeof contracts[number]>()
-  for (const contract of contracts) {
-    if (!latestByOwner.has(contract.ownerKey)) latestByOwner.set(contract.ownerKey, contract)
-  }
+    const [dogs, contracts] = await Promise.all([
+      prisma.dog.findMany({
+        where: { isActive: true },
+        orderBy: [{ ownerName: 'asc' }, { name: 'asc' }],
+        select: { id: true, name: true, ownerName: true, ownerPhone: true },
+      }),
+      prisma.contract.findMany({
+        orderBy: { createdAt: 'desc' },
+        select: contractMetadataSelect,
+      }),
+    ])
 
-  const tutorMap = new Map<string, {
-    ownerKey: string
-    ownerName: string
-    ownerPhone: string
-    dogs: Array<{ id: string; name: string }>
-  }>()
-
-  for (const dog of dogs) {
-    const ownerKey = normalizeOwner(dog.ownerName)
-    const tutor = tutorMap.get(ownerKey)
-    if (tutor) {
-      tutor.dogs.push({ id: dog.id, name: dog.name })
-    } else {
-      tutorMap.set(ownerKey, {
-        ownerKey,
-        ownerName: dog.ownerName.trim(),
-        ownerPhone: dog.ownerPhone,
-        dogs: [{ id: dog.id, name: dog.name }],
-      })
+    const latestByOwner = new Map<string, typeof contracts[number]>()
+    for (const contract of contracts) {
+      if (!latestByOwner.has(contract.ownerKey)) latestByOwner.set(contract.ownerKey, contract)
     }
+
+    const tutorMap = new Map<string, {
+      ownerKey: string
+      ownerName: string
+      ownerPhone: string
+      dogs: Array<{ id: string; name: string }>
+    }>()
+
+    for (const dog of dogs) {
+      const ownerKey = normalizeOwner(dog.ownerName)
+      const tutor = tutorMap.get(ownerKey)
+      if (tutor) {
+        tutor.dogs.push({ id: dog.id, name: dog.name })
+      } else {
+        tutorMap.set(ownerKey, {
+          ownerKey,
+          ownerName: dog.ownerName.trim(),
+          ownerPhone: dog.ownerPhone,
+          dogs: [{ id: dog.id, name: dog.name }],
+        })
+      }
+    }
+
+    const tutors = Array.from(tutorMap.values()).map(tutor => ({
+      ...tutor,
+      latest: latestByOwner.get(tutor.ownerKey) || null,
+      count: contracts.filter(contract => contract.ownerKey === tutor.ownerKey).length,
+    }))
+
+    return NextResponse.json({ tutors, contracts })
+  } catch (err: any) {
+    return NextResponse.json({
+      error: 'Erro ao carregar contratos',
+      details: err.message,
+    }, { status: 500 })
   }
-
-  const tutors = Array.from(tutorMap.values()).map(tutor => ({
-    ...tutor,
-    latest: latestByOwner.get(tutor.ownerKey) || null,
-    count: contracts.filter(contract => contract.ownerKey === tutor.ownerKey).length,
-  }))
-
-  return NextResponse.json({ tutors, contracts })
 }
 
 export async function POST(req: NextRequest) {
@@ -66,6 +76,8 @@ export async function POST(req: NextRequest) {
   if (!isContractManager(sessionUser.role || '')) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   }
+
+  await ensureContractTable()
 
   const body = await req.json().catch(() => null)
   if (!body || typeof body.ownerKey !== 'string') {
